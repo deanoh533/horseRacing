@@ -1,0 +1,58 @@
+# 환경변수 (API 키 등 민감 정보 절대 금지!)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json.bak
+
+# 빌드 결과물
+dist/
+build/
+.next/
+out/
+
+# TypeScript
+*.tsbuildinfo
+
+# 임시 파일 (DOCX 파싱 등)
+*.zip
+kra_prd_extracted/
+kra_score_extracted/
+tmp/
+.cache/
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 테스트
+coverage/
+.nyc_output/
+
+# Vercel
+.vercel
+
+# Supabase 로컬 캐시
+.supabase/
+
+# 로그
+*.log
+logs/
+
+# 임시 응답 데이터
+/tmp/kra_*.json
