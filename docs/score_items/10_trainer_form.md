@@ -1,8 +1,8 @@
-# ⑦ 조교사 폼
+# ⑩ 조교사 폼
 
-**14개 항목 중 비중:** 8점
-**상태:** ⏳ 의논 대기
-**최근 업데이트:** 2026-05-22
+**17개 항목 중 비중:** 7.02점 (원본 8점)
+**카테고리:** 폼
+**상태:** ✅ 확정 (2026-05-22, 60일 기준)
 
 ---
 
@@ -16,56 +16,89 @@ ord: 마방 전체 말의 착순
 
 ## 🎯 정의
 
-"조교사 마방 전체가 최근에 좋은 폼인가"
+**"조교사 마방 전체가 최근에 좋은 폼인가" - 최근 60일 장기 추세**
 
-## 🧮 PRD v4.0 알고리즘
+```
+핵심 원칙:
+  ✅ 입상 비율 + 1등 보너스 (기수 폼과 동일 알고리즘)
+  ✅ 60일 기간 (장기 추세 반영)
+  ✅ 마방 전체 말 출전 결과 통합
+```
+
+## 🧮 알고리즘 (확정)
 
 ```javascript
 function calculateTrainerFormScore(trNo, todayDate) {
-  // 최근 30일 마방 전체 출전 결과
-  const thirtyDaysAgo = subtractDays(todayDate, 30);
-  const stableResults = db.query(`
+  // 최근 60일 마방 전체 (서울 + 부산경남 통합)
+  const sixtyDaysAgo = subtractDays(todayDate, 60);
+  const recent = db.query(`
     SELECT ord FROM horse_results
     WHERE tr_no = $1 AND race_date >= $2
-  `, [trNo, thirtyDaysAgo]);
+  `, [trNo, sixtyDaysAgo]);
   
-  if (stableResults.length < 10) return 0.5; // 마방 전체이니 더 많이
+  if (recent.length < 20) return 0.5; // 데이터 부족 (20회 미만)
   
-  const scoreMap = {1: 3, 2: 2, 3: 1};
-  const totalScore = stableResults.reduce((s, r) => 
-    s + (scoreMap[r.ord] ?? 0), 0);
-  const maxPossible = stableResults.length * 3;
+  const top1 = recent.filter(r => r.ord === 1).length;
+  const top3 = recent.filter(r => r.ord <= 3).length;
+  const total = recent.length;
   
-  return totalScore / maxPossible;
+  // 메인: 입상 비율 (사용자 노하우 ⭐)
+  const top3Rate = top3 / total;
+  
+  // 보너스: 1등 가중
+  const top1Bonus = (top1 / total) * 0.2;
+  
+  return Math.min(1.0, top3Rate + top1Bonus);
 }
 ```
 
-## ⚠️ 기수 폼과의 핵심 차이
+## 📊 시나리오별 점수 (60일 50번 출전 예시)
+
+| 마방 성적 (50번) | 입상비율 | 1등보너스 | **점수** |
+|----------------|---------|----------|---------|
+| 40번 입상 (15 1등) | 0.80 | +0.06 | **0.86** ⭐⭐⭐ |
+| 25번 입상 (8 1등) | 0.50 | +0.03 | **0.53** ⭐ |
+| 15번 입상 (5 1등) | 0.30 | +0.02 | **0.32** |
+| 5번 입상 (1 1등) | 0.10 | +0.004 | **0.10** |
+| 20회 미만 출전 | - | - | **0.50** (중립) |
+
+## ⚙️ 설계 결정 (2026-05-22 확정)
+
+| 결정 | 선택 | 이유 |
+|------|------|------|
+| 기간 | **60일** (기수 30일과 차별화) | 조교사는 장기 영향, 안정적 추세 |
+| 경마장 구분 | **통합** | 단순화 |
+| 데이터 부족 | **20회 미만 → 0.5** | 60일 마방이니 충분히 많이 |
+| 알고리즘 | 기수 폼과 **동일** | 일관성 |
+| 1등 가중 | **+0.2 보너스** | 입상 비율의 보조 |
+
+## 💡 기수 폼(⑨)과의 차이
 
 ```
-⑥ 기수 폼: 본인(기수)의 출전 성적만
-⑦ 조교사 폼: 마방 전체 말의 성적 (조교사가 관리하는 모든 말)
+⑨ 기수 폼:
+  - 기수 단위 (본인 출전만)
+  - 30일 (단기 폼 중요)
+  - 5회 임계
+  - 비중 10.53점
 
-→ 조교사가 잘하면 마방 전체가 잘 됨
-→ 데이터 양이 훨씬 많음 (한 조교사 = 여러 말)
-```
+⑩ 조교사 폼:
+  - 마방 단위 (전체 말 통합)
+  - 60일 (장기 추세 중요)
+  - 20회 임계
+  - 비중 7.02점
 
-## ⏳ 결정 필요 사항
-
-```
-Q1. 기간 (30일?)
-Q2. 데이터 부족 임계값 (10회?)
-Q3. 마방 크기별 보정?
-   - 큰 마방 vs 작은 마방
+→ 같은 입상 비율 알고리즘
+→ 기간/임계값만 다르게 (조교사는 장기 영향이라)
 ```
 
 ## 🔗 의존성
 
 - KRA API: API214_1 (`trNo`, `ord`)
-- DB: `horse_results.tr_no`, `horse_results.race_date`
+- DB: `horse_results.tr_no`, `horse_results.race_date`, `horse_results.ord`
 
 ## 📚 변경 이력
 
 | 일자 | 변경 |
 |------|------|
+| 2026-05-22 | 60일 기준 + 입상 비율 알고리즘 확정 |
 | 2026-05-22 | 골격 작성 |
