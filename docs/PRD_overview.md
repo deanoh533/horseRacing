@@ -4,7 +4,23 @@
 **사용자:** 본인 1명 (5년차 경마 분석가)
 **목적:** 적중률 향상 → 수익 증대
 **최종 업데이트:** 2026-05-22
-**버전:** v5.0 (분리 문서 구조로 재편)
+**버전:** v5.1 (17개 항목 구조로 재편)
+
+---
+
+## 🆕 v5.0 → v5.1 변경 (2026-05-22)
+
+```
+1. 14개 항목 → 17개 항목으로 재편
+   - 컨디션(②)을 4개 독립 항목으로 분리
+   - 마체중 변화 / 착순 추세 / 구간 시간 / 후반 순위
+
+2. "4대 핵심 영역" → "사용자 선택 4개 핵심 지표"
+   - 17개 중 자유롭게 4개 선택
+   - 선택된 4개에 대해서만 AI 인사이트 자동 생성
+
+3. 비중 합계 100점 정확히 맞춤 (114 → 100 정규화)
+```
 
 ---
 
@@ -12,32 +28,28 @@
 
 ```
 docs/
-├── PRD_overview.md             ← 현재 문서 (전체 개요)
-├── score_items/                ← 14개 점수 항목 (개별 파일)
+├── PRD_overview.md             ← 현재 문서
+├── score_items/                ← 17개 독립 점수 항목
 │   ├── 01_rating.md
-│   ├── 02_recent_form/         ← 컨디션 (4개 신호)
-│   │   ├── _overview.md
-│   │   ├── signal_1_weight.md
-│   │   ├── signal_2_form.md
-│   │   ├── signal_3_time.md
-│   │   └── signal_4_late.md
-│   ├── 03_distance_fitness.md
-│   ├── 04_track_adaptation.md
-│   ├── 05_weight.md
-│   ├── 06_jockey_form.md
-│   ├── 07_trainer_form.md
-│   ├── 08_race_interval.md
-│   ├── 09_starting_position.md
-│   ├── 10_age_distance_gender.md
-│   ├── 11_pedigree.md
-│   ├── 12_seasonal_pattern.md
-│   ├── 13_jockey_horse_chemistry.md
-│   └── 14_market_odds.md
-├── algorithms/                 ← 핵심 알고리즘 (예정)
-│   ├── spearman_correlation.md
-│   ├── weight_adjustment.md
-│   └── backtest.md
-└── _archive/                   ← 이전 버전 PRD 보관
+│   ├── 02_weight_change.md     ⭐ (구 컨디션 신호1)
+│   ├── 03_recent_form.md       ⭐ (구 컨디션 신호2)
+│   ├── 04_sectional_time.md    ⭐ (구 컨디션 신호3)
+│   ├── 05_late_position.md     ⭐ (구 컨디션 신호4)
+│   ├── 06_distance_fitness.md
+│   ├── 07_track_adaptation.md
+│   ├── 08_burden_weight.md
+│   ├── 09_jockey_form.md
+│   ├── 10_trainer_form.md
+│   ├── 11_race_interval.md
+│   ├── 12_starting_position.md
+│   ├── 13_age_distance_gender.md
+│   ├── 14_pedigree.md
+│   ├── 15_seasonal_pattern.md
+│   ├── 16_jockey_horse_chemistry.md
+│   └── 17_market_odds.md
+├── algorithms/
+│   └── (예정)
+└── _archive/
 ```
 
 ---
@@ -45,15 +57,9 @@ docs/
 ## 🎯 핵심 정체성
 
 ```
-이전 가정 (잘못된):
-  ❌ 대중 서비스 (1,000명+ MAU)
-  ❌ 가상 페르소나 (박정수, 김다영)
-  ❌ NPS, 유료 전환율
-
-실제 (확정):
-  ✅ 개인 도구 (본인 1명)
-  ✅ 5년차 경마 전문 분석가
-  ✅ 적중률 → 수익 향상이 진짜 KPI
+사용자: 본인 1명 (개인 도구)
+경력: 경마 전문 분석가 5년+
+목적: 적중률 → 수익 향상
 ```
 
 ## 🏗️ 기술 스택
@@ -63,48 +69,137 @@ docs/
 백엔드: Vercel Serverless Functions
 DB: Supabase PostgreSQL (500MB 무료)
 인증: Supabase Auth (이메일, 본인만)
-AI: Claude API (경주 인사이트 자동 생성)
+AI: Claude API (선택된 4개 핵심에 대한 인사이트)
 배포: Vercel (완전 무료)
 ```
 
-## 📊 14개 점수 항목 (총 100점)
+## 📊 17개 점수 항목 (총 100점)
 
-| # | 항목 | 비중 | 상태 | 파일 |
-|---|------|------|------|------|
-| ① | 레이팅 | 20 | ✅ 확정 | [01_rating.md](score_items/01_rating.md) |
-| ② | 컨디션 (최근 5경주) | 15 | ✅ 4개 신호 확정 | [02_recent_form/](score_items/02_recent_form/_overview.md) |
-| ③ | 거리 적성 | 10 | ⏳ 의논 대기 | [03_distance_fitness.md](score_items/03_distance_fitness.md) |
-| ④ | 주로 적응 | 10 | ⏳ 의논 대기 | [04_track_adaptation.md](score_items/04_track_adaptation.md) |
-| ⑤ | 부담중량/마체중 | 5 | ⏸ 전문가 자문 | [05_weight.md](score_items/05_weight.md) |
-| ⑥ | 기수 폼 | 12 | ⏳ 의논 대기 ⭐ | [06_jockey_form.md](score_items/06_jockey_form.md) |
-| ⑦ | 조교사 폼 | 8 | ⏳ 의논 대기 | [07_trainer_form.md](score_items/07_trainer_form.md) |
-| ⑧ | 경주 간격 | 4 | ✅ 확정 | [08_race_interval.md](score_items/08_race_interval.md) |
-| ⑨ | 출발번호 (stOrd) | 3 | ✅ 확정 | [09_starting_position.md](score_items/09_starting_position.md) |
-| ⑩ | 나이×거리×성별 | 3 | ⏸ 전문가 자문 | [10_age_distance_gender.md](score_items/10_age_distance_gender.md) |
-| ⑪ | 혈통 (3대) | 5 | ⏸ 전문가 자문 | [11_pedigree.md](score_items/11_pedigree.md) |
-| ⑫ | 계절 패턴 | 5 | ✅ 확정 | [12_seasonal_pattern.md](score_items/12_seasonal_pattern.md) |
-| ⑬ | 기수-말 궁합 | 4 | ⏳ 의논 대기 ⭐ | [13_jockey_horse_chemistry.md](score_items/13_jockey_horse_chemistry.md) |
-| ⑭ | 배당률(인기도) | 10 | ✅ 확정 | [14_market_odds.md](score_items/14_market_odds.md) |
+> ⚠️ **비중 조정 이력**: 원본 PRD 합계가 114점이었으나 비례 축소로 100점 정확히 맞춤. 본인 노하우 비율 그대로 유지. 가중치 학습 시스템이 동적 조정.
 
-**⭐ = 본인이 평소 중시하는 4대 핵심 분석 영역**
+| # | 항목 | 비중 | 카테고리 | 상태 | 파일 |
+|---|------|------|----------|------|------|
+| 1 | 레이팅 | **17.54** | 능력 | ✅ 확정 | [01_rating.md](score_items/01_rating.md) |
+| 2 | 마체중 변화 | **4.21** | 컨디션 | ✅ 확정 | [02_weight_change.md](score_items/02_weight_change.md) |
+| 3 | 착순 추세 | **4.21** | 컨디션 | ✅ 확정 | [03_recent_form.md](score_items/03_recent_form.md) |
+| 4 | 구간 시간 단축 | **2.37** | 컨디션 | ✅ 확정 | [04_sectional_time.md](score_items/04_sectional_time.md) |
+| 5 | 후반 구간 순위 | **2.37** | 컨디션 | ✅ 확정 | [05_late_position.md](score_items/05_late_position.md) |
+| 6 | 거리 적성 | **8.77** | 조건 | ⏳ 의논 대기 | [06_distance_fitness.md](score_items/06_distance_fitness.md) |
+| 7 | 주로 적응 | **8.77** | 조건 | ⏳ 의논 대기 | [07_track_adaptation.md](score_items/07_track_adaptation.md) |
+| 8 | 부담중량 | **4.39** | 조건 | ⏸ 전문가 자문 | [08_burden_weight.md](score_items/08_burden_weight.md) |
+| 9 | 기수 폼 | **10.53** | 폼 | ⏳ 의논 대기 | [09_jockey_form.md](score_items/09_jockey_form.md) |
+| 10 | 조교사 폼 | **7.02** | 폼 | ⏳ 의논 대기 | [10_trainer_form.md](score_items/10_trainer_form.md) |
+| 11 | 경주 간격 | **3.51** | 구조 | ✅ 확정 | [11_race_interval.md](score_items/11_race_interval.md) |
+| 12 | 출발번호 (stOrd) | **2.63** | 구조 | ✅ 확정 | [12_starting_position.md](score_items/12_starting_position.md) |
+| 13 | 나이×거리×성별 | **2.63** | 구조 | ⏸ 전문가 자문 | [13_age_distance_gender.md](score_items/13_age_distance_gender.md) |
+| 14 | 혈통 (3대) | **4.39** | 혈통 | ⏸ 전문가 자문 | [14_pedigree.md](score_items/14_pedigree.md) |
+| 15 | 계절 패턴 | **4.39** | 계절 | ✅ 확정 | [15_seasonal_pattern.md](score_items/15_seasonal_pattern.md) |
+| 16 | 기수-말 궁합 | **3.51** | 궁합 | ⏳ 의논 대기 | [16_jockey_horse_chemistry.md](score_items/16_jockey_horse_chemistry.md) |
+| 17 | 배당률 (인기도) | **8.77** | 시장 | ✅ 확정 | [17_market_odds.md](score_items/17_market_odds.md) |
+| | **합계** | **100.00** | | | |
 
-## 🔬 4대 핵심 분석 영역 (본인 노하우)
+**계산 방식:**
+```
+조정 비중 = 원본 비중 × (100 / 114)
+컨디션 4개 신호 비중 = 원 컨디션 비중(13.16) × 신호별 % (32/32/18/18)
+```
+
+## 🎯 두 가지 별개 시스템: 핵심 지표 vs 인사이트 지표
+
+### 1️⃣ 핵심 지표 4개 (자동, UI 별표시) ⭐
 
 ```
-1. 컨디션 (말의 최근 5경주 추세) → 항목 ②
-2. 거리 적성 → 항목 ③
-3. 기수-말 궁합 → 항목 ⑬
-4. 기수의 최근 성적 → 항목 ⑥
+정의: "지금 이 시점에 가장 중요한 지표 4개"
+
+선정 방식: 가중치 중요도 순 (자동)
+  - 매주/매월 백테스트 결과 반영
+  - 가중치 학습 시스템이 자동 결정
+  - 사용자 개입 없음
+
+UI 역할:
+  - 17개 항목 중 가중치 상위 4개에 별표(⭐) 표시
+  - "지금 가장 영향력 큰 지표가 뭔지" 한눈에
+  - 데이터에 따라 자동 변경
+
+예시 (가중치 학습 후):
+  ⭐ 1순위: 레이팅 (17.54점)
+  ⭐ 2순위: 기수 폼 (12.0점, 학습으로 상승)
+  ⭐ 3순위: 거리 적성 (10.5점, 학습으로 상승)
+  ⭐ 4순위: 배당률 (8.77점)
+  
+  → 시간이 흐르면 다른 항목이 상위로 올라올 수 있음
+```
+
+### 2️⃣ 인사이트 지표 4개 (사용자 수동 선택, AI 분석) 🤖
+
+```javascript
+// 본인이 17개 중 자유롭게 4개 선택
+user_settings: {
+  insight_indicators: [
+    "recent_form",       // 항목 3: 착순 추세 (기본 추천)
+    "distance_fitness",  // 항목 6: 거리 적성 (기본 추천)
+    "jockey_form",       // 항목 9: 기수 폼 (기본 추천)
+    "chemistry"          // 항목 16: 기수-말 궁합 (기본 추천)
+  ]
+}
+
+// 제약: 없음 (완전 자유)
+// 설정에서 언제든 변경 가능
+```
+
+```
+정의: "내가 깊이 알고 싶은 지표 4개"
+
+선정 방식: 사용자 수동 선택
+  - 본인이 17개 중 자유롭게 4개
+  - 분석 스타일에 따라 변경 (예: 비 오는 날엔 주로 적응)
+  
+역할:
+  - Claude API가 이 4개 항목에 대해 자연어 인사이트 자동 생성
+  - "이 말이 왜 좋은가/나쁜가" 설명
+  - 단순 점수가 아닌 깊은 분석
+```
+
+### 🆚 두 시스템 비교
+
+| 구분 | 핵심 지표 ⭐ | 인사이트 지표 🤖 |
+|------|-----------|---------------|
+| 선정 | **자동** (가중치 순) | **수동** (사용자 선택) |
+| 변경 | 학습으로 자연 변경 | 사용자가 언제든 |
+| 목적 | UI 강조 (영향력) | AI 분석 (관심사) |
+| 표시 | 별표(⭐) | AI 텍스트 인사이트 |
+| 겹침 | 가능 (예: 둘 다 기수폼 포함) | |
+
+### 🔄 예시: 두 시스템 함께 작동
+
+```
+경주 분석 화면:
+  
+  📊 17개 항목 점수 표시
+  
+  ⭐ 핵심 지표 (자동, 가중치 상위 4):
+    [레이팅 ⭐] [기수폼 ⭐] [거리적성 ⭐] [배당률 ⭐]
+    → 큰 차트 + 별표시
+  
+  🤖 AI 인사이트 (수동, 사용자 선택 4):
+    [착순 추세] [거리 적성] [기수 폼] [궁합]
+    
+    "🐎 천리마 AI 분석:
+     ✓ 착순 추세: 3-3-2-1-1 점진 향상
+     ✓ 거리 적성: 1300m 100% 입상
+     ⚠️ 기수 폼: 평소보다 살짝 낮음
+     ✓ 궁합: 환상의 콤비 (4회 평균 1.5위)"
+
+겹치는 항목 (거리적성, 기수폼):
+  → 별표 + AI 인사이트 모두 표시 (이중 강조)
 ```
 
 ## 🧠 가중치 학습 - 하이브리드 시스템
 
 ```
-초기: 본인이 5년 노하우로 가중치 설정
-시스템: 백테스트로 "적정 가중치" 제안 (스피어만 상관계수)
+초기: 본인 노하우 비중 (위 표)
+시스템: 백테스트로 적정 가중치 제안 (스피어만 상관계수)
 결정: 본인이 보고 수동 조정 (수용 또는 무시)
-
-→ 자세한 내용: algorithms/weight_adjustment.md (예정)
 ```
 
 ## 🔄 결과 처리 - 완전 자동
@@ -113,23 +208,29 @@ AI: Claude API (경주 인사이트 자동 생성)
 매일 새벽 KRA API 동기화
   → 실제 결과(ord) 자동 수집
   → 사용자 입력 부담 0
-  → 어제 예측 vs 실제 자동 비교
 ```
 
 ## 🤖 AI 인사이트 (Claude API)
 
 ```
-경주 인사이트 자동 생성:
-  - "이번 경주는 박빙입니다"
-  - "1번 마는 거리 적성이 결정적"
-  - 매 경주마다 자동
+사용자 선택 인사이트 지표 4개에 대해서만 자동 생성
+(핵심 지표 ⭐와는 별개)
+
+예시 (인사이트 4개: 착순/거리/기수폼/궁합):
+  🐎 천리마 AI 분석:
+  ✓ 착순 추세: 3-3-2-1-1 → 컨디션 매우 상승 (92점)
+  ✓ 거리 적성: 1300m 100% 입상 (10점)
+  ⚠️ 기수 폼: 조인권 50% 적중 (살짝 낮음)
+  ✓ 궁합: 4회 조합 평균 1.5위 (환상의 콤비)
+  
+  💡 종합: 거리와 궁합이 결정적
 ```
 
 ## 📁 데이터 관리
 
 ```
 ✅ DB 저장 (모든 분석 이력)
-✅ PDF 다운로드 (경마장 현장 출력용)
+✅ PDF 다운로드 (현장 출력)
 ✅ 과거 분석 다시 조회 가능
 ```
 
@@ -147,8 +248,7 @@ AI: Claude API (경주 인사이트 자동 생성)
 
 ```
 🚨 hr_no 파라미터 필터링 안 됨
-   → 모든 경주 데이터를 DB에 캐싱 필수
-   → 매일 자동 동기화 + 클라이언트 측 필터링
+   → DB 캐싱 필수
 
 🚨 ilsu 필드 ≠ 휴식일수
    → 직접 계산 (rcDate 차이)
@@ -161,44 +261,46 @@ AI: Claude API (경주 인사이트 자동 생성)
 
 | 일자 | 변경 |
 |------|------|
-| 2026-05-22 | 분리 문서 구조로 재편 (v5.0) |
+| 2026-05-22 | v5.1 - 17개 항목 구조 + 사용자 선택 4개 핵심 |
+| 2026-05-22 | v5.0 - 분리 문서 구조로 재편 |
 | 2026-05-22 | 컨디션 4개 신호 알고리즘 확정 |
-| 2026-05-22 | PRD v4.0 - PM 프레임워크 통합 (이후 잘못된 가정 발견) |
-| 2026-05-22 | PRD v3.2 - Supabase + Vercel로 변경 |
+| 2026-05-22 | PRD v4.0 - PM 프레임워크 통합 |
+| 2026-05-22 | PRD v3.2 - Supabase + Vercel |
 | 2026-05-22 | PRD v3.1 - KRA API 검증 반영 |
 | 2026-05 | PRD v3.0 - 기술 스택 확정 |
-| 2026-04 | PRD v2.3 - 가중치 조정 로직 추가 |
+| 2026-04 | PRD v2.3 - 가중치 조정 로직 |
 | 2026-04 | PRD v1.0 - 모바일 Claude 초안 |
 
-→ 이전 버전들은 [_archive/](_archive/) 폴더 참조
-
-## 🎯 다음 작업 (Roadmap)
+## 🎯 다음 작업
 
 ### 다음 세션 의논 필요
-- [ ] ③ 거리 적성 - 5년 노하우 반영
-- [ ] ④ 주로 적응 - 알고리즘 조정
-- [ ] ⑥ 기수 폼 - 4대 핵심 영역 (중요)
-- [ ] ⑦ 조교사 폼
-- [ ] ⑬ 기수-말 궁합 - 4대 핵심 영역 (중요)
+- [ ] 6. 거리 적성 - 5년 노하우 반영
+- [ ] 7. 주로 적응
+- [ ] 9. 기수 폼 (4대 핵심 가능)
+- [ ] 10. 조교사 폼
+- [ ] 16. 기수-말 궁합 (4대 핵심 가능)
+- [ ] rankRise 처리 결정 (① 레이팅에 통합 or 별도)
 
 ### Phase 1: 코딩 시작
-- [ ] Node.js + TypeScript 프로젝트 셋업
+- [ ] Node.js + TypeScript 셋업
 - [ ] Supabase 프로젝트 생성
-- [ ] KRA API 클라이언트 구현
-- [ ] DB 스키마 적용 (Setup_Guide.md 참조)
-- [ ] Score Engine - 확정된 항목부터 구현
+- [ ] KRA API 클라이언트
+- [ ] DB 스키마 (17개 항목 반영)
+- [ ] Score Engine (확정 항목부터)
+- [ ] **핵심 지표 자동 결정 로직 (가중치 상위 4개)** ⭐
+- [ ] **인사이트 지표 사용자 선택 기능** 🤖
 
 ### Phase 2: 백테스트 + 학습
 - [ ] 과거 2년 데이터 일괄 수집
-- [ ] 스피어만 상관계수 계산
-- [ ] 하이브리드 가중치 시스템
+- [ ] 스피어만 상관계수
+- [ ] 하이브리드 가중치
 
 ### Phase 3: UI/UX (다크모드)
 - [ ] 대시보드
-- [ ] 경주 분석 화면 (4대 핵심 강조)
-- [ ] 컨디션 분석 패널 (4신호 시각화)
+- [ ] 경주 분석 화면 (핵심 지표 ⭐ 자동 별표시)
+- [ ] **인사이트 지표 선택 메뉴**
 - [ ] PDF 리포트
 
 ### Phase 4: AI 인사이트
 - [ ] Claude API 통합
-- [ ] 경주별 자동 인사이트 생성
+- [ ] **인사이트 지표 4개에 대한 자동 인사이트 생성**
