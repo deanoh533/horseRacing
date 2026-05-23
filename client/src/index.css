@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  /* 다크 베이스 (UI/UX v3.0) */
+  --color-bg-primary: #0a0e27;
+  --color-bg-surface: #131b3a;
+  --color-bg-elevated: #1e2849;
+
+  /* 강조 */
+  --color-accent-cyan: #00d9ff;
+  --color-accent-gold: #ffd700;
+  --color-accent-pink: #ff6b9d;
+
+  /* 의미 */
+  --color-success: #00c853;
+  --color-warning: #ffb300;
+  --color-danger: #ff1744;
+  --color-info: #2196f3;
+
+  /* 텍스트 */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b0bec5;
+  --color-text-disabled: #5c6b8a;
+
+  /* 폰트 */
+  --font-sans: 'Pretendard', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'D2Coding', monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    min-height: 100vh;
+  }
+
+  body {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 한국어 폰트 - 시스템에 Pretendard 없으면 fallback */
+  @font-face {
+    font-family: 'Pretendard';
+    font-weight: 400 700;
+    font-display: swap;
+    src: local('Pretendard'), local('Pretendard Variable');
+  }
+
+  /* 스크롤바 다크 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-bg-surface);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-bg-elevated);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-accent-cyan);
+  }
+}
+
+@layer utilities {
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+  }
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  }
+  .font-mono-num {
+    font-family: var(--font-mono);
+    font-feature-settings: 'tnum';
+  }
+}
