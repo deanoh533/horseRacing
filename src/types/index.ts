@@ -161,6 +161,9 @@ export const SCORE_ITEM_IDS = [
 
 export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
 
+/** 별칭 (간결한 이름) */
+export type ItemId = ScoreItemId;
+
 /** 17개 항목 비중 (총 100점) */
 export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '01_rating': 17.54,
@@ -182,6 +185,44 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '17_market_odds': 8.77,
 };
 
+/** 17개 항목 한국어 이름 */
+export const ITEM_NAMES: Record<ScoreItemId, string> = {
+  '01_rating': '레이팅',
+  '02_weight_change': '마체중 변화',
+  '03_recent_form': '착순 추세',
+  '04_sectional_time': '구간 시간 단축',
+  '05_late_position': '후반 구간 순위',
+  '06_distance_fitness': '거리 적성',
+  '07_track_adaptation': '주로 적응',
+  '08_burden_weight': '부담중량',
+  '09_jockey_form': '기수 폼',
+  '10_trainer_form': '조교사 폼',
+  '11_race_interval': '경주 간격',
+  '12_starting_position': '출발번호',
+  '13_age_distance_gender': '나이×거리×성별',
+  '14_pedigree': '혈통',
+  '15_seasonal_pattern': '계절 패턴',
+  '16_jockey_horse_chemistry': '기수-말 궁합',
+  '17_market_odds': '배당률',
+};
+
+/** 본인이 평소 중시하는 4대 핵심 분석 영역 (UI 강조용) */
+export const FOUR_CORE_AREAS: ScoreItemId[] = [
+  '03_recent_form',
+  '06_distance_fitness',
+  '09_jockey_form',
+  '16_jockey_horse_chemistry',
+];
+
+/** 기본 인사이트 4개 (사용자 변경 가능) */
+export const DEFAULT_INSIGHT_INDICATORS: ScoreItemId[] = [
+  '03_recent_form',
+  '06_distance_fitness',
+  '09_jockey_form',
+  '16_jockey_horse_chemistry',
+];
+
+/** 말 종합 점수 (간단 버전) */
 export interface HorseScore {
   hrName: string;
   hrNo: string;
