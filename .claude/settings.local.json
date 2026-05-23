@@ -4,7 +4,25 @@
       "Bash(git remote *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\mjy76\\\\Documents\\\\projectFolder\" -Recurse -Depth 3)",
+      "Bash(Select-Object FullName, LastWriteTime)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell($home)",
+      "PowerShell(Get-ChildItem -LiteralPath \"C:\\\\Users\\\\mjy76\\\\OneDrive\" -Recurse -Depth 3 | Where-Object { $_.Name -match \"taste|skill|horse|kra|racing\" } | Format-List FullName)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "PowerShell($r = Invoke-WebRequest -Uri \"https://raw.githubusercontent.com/Leonxlnx/taste-skill/main/skills/taste-skill/SKILL.md\" -UseBasicParsing; $r.Content)",
+      "WebSearch",
+      "WebFetch(domain:pmprompt.com)",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Read(//c/Users/mjy76/.claude/**)",
+      "PowerShell(Write-Host \"=== Node.js 환경 확인 ===\"; \\(Get-Command node -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npm -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source; Write-Host \"\"; Write-Host \"=== Node 버전 ===\"; node --version 2>$null; npm --version 2>$null; Write-Host \"\"; Write-Host \"=== .claude/skills 폴더 ===\"; Test-Path \"C:\\\\Users\\\\mjy76\\\\.claude\\\\skills\")",
+      "Read(//tmp/Product-Manager-Skills/skills/**)",
+      "Read(//tmp/Product-Manager-Skills/skills/prd-development/**)",
+      "Read(//tmp/Product-Manager-Skills/skills/recommendation-canvas/**)"
     ]
   }
 }

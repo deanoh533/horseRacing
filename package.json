@@ -1,0 +1,46 @@
+{
+  "name": "kra-analyzer",
+  "version": "0.1.0",
+  "description": "KRA 한국 경마 분석 도구 (개인용)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "sync": "tsx src/sync/dailySync.ts",
+    "sync:full": "tsx src/sync/onboardingSync.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "client:dev": "cd client && npm run dev",
+    "client:build": "cd client && npm run build"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "axios": "^1.7.0",
+    "date-fns": "^4.0.0",
+    "dotenv": "^16.4.0",
+    "fast-xml-parser": "^4.5.0",
+    "p-limit": "^6.1.0",
+    "simple-statistics": "^7.8.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@typescript-eslint/eslint-plugin": "^8.9.0",
+    "@typescript-eslint/parser": "^8.9.0",
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

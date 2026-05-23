@@ -4,6 +4,10 @@
 .env.*.local
 .env.production
 
+# Supabase 로컬
+supabase/.branches
+supabase/.temp
+
 # Node.js
 node_modules/
 npm-debug.log*
