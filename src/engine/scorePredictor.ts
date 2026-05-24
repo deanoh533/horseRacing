@@ -215,7 +215,9 @@ async function buildEngineInput(
     jockey30DayOrds,
     trainer60DayOrds,
     intervalDays,
-    stOrd: h.st_ord ?? 0,
+    // ⑫ 출발번호: KRA st_ord는 결승순위(cheating)였음. 진짜 게이트 번호는 chul_no
+    //  (API314/316 출주표 검증: pthrNo == chul_no, ord와 무관)
+    stOrd: h.chul_no,
     totalHorses,
     rcDist: h.rc_dist ?? 0,
     age: h.age ?? 0,

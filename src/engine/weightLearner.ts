@@ -22,9 +22,9 @@ const ALL_ITEMS = Object.keys(ITEM_WEIGHTS) as ScoreItemId[];
 
 /**
  * 봉인된 항목 (가중치 0 강제)
- * - 12_starting_position: KRA stOrd가 결승순위와 100% 동일 → cheating, 진짜 발주순서 필드 확인 전까지 봉인
+ * - (봉인 해제) 12_starting_position: 이제 chul_no(= 진짜 게이트 번호)로 계산
  */
-const SEALED_ITEMS = new Set<ScoreItemId>(['12_starting_position']);
+const SEALED_ITEMS = new Set<ScoreItemId>([]);
 
 /**
  * 항목별 Spearman ρ
