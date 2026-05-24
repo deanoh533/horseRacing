@@ -26,11 +26,25 @@ async function main() {
 
   const sb = getSupabaseAdmin();
 
-  // 1. 대상 race 목록
-  let query = sb.from('races').select('race_date, meet, rc_no').order('race_date');
-  if (targetDate) query = query.eq('race_date', targetDate);
-  const { data: races, error } = await query;
-  if (error) throw error;
+  // 1. 대상 race 목록 (Supabase 기본 1000 row 제한 우회: pagination)
+  const races: { race_date: number; meet: number; rc_no: number }[] = [];
+  const PAGE = 1000;
+  for (let offset = 0; ; offset += PAGE) {
+    let query = sb
+      .from('races')
+      .select('race_date, meet, rc_no')
+      .order('race_date')
+      .order('meet')
+      .order('rc_no')
+      .range(offset, offset + PAGE - 1);
+    if (targetDate) query = query.eq('race_date', targetDate);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    races.push(...data);
+    if (data.length < PAGE) break;
+  }
+
   if (!races || races.length === 0) {
     console.log('대상 경주 없음');
     return;
