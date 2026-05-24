@@ -15,7 +15,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/race/:meet/:date/:rcNo" element={<RaceDetail />} />
           <Route
-            path="/race/:meet/:date/:rcNo/horse/:hrNo"
+            path="/race/:meet/:date/:rcNo/horse/:chulNo"
             element={<HorseDetail />}
           />
           <Route path="/stats" element={<Statistics />} />
