@@ -22,7 +22,10 @@
       "PowerShell(Write-Host \"=== Node.js 환경 확인 ===\"; \\(Get-Command node -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npm -ErrorAction SilentlyContinue\\).Source; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source; Write-Host \"\"; Write-Host \"=== Node 버전 ===\"; node --version 2>$null; npm --version 2>$null; Write-Host \"\"; Write-Host \"=== .claude/skills 폴더 ===\"; Test-Path \"C:\\\\Users\\\\mjy76\\\\.claude\\\\skills\")",
       "Read(//tmp/Product-Manager-Skills/skills/**)",
       "Read(//tmp/Product-Manager-Skills/skills/prd-development/**)",
-      "Read(//tmp/Product-Manager-Skills/skills/recommendation-canvas/**)"
+      "Read(//tmp/Product-Manager-Skills/skills/recommendation-canvas/**)",
+      "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "Bash(tail -50 \"/c/Users/mjy76/AppData/Local/Temp/claude/c--Users-mjy76-Documents-projectFolder/0f7d23bc-8df6-4256-82e7-ac9495dbfa7f/tasks/be7h5gjuh.output\")"
     ]
   }
 }

@@ -208,7 +208,12 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('💥', err);
-  process.exit(1);
-});
+// CLI 직접 실행 시에만 main() 호출 (import 시에는 실행 X)
+const isMainModule =
+  process.argv[1] && process.argv[1].includes('dailySync');
+if (isMainModule) {
+  main().catch((err) => {
+    console.error('💥', err);
+    process.exit(1);
+  });
+}
