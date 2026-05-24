@@ -19,12 +19,17 @@ interface Row {
 }
 
 async function fetchAll(sb: any): Promise<Row[]> {
+  // 페이지네이션은 반드시 정렬 필요 (.range는 정렬 없으면 페이지 경계 중복 발생)
   const all: Row[] = [];
   const PAGE = 1000;
   for (let off = 0; ; off += PAGE) {
     const { data, error } = await sb
       .from('predictions')
       .select('race_date, meet, rc_no, hr_name, predicted_rank, actual_ord')
+      .order('race_date')
+      .order('meet')
+      .order('rc_no')
+      .order('hr_name')
       .range(off, off + PAGE - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;

@@ -62,9 +62,6 @@ export async function predictRace(
 
   const horseList = horses as HorseRow[];
   const totalHorses = horseList.length;
-  const raceBudams = horseList
-    .map((h) => h.wg_budam)
-    .filter((v): v is number => v != null);
 
   // 2. 같은 계절 판단용 (rcDate → 월)
   const currentMonth = Math.floor((rcDate % 10000) / 100);
@@ -73,7 +70,7 @@ export async function predictRace(
   // 3. 각 말의 점수 계산
   const results = await Promise.all(
     horseList.map(async (h) => {
-      const input = await buildEngineInput(sb, h, totalHorses, raceBudams, currentMonth, currentSeason);
+      const input = await buildEngineInput(sb, h, totalHorses, currentMonth, currentSeason);
       const score = engine.calculateScores(input);
       return { horse: h, score };
     })
@@ -101,7 +98,6 @@ async function buildEngineInput(
   sb: SupabaseClient,
   h: HorseRow,
   totalHorses: number,
-  raceBudams: number[],
   currentMonth: number,
   currentSeason: 'spring' | 'summer' | 'autumn' | 'winter'
 ) {
@@ -110,13 +106,17 @@ async function buildEngineInput(
   // 같은 말의 과거 5경주
   const { data: hist5raw } = await sb
     .from('horse_results')
-    .select('race_date, ord, rc_dist, track, track_type, wg_hr_diff, win_odds, popularity, jk_no, rc_time')
+    .select('race_date, meet, rc_no, ord, rc_dist, track, track_type, wg_hr_diff, wg_budam, win_odds, popularity, jk_no, rc_time')
     .eq('hr_name', h.hr_name)
     .lt('race_date', rcDate)
     .order('race_date', { ascending: false })
     .limit(5);
   const hist5 = hist5raw ?? [];
   const histAsc = [...hist5].reverse();
+
+  // ⑧ 부담 극복 지수용: 과거 5경주의 raceAvgBudam을 한번에 batch fetch
+  // (각 과거 경주의 전체 출전마 부담중량 평균)
+  const burdenHistory = await buildBurdenHistory(sb, hist5);
 
   // 같은 거리 (5경주 전체에서)
   const sameDistOrds = hist5
@@ -211,8 +211,7 @@ async function buildEngineInput(
     sameDistOrds,
     overallOrds,
     sameTrackOrds,
-    myBudam: h.wg_budam ?? 0,
-    raceBudams,
+    burdenHistory,
     jockey30DayOrds,
     trainer60DayOrds,
     intervalDays,
@@ -226,6 +225,40 @@ async function buildEngineInput(
     combinationOrds,
     recent5Popularities,
   };
+}
+
+/**
+ * ⑧ 부담 극복 지수용 — 과거 경주들의 raceAvgBudam 일괄 fetch
+ * 한 horse의 hist5 (~5경주) 각각의 출전마 전체 평균 부담중량
+ */
+async function buildBurdenHistory(
+  sb: SupabaseClient,
+  hist5: any[]
+): Promise<Array<{ ord: number; myBudam: number; raceAvgBudam: number }>> {
+  if (hist5.length === 0) return [];
+  // (race_date, meet, rc_no) 키 목록
+  const validHist = hist5.filter((h) => h.ord != null && h.wg_budam != null);
+  if (validHist.length === 0) return [];
+
+  // 각 경주의 모든 wg_budam 가져오기 (OR 조건으로 batch)
+  const results: Array<{ ord: number; myBudam: number; raceAvgBudam: number }> = [];
+  for (const h of validHist) {
+    const { data: peers } = await sb
+      .from('horse_results')
+      .select('wg_budam')
+      .eq('race_date', h.race_date)
+      .eq('meet', h.meet)
+      .eq('rc_no', h.rc_no);
+    const budams = (peers ?? []).map((p) => p.wg_budam).filter((v): v is number => v != null);
+    if (budams.length === 0) continue;
+    const raceAvgBudam = budams.reduce((s, v) => s + v, 0) / budams.length;
+    results.push({
+      ord: h.ord as number,
+      myBudam: h.wg_budam as number,
+      raceAvgBudam,
+    });
+  }
+  return results;
 }
 
 function monthToSeason(month: number): 'spring' | 'summer' | 'autumn' | 'winter' {

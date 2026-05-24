@@ -65,9 +65,8 @@ export interface ScoreEngineInput {
   overallOrds?: number[];
   sameTrackOrds?: number[];
 
-  // ⑧ 부담중량
-  myBudam?: number;
-  raceBudams?: number[];
+  // ⑧ 부담중량 (부담 극복 지수)
+  burdenHistory?: Array<{ ord: number; myBudam: number; raceAvgBudam: number }>;
 
   // ⑨ 기수 폼
   jockey30DayOrds?: number[];
@@ -191,12 +190,11 @@ export class ScoreEngine {
       })
     );
 
-    // ⑧ 부담중량
+    // ⑧ 부담중량 (부담 극복 지수)
     items['08_burden_weight'] = this.make(
       '08_burden_weight',
       calculateBurdenWeightScore({
-        myBudam: input.myBudam ?? 0,
-        raceBudams: input.raceBudams ?? [],
+        history: input.burdenHistory ?? [],
       })
     );
 
