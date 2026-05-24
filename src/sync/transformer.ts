@@ -124,8 +124,9 @@ export function toHorseResultRow(horse: KRARaceResult): HorseResultRow {
     rating: horse.rating ?? null,
     rank_str: horse.rank ?? null,
     rank_rise: horse.rankRise ?? 0,
-    ord: horse.ord ?? null,
-    rc_time: horse.rcTime ?? null,
+    // ord ≥ 90 은 KRA의 비주파 코드 (취소/실격/사고로 미완주) → NULL
+    ord: horse.ord != null && horse.ord < 90 ? horse.ord : null,
+    rc_time: horse.rcTime && horse.rcTime > 0 ? horse.rcTime : null,
     diff_unit: typeof horse.diffUnit === 'number' ? String(horse.diffUnit) : horse.diffUnit ?? null,
     rc_dist: horse.rcDist ?? null,
     track: horse.track ?? null,

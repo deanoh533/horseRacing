@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "sync": "tsx src/sync/dailySync.ts",
     "sync:full": "tsx src/sync/onboardingSync.ts",
+    "backfill": "tsx scripts/backfill_predictions.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "lint": "eslint src --ext .ts",

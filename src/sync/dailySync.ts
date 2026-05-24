@@ -14,6 +14,7 @@ import {
   calculatePopularities,
   buildStOrdMap,
 } from './transformer.js';
+import { predictRace } from '../engine/scorePredictor.js';
 import type { MeetCode } from '@types/index.js';
 
 interface SyncOptions {
@@ -123,10 +124,31 @@ async function syncMeet(
           throw new Error(`horse_results upsert: ${hrError.message}`);
         }
 
+        // Score Engine으로 예측 계산 → predictions 테이블 저장
+        try {
+          const predictions = await predictRace(supabase, rcDate, meet, rcNo);
+          if (predictions.length > 0) {
+            await supabase
+              .from('predictions')
+              .delete()
+              .eq('race_date', rcDate)
+              .eq('meet', meet)
+              .eq('rc_no', rcNo);
+            const { error: predErr } = await supabase
+              .from('predictions')
+              .insert(predictions);
+            if (predErr) throw predErr;
+          }
+        } catch (err) {
+          console.warn(
+            `    [meet=${meet}, rcNo=${rcNo}] 예측 저장 실패 (계속): ${(err as Error).message}`
+          );
+        }
+
         result.racesSynced++;
         result.horsesSynced += horseRows.length;
         console.log(
-          `    [meet=${meet}, rcNo=${rcNo}] ✓ ${horseRows.length}두`
+          `    [meet=${meet}, rcNo=${rcNo}] ✓ ${horseRows.length}두 + 예측`
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
