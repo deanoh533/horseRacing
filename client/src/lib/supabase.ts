@@ -71,3 +71,36 @@ export interface HorseResult {
   tr_no: string | null;
   tr_name: string | null;
 }
+
+export interface ItemScore {
+  itemId: string;
+  itemName: string;
+  rawScore: number;
+  weight: number;
+  weightedScore: number;
+  status: 'implemented' | 'expert_pending';
+}
+
+export interface Prediction {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  hr_name: string;
+  total_score: number;
+  predicted_rank: number;
+  item_scores: Record<string, ItemScore>;
+  actual_ord: number | null;
+}
+
+/**
+ * 실제 착순 표시 라벨
+ * - 숫자 → "N위"
+ * - null → "출주 취소" (KRA 비주파 코드 정제됨)
+ */
+export function formatActualOrd(ord: number | null): string {
+  return ord === null ? '출주 취소' : `${ord}위`;
+}
+
+export function isCancelled(ord: number | null): boolean {
+  return ord === null;
+}

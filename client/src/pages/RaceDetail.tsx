@@ -1,8 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronDown, Sparkles, Bot, Loader2 } from 'lucide-react';
-import { useHorsesByRace } from '../lib/queries';
-import { supabase, type HorseResult, type Race } from '../lib/supabase';
+import { useHorsesByRace, usePredictionsByRace } from '../lib/queries';
+import { supabase, type HorseResult, type Race, type Prediction, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 
 const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부산경남' };
@@ -36,16 +36,26 @@ export function RaceDetail() {
 
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
+  const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
 
+  // hr_name → Prediction 맵
+  const predictionMap = useMemo(() => {
+    const map = new Map<string, Prediction>();
+    (predictions ?? []).forEach((p) => map.set(p.hr_name, p));
+    return map;
+  }, [predictions]);
+
+  // 예측 순으로 정렬 (예측 없으면 chul_no 순)
   const sortedHorses = useMemo(() => {
     if (!horses) return [];
-    return [...horses].sort((a, b) => {
-      if (a.ord === null && b.ord === null) return a.chul_no - b.chul_no;
-      if (a.ord === null) return 1;
-      if (b.ord === null) return -1;
-      return a.ord - b.ord;
+    const withPred = [...horses];
+    if (predictionMap.size === 0) return withPred;
+    return withPred.sort((a, b) => {
+      const pa = predictionMap.get(a.hr_name)?.predicted_rank ?? 999;
+      const pb = predictionMap.get(b.hr_name)?.predicted_rank ?? 999;
+      return pa - pb;
     });
-  }, [horses]);
+  }, [horses, predictionMap]);
 
   const topHorses = sortedHorses.slice(0, 3);
   const lowerHorses = sortedHorses.slice(3);
@@ -119,6 +129,7 @@ export function RaceDetail() {
             <HorseCard
               key={horse.chul_no}
               horse={horse}
+              prediction={predictionMap.get(horse.hr_name)}
               meet={meetStr}
               date={dateStr}
               rcNo={rcNoStr}
@@ -145,6 +156,7 @@ export function RaceDetail() {
                 <HorseCard
                   key={horse.chul_no}
                   horse={horse}
+                  prediction={predictionMap.get(horse.hr_name)}
                   meet={meetStr}
                   date={dateStr}
                   rcNo={rcNoStr}
@@ -175,16 +187,21 @@ export function RaceDetail() {
 
 interface HorseCardProps {
   horse: HorseResult;
+  prediction: Prediction | undefined;
   meet: string | undefined;
   date: string | undefined;
   rcNo: string | undefined;
 }
 
-function HorseCard({ horse, meet, date, rcNo }: HorseCardProps) {
+function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
   const [showDetail, setShowDetail] = useState(true);
 
   const medals: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
-  const rankLabel = horse.ord ? (medals[horse.ord] ?? `${horse.ord}위`) : '-';
+  const predRank = prediction?.predicted_rank;
+  const rankLabel = predRank ? (medals[predRank] ?? `${predRank}위`) : '-';
+  const cancelled = isCancelled(horse.ord);
+  const actualLabel = cancelled ? '🚫 출주 취소' : `실제 ${formatActualOrd(horse.ord)}`;
+  const isHit = !cancelled && predRank != null && horse.ord === predRank;
   const sexLabel = horse.sex ?? '';
 
   return (
@@ -206,12 +223,36 @@ function HorseCard({ horse, meet, date, rcNo }: HorseCardProps) {
           </div>
         </div>
         <div className="text-right">
-          {horse.rating !== null && (
-            <div className="text-2xl font-bold font-mono-num text-[var(--color-accent-cyan)]">
-              {horse.rating}
-              <span className="text-sm">레이팅</span>
-            </div>
+          {prediction ? (
+            <>
+              <div className="text-2xl font-bold font-mono-num text-[var(--color-accent-cyan)]">
+                {prediction.total_score.toFixed(1)}
+                <span className="text-sm">점</span>
+              </div>
+              <div className="text-[10px] text-[var(--color-text-secondary)]">
+                예측 종합
+              </div>
+            </>
+          ) : (
+            horse.rating !== null && (
+              <div className="text-xl font-bold font-mono-num text-[var(--color-accent-cyan)]">
+                {horse.rating}
+                <span className="text-sm">레이팅</span>
+              </div>
+            )
           )}
+          <div
+            className={`text-[10px] mt-0.5 ${
+              cancelled
+                ? 'text-[var(--color-accent-pink)]'
+                : isHit
+                  ? 'text-[var(--color-success)] font-bold'
+                  : 'text-[var(--color-text-disabled)]'
+            }`}
+          >
+            {actualLabel}
+            {isHit ? ' ✓' : ''}
+          </div>
           {horse.popularity !== null && (
             <div className="text-[10px] text-[var(--color-text-disabled)]">
               {horse.popularity}인기
@@ -251,9 +292,7 @@ function HorseCard({ horse, meet, date, rcNo }: HorseCardProps) {
             {horse.st_ord !== null && (
               <DataRow label="발주 순위" value={`${horse.st_ord}위`} />
             )}
-            {horse.ord !== null && (
-              <DataRow label="결승 순위" value={`${horse.ord}위`} />
-            )}
+            <DataRow label="결승 순위" value={formatActualOrd(horse.ord)} />
             {horse.rc_time !== null && (
               <DataRow label="경주 기록" value={formatRcTime(horse.rc_time)} />
             )}

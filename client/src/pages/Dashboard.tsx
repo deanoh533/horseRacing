@@ -10,16 +10,10 @@ import { Link } from 'react-router-dom';
 import {
   useRacesByDate,
   useAvailableDates,
+  usePredictionsByDate,
+  type PredictionPreview,
 } from '../lib/queries';
-import { supabase } from '../lib/supabase';
-import { useQueries } from '@tanstack/react-query';
-
-type RaceCardHorse = {
-  chul_no: number;
-  hr_name: string;
-  ord: number | null;
-  popularity: number | null;
-};
+import { formatActualOrd, isCancelled } from '../lib/supabase';
 
 const MEET_NAMES: Record<number, string> = {
   1: '서울',
@@ -48,6 +42,19 @@ export function Dashboard() {
   }, [availableDates, autoJumped]);
 
   const { data: races, isLoading, error } = useRacesByDate(dateNum);
+  const { data: predictions } = usePredictionsByDate(dateNum);
+
+  // race별 예측 top3 그룹핑
+  const predictionsByRace = useMemo(() => {
+    const map = new Map<string, PredictionPreview[]>();
+    (predictions ?? []).forEach((p) => {
+      const key = `${p.meet}-${p.rc_no}`;
+      const arr = map.get(key) ?? [];
+      arr.push(p);
+      map.set(key, arr);
+    });
+    return map;
+  }, [predictions]);
 
   const date = useMemo(() => dateFromRcDate(dateNum), [dateNum]);
 
@@ -169,6 +176,7 @@ export function Dashboard() {
                     <RaceCard
                       key={`${race.meet}-${race.rc_no}`}
                       race={race}
+                      predictions={predictionsByRace.get(`${race.meet}-${race.rc_no}`) ?? []}
                     />
                   ))}
                 </div>
@@ -190,41 +198,13 @@ interface RaceCardProps {
     rc_name: string | null;
     track: string | null;
   };
+  predictions: PredictionPreview[];
 }
 
-function RaceCard({ race }: RaceCardProps) {
-  // 1-3위 미리보기용 부분 컬럼 (RaceDetail의 ['horses', ...] 캐시와 분리)
-  const { data: horses } = useQueries({
-    queries: [
-      {
-        queryKey: ['horses-preview', race.race_date, race.meet, race.rc_no],
-        queryFn: async () => {
-          const { data } = await supabase
-            .from('horse_results')
-            .select('chul_no, hr_name, ord, popularity')
-            .eq('race_date', race.race_date)
-            .eq('meet', race.meet)
-            .eq('rc_no', race.rc_no)
-            .order('chul_no');
-          return data ?? [];
-        },
-        staleTime: 5 * 60 * 1000,
-      },
-    ],
-    combine: (results) => ({
-      data: results[0]?.data,
-      isLoading: results[0]?.isLoading,
-    }),
-  });
-
+function RaceCard({ race, predictions }: RaceCardProps) {
   const dateStr = race.race_date.toString();
-  // 실제 착순 1-3위 미리보기 (점수 엔진 안 돌고 실제 결과만)
-  const horsesList = (horses ?? []) as RaceCardHorse[];
-  const actualTop3 = horsesList
-    .filter((h) => h.ord !== null && h.ord <= 3)
-    .sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0))
-    .slice(0, 3);
-  const totalHorses = horsesList.length;
+  const top3 = predictions.slice(0, 3);
+  const hasResult = predictions.some((p) => p.actual_ord !== null);
 
   return (
     <Link
@@ -232,7 +212,7 @@ function RaceCard({ race }: RaceCardProps) {
       className="block bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)] transition-all group"
     >
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 text-sm flex-wrap">
           <span className="font-bold text-[var(--color-accent-cyan)]">
             {race.rc_no}R
           </span>
@@ -245,33 +225,35 @@ function RaceCard({ race }: RaceCardProps) {
               {race.track}
             </span>
           )}
-          <span className="text-xs text-[var(--color-text-disabled)]">
-            {totalHorses}마
-          </span>
         </div>
         <ArrowRight className="w-4 h-4 text-[var(--color-text-disabled)] group-hover:text-[var(--color-accent-cyan)] transition-colors" />
       </div>
 
-      {/* 실제 1-3위 (점수 엔진 없이) */}
-      {actualTop3.length > 0 ? (
-        <div className="grid grid-cols-3 gap-2 font-mono-num text-sm">
-          {[1, 2, 3].map((rank) => {
-            const horse = actualTop3[rank - 1];
-            if (!horse) return <div key={rank} />;
-            return (
-              <PredictionTile
-                key={rank}
-                rank={rank as 1 | 2 | 3}
-                chulNo={horse.chul_no}
-                hrName={horse.hr_name}
-                popularity={horse.popularity}
-              />
-            );
-          })}
-        </div>
+      {/* 예측 1-3위 (Score Engine 결과) */}
+      {top3.length > 0 ? (
+        <>
+          <div className="text-[10px] uppercase tracking-wider text-[var(--color-accent-gold)] mb-1.5 font-semibold">
+            ⭐ 예측 TOP 3
+          </div>
+          <div className="grid grid-cols-3 gap-2 font-mono-num text-sm">
+            {[1, 2, 3].map((rank) => {
+              const p = top3[rank - 1];
+              if (!p) return <div key={rank} />;
+              return (
+                <PredictionTile
+                  key={rank}
+                  rank={rank as 1 | 2 | 3}
+                  hrName={p.hr_name}
+                  totalScore={p.total_score}
+                  actualOrd={p.actual_ord}
+                />
+              );
+            })}
+          </div>
+        </>
       ) : (
         <div className="text-xs text-[var(--color-text-disabled)] py-2">
-          결과 데이터 없음 (예정 경주)
+          {hasResult ? '예측 데이터 없음' : '예측 계산 대기 (npm run backfill)'}
         </div>
       )}
     </Link>
@@ -280,32 +262,39 @@ function RaceCard({ race }: RaceCardProps) {
 
 interface PredictionTileProps {
   rank: 1 | 2 | 3;
-  chulNo: number;
   hrName: string;
-  popularity: number | null;
+  totalScore: number;
+  actualOrd: number | null;
 }
 
-function PredictionTile({ rank, chulNo, hrName, popularity }: PredictionTileProps) {
+function PredictionTile({ rank, hrName, totalScore, actualOrd }: PredictionTileProps) {
   const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
   const colors = {
     1: 'text-[var(--color-accent-gold)] border-[var(--color-accent-gold)]',
     2: 'text-[var(--color-text-primary)] border-[var(--color-text-disabled)]',
     3: 'text-[var(--color-text-secondary)] border-[var(--color-text-disabled)]',
   };
+  const isHit = actualOrd === rank;
   return (
     <div
       className={`flex flex-col items-center justify-center p-2 rounded border ${colors[rank]} bg-[var(--color-bg-primary)]/50`}
     >
       <div className="text-lg leading-none">{medals[rank]}</div>
-      <div className="text-[10px] text-[var(--color-text-secondary)] mt-1">
-        {chulNo}번
+      <div className="font-semibold truncate w-full text-center mt-1">{hrName}</div>
+      <div className="text-xs text-[var(--color-accent-cyan)] mt-0.5">
+        {totalScore.toFixed(1)}점
       </div>
-      <div className="font-semibold truncate w-full text-center">{hrName}</div>
-      {popularity && (
-        <div className="text-xs text-[var(--color-accent-cyan)] mt-0.5">
-          {popularity}인기
-        </div>
-      )}
+      <div
+        className={`text-[10px] mt-0.5 ${
+          isCancelled(actualOrd)
+            ? 'text-[var(--color-accent-pink)]'
+            : isHit
+              ? 'text-[var(--color-success)] font-bold'
+              : 'text-[var(--color-text-disabled)]'
+        }`}
+      >
+        {isCancelled(actualOrd) ? '🚫 출주 취소' : `실제 ${actualOrd}위${isHit ? ' ✓' : ''}`}
+      </div>
     </div>
   );
 }

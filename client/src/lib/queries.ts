@@ -2,7 +2,7 @@
  * React Query 훅 - Supabase 데이터 페칭
  */
 import { useQuery } from '@tanstack/react-query';
-import { supabase, type Race, type HorseResult } from './supabase';
+import { supabase, type Race, type HorseResult, type Prediction } from './supabase';
 
 /**
  * 특정 날짜의 모든 경주 (서울 + 부산경남)
@@ -108,6 +108,58 @@ export function useUserSettings() {
       if (error) throw error;
       return data;
     },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 특정 경주의 예측 결과 (Score Engine 사전 계산)
+ */
+export function usePredictionsByRace(rcDate: number, meet: number, rcNo: number) {
+  return useQuery({
+    queryKey: ['predictions', rcDate, meet, rcNo],
+    queryFn: async (): Promise<Prediction[]> => {
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('*')
+        .eq('race_date', rcDate)
+        .eq('meet', meet)
+        .eq('rc_no', rcNo)
+        .order('predicted_rank');
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!rcDate && !!meet && !!rcNo,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 특정 날짜의 모든 경주 예측 (대시보드 미리보기용 - 부분 컬럼)
+ */
+export type PredictionPreview = Pick<
+  Prediction,
+  'race_date' | 'meet' | 'rc_no' | 'hr_name' | 'total_score' | 'predicted_rank' | 'actual_ord'
+>;
+
+export function usePredictionsByDate(rcDate: number) {
+  return useQuery({
+    queryKey: ['predictions-by-date', rcDate],
+    queryFn: async (): Promise<PredictionPreview[]> => {
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('race_date, meet, rc_no, hr_name, total_score, predicted_rank, actual_ord')
+        .eq('race_date', rcDate)
+        .lte('predicted_rank', 3)
+        .order('meet')
+        .order('rc_no')
+        .order('predicted_rank');
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!rcDate,
     staleTime: 10 * 60 * 1000,
   });
 }

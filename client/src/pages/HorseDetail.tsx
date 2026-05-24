@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, FileText, GitCompare, Save, TrendingUp, Loader2 } from 'lucide-react';
-import { useHorseHistory, useHorsesByRace } from '../lib/queries';
-import { type HorseResult } from '../lib/supabase';
+import { ChevronLeft, FileText, GitCompare, Save, TrendingUp, Loader2, Star } from 'lucide-react';
+import { useHorseHistory, useHorsesByRace, usePredictionsByRace } from '../lib/queries';
+import { type HorseResult, type ItemScore, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useMemo } from 'react';
 
 export function HorseDetail() {
@@ -18,6 +18,11 @@ export function HorseDetail() {
   );
 
   const { data: history } = useHorseHistory(horse?.hr_name ?? '', rcDate, 5);
+  const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
+  const prediction = useMemo(
+    () => predictions?.find((p) => p.hr_name === horse?.hr_name),
+    [predictions, horse?.hr_name]
+  );
 
   if (isLoading) {
     return (
@@ -72,17 +77,37 @@ export function HorseDetail() {
             </div>
           </div>
           <div className="text-right">
-            {horse.rating !== null && (
-              <div className="text-4xl font-bold font-mono-num text-[var(--color-accent-cyan)] glow-cyan">
-                {horse.rating}
-                <span className="text-lg">레이팅</span>
-              </div>
-            )}
-            {horse.ord !== null && (
-              <div className="text-sm text-[var(--color-text-secondary)] mt-1">
-                실제 {horse.ord}위
-                {horse.popularity && ` · ${horse.popularity}인기`}
-              </div>
+            {prediction ? (
+              <>
+                <div className="text-4xl font-bold font-mono-num text-[var(--color-accent-cyan)] glow-cyan">
+                  {prediction.total_score.toFixed(1)}
+                  <span className="text-lg">점</span>
+                </div>
+                <div className="text-sm text-[var(--color-text-secondary)] mt-1">
+                  예측 {prediction.predicted_rank}위
+                  {isCancelled(horse.ord) ? (
+                    <span className="text-[var(--color-accent-pink)]"> · 🚫 출주 취소</span>
+                  ) : (
+                    <span
+                      className={
+                        prediction.predicted_rank === horse.ord
+                          ? ' text-[var(--color-success)] font-bold'
+                          : ''
+                      }
+                    >
+                      {' '}· 실제 {formatActualOrd(horse.ord)}
+                      {prediction.predicted_rank === horse.ord ? ' ✓' : ''}
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              horse.rating !== null && (
+                <div className="text-3xl font-bold font-mono-num text-[var(--color-accent-cyan)] glow-cyan">
+                  {horse.rating}
+                  <span className="text-lg">레이팅</span>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -174,10 +199,12 @@ export function HorseDetail() {
                               ? 'text-[var(--color-accent-gold)]'
                               : race.ord && race.ord <= 3
                                 ? 'text-[var(--color-success)]'
-                                : ''
+                                : isCancelled(race.ord)
+                                  ? 'text-[var(--color-accent-pink)] text-xs'
+                                  : ''
                           }
                         >
-                          {race.ord ?? '-'}위
+                          {formatActualOrd(race.ord)}
                         </span>
                       </td>
                       <td className="px-2 py-2 text-right">
@@ -199,11 +226,21 @@ export function HorseDetail() {
         )}
       </Section>
 
-      {/* Score Engine / AI Insight placeholder */}
-      <Section title="⭐ 핵심 지표 & 🤖 AI 인사이트" subtitle="Phase 2 예정">
-        <div className="text-sm text-[var(--color-text-disabled)] space-y-2">
-          <div>• 17개 항목 점수 계산 (Score Engine) — 백엔드 연동 후</div>
-          <div>• Claude API 인사이트 생성 (배치 + 지연 로딩) — Phase 2</div>
+      {/* Score Engine 17개 항목 */}
+      {prediction && <ItemScoresSection items={prediction.item_scores} />}
+
+      {!prediction && (
+        <Section title="⭐ 17개 항목 점수" subtitle="예측 데이터 없음">
+          <div className="text-sm text-[var(--color-text-disabled)]">
+            이 경주는 아직 점수 계산 전이에요 (`npm run backfill` 또는 다음 sync 시 생성)
+          </div>
+        </Section>
+      )}
+
+      {/* AI Insight placeholder */}
+      <Section title="🤖 AI 인사이트" subtitle="Phase 2 예정">
+        <div className="text-sm text-[var(--color-text-disabled)]">
+          Claude API 연동 시 항목별 자연어 해석 추가 예정
         </div>
       </Section>
 
@@ -240,6 +277,84 @@ function Section({
       </div>
       {children}
     </section>
+  );
+}
+
+function ItemScoresSection({ items }: { items: Record<string, ItemScore> }) {
+  // weightedScore 내림차순 → 기여도 높은 순
+  const sorted = useMemo(
+    () => Object.values(items).sort((a, b) => b.weightedScore - a.weightedScore),
+    [items]
+  );
+  const top4 = sorted.slice(0, 4); // ⭐ 핵심 4 (기여도 상위)
+  const rest = sorted.slice(4);
+
+  return (
+    <Section title="⭐ 17개 항목 점수" subtitle="기여도 순">
+      <div className="space-y-4">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-[var(--color-accent-gold)] mb-2 font-semibold flex items-center gap-1">
+            <Star className="w-3 h-3 fill-[var(--color-accent-gold)]" />
+            핵심 기여 TOP 4
+          </div>
+          <div className="space-y-2">
+            {top4.map((item) => (
+              <ScoreRow key={item.itemId} item={item} highlight />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)] mb-2 font-semibold">
+            기타 항목
+          </div>
+          <div className="space-y-1">
+            {rest.map((item) => (
+              <ScoreRow key={item.itemId} item={item} highlight={false} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function ScoreRow({ item, highlight }: { item: ItemScore; highlight: boolean }) {
+  const pct = Math.round(item.rawScore * 100);
+  const isExpert = item.status === 'expert_pending';
+  const barColor =
+    pct >= 70
+      ? 'bg-[var(--color-success)]'
+      : pct >= 40
+        ? 'bg-[var(--color-accent-cyan)]'
+        : 'bg-[var(--color-text-disabled)]';
+  return (
+    <div
+      className={`flex items-center gap-3 text-xs ${highlight ? 'py-1.5' : 'py-1'}`}
+    >
+      <div
+        className={`flex-1 min-w-0 ${highlight ? 'font-medium text-sm' : 'text-[var(--color-text-secondary)]'}`}
+      >
+        {item.itemName}
+        {isExpert && (
+          <span className="ml-1 text-[9px] text-[var(--color-text-disabled)]">
+            (전문가)
+          </span>
+        )}
+      </div>
+      <div className="w-24 h-1.5 bg-[var(--color-bg-elevated)] rounded overflow-hidden flex-shrink-0">
+        <div
+          className={`h-full ${barColor} transition-all`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="w-10 text-right font-mono-num text-[var(--color-text-secondary)] flex-shrink-0">
+        {pct}%
+      </div>
+      <div className="w-12 text-right font-mono-num text-[var(--color-accent-cyan)] flex-shrink-0">
+        {item.weightedScore.toFixed(1)}점
+      </div>
+    </div>
   );
 }
 
