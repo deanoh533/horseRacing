@@ -15,7 +15,7 @@ import {
   ITEM_WEIGHTS,
   ITEM_NAMES,
   type ItemId,
-} from '@types/index.js';
+} from '@app-types/index.js';
 
 // 17개 항목 모두 import
 import { calculateRatingScore } from './scoreItems/01_rating.js';

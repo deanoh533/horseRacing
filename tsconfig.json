@@ -32,7 +32,7 @@
       "@engine/*": ["./engine/*"],
       "@ai/*": ["./ai/*"],
       "@utils/*": ["./utils/*"],
-      "@types/*": ["./types/*"]
+      "@app-types/*": ["./types/*"]
     }
   },
   "include": ["src/**/*.ts"],

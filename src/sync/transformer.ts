@@ -1,7 +1,7 @@
 /**
  * KRA API 응답 → Supabase DB 행 변환
  */
-import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@types/index.js';
+import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@app-types/index.js';
 import { parseWgHr, extractTrackType } from '@utils/parsers.js';
 
 /**

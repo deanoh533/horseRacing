@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,7 +13,7 @@ import {
   usePredictionsByDate,
   type PredictionPreview,
 } from '../lib/queries';
-import { formatActualOrd, isCancelled } from '../lib/supabase';
+import { isCancelled } from '../lib/supabase';
 
 const MEET_NAMES: Record<number, string> = {
   1: '서울',
@@ -29,17 +29,12 @@ const MOCK_WEIGHTS_TOP4 = [
 
 export function Dashboard() {
   const { data: availableDates } = useAvailableDates();
-  // 기본값: 오늘 날짜 (availableDates 로드되면 가장 최근으로 자동 변경)
-  const [dateNum, setDateNum] = useState<number>(() => rcDateFromDate(new Date()));
-  const [autoJumped, setAutoJumped] = useState(false);
-
-  // availableDates 로드되면 가장 최근 동기화 날짜로 자동 점프 (첫 1회만)
-  useEffect(() => {
-    if (!autoJumped && availableDates && availableDates[0]) {
-      setDateNum(availableDates[0]);
-      setAutoJumped(true);
-    }
-  }, [availableDates, autoJumped]);
+  // 사용자가 ◀▶ 또는 "최근 동기화" 클릭하면 override 저장
+  // 그 외엔 availableDates 가장 최근 → 그것도 없으면 오늘 (derived state, useEffect 불필요)
+  const [manualDate, setManualDate] = useState<number | null>(null);
+  const dateNum =
+    manualDate ?? availableDates?.[0] ?? rcDateFromDate(new Date());
+  const setDateNum = setManualDate;
 
   const { data: races, isLoading, error } = useRacesByDate(dateNum);
   const { data: predictions } = usePredictionsByDate(dateNum);

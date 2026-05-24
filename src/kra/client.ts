@@ -17,7 +17,7 @@ import type {
   KRABloodInfo,
   KRAHorseInfo,
   MeetCode,
-} from '@types/index.js';
+} from '@app-types/index.js';
 
 const BASE_URL = 'https://apis.data.go.kr/B551015';
 

@@ -7,7 +7,7 @@
  */
 import { syncDay } from './dailySync.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
-import type { MeetCode } from '@types/index.js';
+import type { MeetCode } from '@app-types/index.js';
 
 interface BulkSyncOptions {
   fromDate: number;

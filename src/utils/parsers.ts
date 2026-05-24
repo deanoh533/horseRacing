@@ -1,7 +1,7 @@
 /**
  * KRA API 데이터 파싱 유틸
  */
-import type { ParsedWeight } from '@types/index.js';
+import type { ParsedWeight } from '@app-types/index.js';
 
 /**
  * wgHr 문자열 파싱

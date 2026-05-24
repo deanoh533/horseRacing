@@ -15,7 +15,7 @@ import {
   buildStOrdMap,
 } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
-import type { MeetCode } from '@types/index.js';
+import type { MeetCode } from '@app-types/index.js';
 
 interface SyncOptions {
   rcDate: number;
@@ -98,7 +98,7 @@ async function syncMeet(
         try {
           const details = await kra.getRaceDetailResult({ meet, rcDate, rcNo });
           stOrdMap = buildStOrdMap(details);
-        } catch (err) {
+        } catch {
           console.warn(`    [meet=${meet}, rcNo=${rcNo}] stOrd 가져오기 실패 (계속)`);
         }
 
