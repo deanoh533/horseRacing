@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx tsc *)",
+      "PowerShell(npm run lint)",
+      "PowerShell(npm run test:run)",
+      "PowerShell(npm run build)",
+      "PowerShell(Get-ChildItem *)"
+    ]
+  }
+}

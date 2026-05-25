@@ -164,6 +164,173 @@ export function usePredictionsByDate(rcDate: number) {
   });
 }
 
+// ============================================
+// 통계 페이지용 hooks
+// ============================================
+
+type MonthlyHitRate = {
+  month: string; // 'YYYY-MM'
+  total: number; // 유효 경주 수
+  win: number;   // 단승 적중 수
+  place: number; // 연승 (1~2위)
+  show: number;  // 복승 (1~3위)
+};
+
+/**
+ * 월별 적중률 추이
+ *  - 모든 predictions 1위 vs actual_ord 비교 후 월 단위 group
+ *  - period로 최근 N개월만 필터 (전체: null)
+ */
+export function useMonthlyHitRate(monthsBack: number | null = 12) {
+  return useQuery({
+    queryKey: ['monthly-hit-rate', monthsBack],
+    queryFn: async (): Promise<MonthlyHitRate[]> => {
+      // predictions 페이지네이션 fetch (1000 row limit 우회)
+      const rows: { race_date: number; meet: number; rc_no: number; predicted_rank: number; actual_ord: number | null }[] = [];
+      const PAGE = 1000;
+      for (let off = 0; ; off += PAGE) {
+        const { data, error } = await supabase
+          .from('predictions')
+          .select('race_date, meet, rc_no, predicted_rank, actual_ord')
+          .order('race_date')
+          .order('meet')
+          .order('rc_no')
+          .range(off, off + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < PAGE) break;
+      }
+
+      // race 단위 group
+      const byRace = new Map<string, typeof rows>();
+      for (const r of rows) {
+        const k = `${r.race_date}-${r.meet}-${r.rc_no}`;
+        if (!byRace.has(k)) byRace.set(k, []);
+        byRace.get(k)!.push(r);
+      }
+
+      // 월 단위 적중률
+      const byMonth = new Map<string, MonthlyHitRate>();
+      for (const horses of byRace.values()) {
+        const first = horses[0]!;
+        const month = monthOf(first.race_date);
+        const pred1 = horses.find((h) => h.predicted_rank === 1);
+        if (!pred1 || pred1.actual_ord === null) continue;
+
+        const m = byMonth.get(month) ?? { month, total: 0, win: 0, place: 0, show: 0 };
+        m.total++;
+        if (pred1.actual_ord === 1) m.win++;
+        if (pred1.actual_ord <= 2) m.place++;
+        if (pred1.actual_ord <= 3) m.show++;
+        byMonth.set(month, m);
+      }
+
+      const sorted = [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month));
+      if (monthsBack === null) return sorted;
+      return sorted.slice(-monthsBack);
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 가중치 학습 이력 (weight_history 시계열)
+ */
+export type WeightHistoryRow = {
+  id: number;
+  period_start: string; // YYYY-MM-DD
+  period_end: string;
+  race_count: number;
+  weights: Record<string, number>;
+  correlations: Record<string, number>;
+  applied_at: string;
+};
+
+export function useWeightHistory(limit = 5) {
+  return useQuery({
+    queryKey: ['weight-history', limit],
+    queryFn: async (): Promise<WeightHistoryRow[]> => {
+      const { data, error } = await supabase
+        .from('weight_history')
+        .select('id, period_start, period_end, race_count, weights, correlations, applied_at')
+        .order('applied_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as WeightHistoryRow[];
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+/**
+ * 17개 항목 상관계수 (최근 학습 결과)
+ *  - weight_history 가장 최근 row의 correlations 사용
+ */
+export function useLatestCorrelations() {
+  return useQuery({
+    queryKey: ['latest-correlations'],
+    queryFn: async (): Promise<Record<string, number> | null> => {
+      const { data, error } = await supabase
+        .from('weight_history')
+        .select('correlations')
+        .order('applied_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.correlations ?? null) as Record<string, number> | null;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+/**
+ * 최근 경주별 적중 여부 (아카이브)
+ */
+export type ArchiveRow = {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  hit: boolean | null; // null = actual_ord 없음
+  predicted_hr: string;
+  actual_ord: number | null;
+  total_score: number;
+};
+
+export function useRecentArchives(limit = 30) {
+  return useQuery({
+    queryKey: ['recent-archives', limit],
+    queryFn: async (): Promise<ArchiveRow[]> => {
+      // 최근 N race 가져오기 (predicted_rank=1만, 최신 경주순)
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('race_date, meet, rc_no, hr_name, actual_ord, total_score')
+        .eq('predicted_rank', 1)
+        .order('race_date', { ascending: false })
+        .order('meet')
+        .order('rc_no', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []).map((r) => ({
+        race_date: r.race_date,
+        meet: r.meet,
+        rc_no: r.rc_no,
+        predicted_hr: r.hr_name,
+        actual_ord: r.actual_ord,
+        total_score: r.total_score,
+        hit: r.actual_ord === null ? null : r.actual_ord === 1,
+      }));
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+function monthOf(rcDate: number): string {
+  const y = Math.floor(rcDate / 10000);
+  const m = Math.floor((rcDate % 10000) / 100);
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
 /**
  * DB에 데이터 있는 날짜 목록 (대시보드 날짜 선택용)
  */
