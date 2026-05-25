@@ -10,6 +10,8 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
+  DollarSign,
+  Heart,
 } from 'lucide-react';
 import '../lib/chartSetup';
 import { CHART_COLORS } from '../lib/chartSetup';
@@ -18,6 +20,8 @@ import {
   useWeightHistory,
   useLatestCorrelations,
   useRecentArchives,
+  useEarningsHitRate,
+  useRaceCardsCoverage,
 } from '../lib/queries';
 
 const PERIODS = [
@@ -59,6 +63,8 @@ export function Statistics() {
   const { data: history, isLoading: histLoading } = useWeightHistory(5);
   const { data: correlations, isLoading: corrLoading } = useLatestCorrelations();
   const { data: archives, isLoading: archLoading } = useRecentArchives(30);
+  const { data: earningsBuckets, isLoading: earnLoading } = useEarningsHitRate();
+  const { data: coverage, isLoading: covLoading } = useRaceCardsCoverage();
 
   // 적중률 통계 요약
   const summary = useMemo(() => {
@@ -230,6 +236,98 @@ export function Statistics() {
           <EmptyBox text="아직 학습 결과 없음 (weight_history 비어있음)" />
         ) : (
           <CorrelationsChart correlations={correlations} />
+        )}
+      </Card>
+
+      {/* 수득상금 구간별 적중률 */}
+      <Card
+        title="수득상금 구간별 단승 적중률"
+        subtitle="출주표(race_cards)와 예측 결과 join"
+        icon={<DollarSign className="w-4 h-4 text-[var(--color-accent-gold)]" />}
+      >
+        {earnLoading ? (
+          <LoadingBox />
+        ) : !earningsBuckets ? (
+          <EmptyBox text="race_cards 데이터 없음" />
+        ) : (
+          <>
+            <div className="h-64">
+              <Bar
+                data={{
+                  labels: earningsBuckets.map((b) => `${b.label}\n(${b.range})`),
+                  datasets: [
+                    {
+                      label: '단승 적중률',
+                      data: earningsBuckets.map((b) => Math.round(b.rate * 10) / 10),
+                      backgroundColor: earningsBuckets.map((b) =>
+                        b.rate >= 30 ? CHART_COLORS.gold : b.rate >= 20 ? CHART_COLORS.cyan : CHART_COLORS.pink
+                      ),
+                      borderRadius: 4,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: '#131b3a',
+                      borderColor: CHART_COLORS.cyan,
+                      borderWidth: 1,
+                      callbacks: {
+                        label: (ctx) => {
+                          const b = earningsBuckets[ctx.dataIndex]!;
+                          return `${b.rate.toFixed(1)}% (${b.hits}/${b.count})`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    y: { min: 0, max: 60, grid: { color: CHART_COLORS.grid }, ticks: { callback: (v) => `${v}%` } },
+                    x: { grid: { display: false } },
+                  },
+                }}
+              />
+            </div>
+            <div className="mt-3 text-xs text-[var(--color-text-secondary)]">
+              💡 수득상금이 높을수록 (검증된 강자) 단승 적중률 ↑ 가설 확인
+            </div>
+          </>
+        )}
+      </Card>
+
+      {/* race_cards 데이터 커버리지 */}
+      <Card
+        title="race_cards 데이터 수집 현황"
+        icon={<Heart className="w-4 h-4 text-[var(--color-accent-pink)]" />}
+      >
+        {covLoading ? (
+          <LoadingBox />
+        ) : !coverage ? (
+          <EmptyBox text="데이터 없음" />
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <Stat label="총 출주 기록" value={coverage.totalRows.toLocaleString()} unit="" />
+            <Stat
+              label="진료 이력 있음"
+              value={`${((coverage.injuredRows / Math.max(coverage.totalRows, 1)) * 100).toFixed(1)}`}
+              unit="%"
+              color="pink"
+            />
+            <Stat
+              label="가장 이른 날짜"
+              value={coverage.earliestDate ? formatRcDate(coverage.earliestDate).slice(2) : '-'}
+              unit=""
+              color="gold"
+            />
+            <Stat
+              label="가장 최근"
+              value={coverage.latestDate ? formatRcDate(coverage.latestDate).slice(2) : '-'}
+              unit=""
+              color="gold"
+            />
+          </div>
         )}
       </Card>
 

@@ -331,6 +331,137 @@ function monthOf(rcDate: number): string {
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 
+// ============================================
+// race_cards 기반 통계
+// ============================================
+
+/**
+ * 수득상금 구간별 단승 적중률
+ *  - race_cards (hr_name, erng_sump) JOIN predictions (hr_name)
+ *  - 구간: 0 / 1~100만 / 100~1000만 / 1000만+
+ */
+export type EarningsBucket = {
+  label: string;
+  range: string;
+  count: number; // 예측 1위 row 수
+  hits: number;  // 그중 실제 1위
+  rate: number;  // %
+};
+
+export function useEarningsHitRate() {
+  return useQuery({
+    queryKey: ['earnings-hit-rate'],
+    queryFn: async (): Promise<EarningsBucket[]> => {
+      // race_cards 전체 (hr_name + erng_sump)
+      type RcRow = { race_date: number; meet: number; rc_no: number; hr_name: string; erng_sump: number | null };
+      const cards: RcRow[] = [];
+      for (let off = 0; ; off += 1000) {
+        const { data, error } = await supabase
+          .from('race_cards')
+          .select('race_date, meet, rc_no, hr_name, erng_sump')
+          .order('race_date')
+          .order('meet')
+          .order('rc_no')
+          .order('hr_name')
+          .range(off, off + 999);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        cards.push(...data);
+        if (data.length < 1000) break;
+      }
+
+      // 예측 1위 row 가져오기 (race_date, meet, rc_no, hr_name 기준 join용)
+      type PredRow = { race_date: number; meet: number; rc_no: number; hr_name: string; actual_ord: number | null };
+      const preds: PredRow[] = [];
+      for (let off = 0; ; off += 1000) {
+        const { data, error } = await supabase
+          .from('predictions')
+          .select('race_date, meet, rc_no, hr_name, actual_ord')
+          .eq('predicted_rank', 1)
+          .order('race_date')
+          .order('meet')
+          .order('rc_no')
+          .range(off, off + 999);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        preds.push(...data);
+        if (data.length < 1000) break;
+      }
+
+      // race_cards lookup
+      const cardKey = (r: { race_date: number; meet: number; rc_no: number; hr_name: string }) =>
+        `${r.race_date}-${r.meet}-${r.rc_no}-${r.hr_name}`;
+      const cardMap = new Map<string, RcRow>();
+      cards.forEach((c) => cardMap.set(cardKey(c), c));
+
+      const buckets: EarningsBucket[] = [
+        { label: '미입상', range: '0원', count: 0, hits: 0, rate: 0 },
+        { label: '입문급', range: '1~100만', count: 0, hits: 0, rate: 0 },
+        { label: '중수', range: '100~1000만', count: 0, hits: 0, rate: 0 },
+        { label: '상수', range: '1000만~1억', count: 0, hits: 0, rate: 0 },
+        { label: '최상위', range: '1억+', count: 0, hits: 0, rate: 0 },
+      ];
+
+      for (const p of preds) {
+        if (p.actual_ord === null) continue;
+        const card = cardMap.get(cardKey(p));
+        if (!card || card.erng_sump === null) continue;
+        const e = card.erng_sump;
+        let idx: number;
+        if (e === 0) idx = 0;
+        else if (e < 1_000_000) idx = 1;
+        else if (e < 10_000_000) idx = 2;
+        else if (e < 100_000_000) idx = 3;
+        else idx = 4;
+        buckets[idx]!.count++;
+        if (p.actual_ord === 1) buckets[idx]!.hits++;
+      }
+
+      buckets.forEach((b) => {
+        b.rate = b.count > 0 ? (b.hits / b.count) * 100 : 0;
+      });
+      return buckets;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+/**
+ * race_cards 데이터 커버리지 (디버그/모니터링용)
+ */
+export function useRaceCardsCoverage() {
+  return useQuery({
+    queryKey: ['race-cards-coverage'],
+    queryFn: async () => {
+      const { count: cardCount } = await supabase
+        .from('race_cards')
+        .select('*', { count: 'exact', head: true });
+      const { data: dateRange } = await supabase
+        .from('race_cards')
+        .select('race_date')
+        .order('race_date', { ascending: false })
+        .limit(1);
+      const { data: dateRangeStart } = await supabase
+        .from('race_cards')
+        .select('race_date')
+        .order('race_date', { ascending: true })
+        .limit(1);
+      // 부상/진료 이력 있는 말 수
+      const { count: injuredCount } = await supabase
+        .from('race_cards')
+        .select('*', { count: 'exact', head: true })
+        .not('latst_trea1_txt', 'is', null);
+      return {
+        totalRows: cardCount ?? 0,
+        injuredRows: injuredCount ?? 0,
+        latestDate: dateRange?.[0]?.race_date ?? null,
+        earliestDate: dateRangeStart?.[0]?.race_date ?? null,
+      };
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
 /**
  * DB에 데이터 있는 날짜 목록 (대시보드 날짜 선택용)
  */
