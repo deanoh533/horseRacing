@@ -4,5 +4,8 @@
   "buildCommand": "cd client && npm ci && npm run build",
   "outputDirectory": "client/dist",
   "installCommand": "echo 'skip root install (handled in buildCommand)'",
-  "devCommand": "cd client && npm run dev"
+  "devCommand": "cd client && npm run dev",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
