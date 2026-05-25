@@ -205,6 +205,71 @@ export class KRAClient {
     const damInfo = await this.getHorseInfo({ hrName: damHrnm });
     return damInfo?.sireHrnm ?? null;
   }
+
+  /**
+   * 출주표 (race card) — 경기 약 2일 전 발표
+   *   서울: API314/textDataHoldSePtinInfo
+   *   부산경남: API316/textDataHoldBuPtinInfo
+   * param: race_dt, race_no (snake_case 필수)
+   */
+  async getRaceCard(params: {
+    meet: MeetCode;
+    rcDate: number;
+    rcNo: number;
+  }): Promise<KRARaceCard[]> {
+    return limit(async () => {
+      const path =
+        params.meet === 1
+          ? '/API314/textDataHoldSePtinInfo'
+          : '/API316/textDataHoldBuPtinInfo';
+      const { data } = await this.client.get<KRAResponse<KRARaceCard>>(path, {
+        params: {
+          serviceKey: this.apiKey,
+          race_dt: params.rcDate,
+          race_no: params.rcNo,
+          pageNo: 1,
+          numOfRows: 30,
+          _type: 'json',
+        },
+      });
+      return this.parseResponse(data);
+    });
+  }
+}
+
+export interface KRARaceCard {
+  raceDt: number;
+  raceNo: number;
+  pthrNo: number;
+  hrnm: string;
+  ag: number;
+  gndr: string;
+  prds: string;
+  burdWgt: number;
+  ratg: number;
+  jckyNm: string;
+  trarNm: string;
+  ownerNm: string;
+  erngSump: number;
+  erngLoy: number;
+  erngLsm: number;
+  sumpRcodFplc: number;
+  sumpRcodSplc: number;
+  sumpRcodTplc: number;
+  sumpRcodSum: number;
+  loyRcodFplc: number;
+  loyRcodSplc: number;
+  loyRcodTplc: number;
+  loyRcodSum: number;
+  asisEquip1: string;
+  asisEquip2: string;
+  asisEquip3: string;
+  asisEquip4: string;
+  asisEquip5: string;
+  latstBledg1: string;
+  latstBledg2: string;
+  latstTrea1Txt: string;
+  latstTrea2Txt: string;
 }
 
 // 싱글톤 인스턴스

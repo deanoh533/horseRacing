@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "sync": "tsx src/sync/dailySync.ts",
     "sync:full": "tsx src/sync/onboardingSync.ts",
+    "sync:cards": "tsx src/sync/raceCardSync.ts",
     "backfill": "tsx scripts/backfill_predictions.ts",
     "test": "vitest",
     "test:run": "vitest run",
