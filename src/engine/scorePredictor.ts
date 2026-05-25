@@ -49,7 +49,7 @@ export async function predictRace(
   meet: number,
   rcNo: number
 ): Promise<PredictionRow[]> {
-  // 1. 출전마 전체
+  // 1. horse_results 시도 (사후 모드 — 백테스트/완료된 경주)
   const { data: horses, error } = await sb
     .from('horse_results')
     .select('*')
@@ -58,7 +58,11 @@ export async function predictRace(
     .eq('rc_no', rcNo)
     .order('chul_no');
   if (error) throw error;
-  if (!horses || horses.length === 0) return [];
+
+  // 2. 결과 없으면 race_cards로 사전 예측 시도
+  if (!horses || horses.length === 0) {
+    return predictFromCards(sb, rcDate, meet, rcNo);
+  }
 
   const horseList = horses as HorseRow[];
   const totalHorses = horseList.length;
@@ -104,6 +108,95 @@ export async function predictRace(
     predicted_rank: rankMap.get(r.horse.chul_no)!,
     item_scores: r.score.items,
     actual_ord: r.horse.ord,
+  }));
+}
+
+/**
+ * race_cards 기반 사전 예측 (results 없는 미래 경주)
+ *  - 이번 경주: race_cards에서
+ *  - 과거 이력: horse_results에서 hr_name으로 lookup
+ *  - jk_no/tr_no: jockeys/trainers 테이블에서 이름 매핑 (없으면 hr_name 최근 row)
+ *  - rc_dist/track_type: races 테이블에서 lookup
+ *  - actual_ord: null (아직 결과 없음)
+ */
+async function predictFromCards(
+  sb: SupabaseClient,
+  rcDate: number,
+  meet: number,
+  rcNo: number
+): Promise<PredictionRow[]> {
+  const { data: cards } = await sb
+    .from('race_cards')
+    .select('*')
+    .eq('race_date', rcDate)
+    .eq('meet', meet)
+    .eq('rc_no', rcNo)
+    .order('pthr_no');
+  if (!cards || cards.length === 0) return [];
+
+  // 경주 정보 (rc_dist, track_type)
+  const { data: race } = await sb
+    .from('races')
+    .select('rc_dist, track_type')
+    .eq('race_date', rcDate)
+    .eq('meet', meet)
+    .eq('rc_no', rcNo)
+    .maybeSingle();
+
+  // 기수/조교사 name → no 매핑
+  const jockeyNames = [...new Set(cards.map((c) => c.jcky_nm).filter(Boolean))];
+  const trainerNames = [...new Set(cards.map((c) => c.trar_nm).filter(Boolean))];
+  const { data: jks } = await sb.from('jockeys').select('jk_no, jk_name').in('jk_name', jockeyNames);
+  const { data: trs } = await sb.from('trainers').select('tr_no, tr_name').in('tr_name', trainerNames);
+  const jkByName = new Map((jks ?? []).map((j) => [j.jk_name, j.jk_no]));
+  const trByName = new Map((trs ?? []).map((t) => [t.tr_name, t.tr_no]));
+
+  const currentMonth = Math.floor((rcDate % 10000) / 100);
+  const currentSeason = monthToSeason(currentMonth);
+  const totalHorses = cards.length;
+
+  // 각 horse를 HorseRow 호환 형태로 변환 후 buildEngineInput 호출
+  const results = await Promise.all(
+    cards.map(async (c) => {
+      const syntheticHorse: HorseRow = {
+        race_date: rcDate,
+        meet,
+        rc_no: rcNo,
+        chul_no: c.pthr_no,
+        hr_name: c.hr_name,
+        hr_no: '', // race_cards에 없음 (과거 이력 lookup은 hr_name 기반이라 OK)
+        age: c.ag ?? null,
+        sex: c.gndr ?? null,
+        rating: c.ratg && c.ratg > 0 ? c.ratg : null,
+        ord: null, // 미래 경주
+        st_ord: null,
+        rc_dist: race?.rc_dist ?? null,
+        track_type: race?.track_type ?? null,
+        wg_budam: c.burd_wgt ?? null,
+        jk_no: c.jcky_nm ? jkByName.get(c.jcky_nm) ?? null : null,
+        tr_no: c.trar_nm ? trByName.get(c.trar_nm) ?? null : null,
+        popularity: null, // 사전엔 인기 없음
+      };
+      const input = await buildEngineInput(sb, syntheticHorse, totalHorses, currentMonth, currentSeason);
+      input.erngSump = c.erng_sump ?? undefined;
+      const score = engine.calculateScores(input);
+      return { horse: syntheticHorse, score };
+    })
+  );
+
+  const sorted = [...results].sort((a, b) => b.score.total - a.score.total);
+  const rankMap = new Map<number, number>();
+  sorted.forEach((r, idx) => rankMap.set(r.horse.chul_no, idx + 1));
+
+  return results.map((r) => ({
+    race_date: rcDate,
+    meet,
+    rc_no: rcNo,
+    hr_name: r.horse.hr_name,
+    total_score: r.score.total,
+    predicted_rank: rankMap.get(r.horse.chul_no)!,
+    item_scores: r.score.items,
+    actual_ord: null, // 사전 예측이라 결과 아직 없음
   }));
 }
 
