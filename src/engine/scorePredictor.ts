@@ -233,9 +233,17 @@ async function buildEngineInput(
  * ⑧ 부담 극복 지수용 — 과거 경주들의 raceAvgBudam 일괄 fetch
  * 한 horse의 hist5 (~5경주) 각각의 출전마 전체 평균 부담중량
  */
+type HistRow = {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  ord: number | null;
+  wg_budam: number | null;
+};
+
 async function buildBurdenHistory(
   sb: SupabaseClient,
-  hist5: any[]
+  hist5: HistRow[]
 ): Promise<Array<{ ord: number; myBudam: number; raceAvgBudam: number }>> {
   if (hist5.length === 0) return [];
   // (race_date, meet, rc_no) 키 목록

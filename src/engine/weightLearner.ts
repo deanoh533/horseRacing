@@ -39,7 +39,14 @@ export async function computeCorrelations(
   fromDate: number,
   toDate: number
 ): Promise<{ correlations: Correlations; raceCount: number }> {
-  const rows: { race_date: number; meet: number; rc_no: number; item_scores: any; actual_ord: number | null }[] = [];
+  type PredRow = {
+    race_date: number;
+    meet: number;
+    rc_no: number;
+    item_scores: Record<string, { rawScore?: number }> | null;
+    actual_ord: number | null;
+  };
+  const rows: PredRow[] = [];
   const PAGE = 1000;
   for (let off = 0; ; off += PAGE) {
     const { data, error } = await sb
@@ -196,7 +203,15 @@ export async function applyWeightsToPredictions(
   onProgress?: (done: number, total: number) => void
 ): Promise<{ updated: number; races: number }> {
   // 모든 predictions 가져오기 (페이지네이션 — order 필수: range는 정렬 없으면 페이지 경계 중복 발생)
-  const rows: any[] = [];
+  type PredApplyRow = {
+    race_date: number;
+    meet: number;
+    rc_no: number;
+    hr_name: string;
+    item_scores: Record<string, { rawScore?: number; itemName?: string; status?: string }> | null;
+    actual_ord: number | null;
+  };
+  const rows: PredApplyRow[] = [];
   const PAGE = 1000;
   for (let off = 0; ; off += PAGE) {
     let q = sb
@@ -217,7 +232,7 @@ export async function applyWeightsToPredictions(
   }
 
   // race 단위 그룹핑
-  const byRace = new Map<string, any[]>();
+  const byRace = new Map<string, PredApplyRow[]>();
   for (const r of rows) {
     const k = `${r.race_date}-${r.meet}-${r.rc_no}`;
     if (!byRace.has(k)) byRace.set(k, []);
@@ -232,7 +247,14 @@ export async function applyWeightsToPredictions(
     const first = horses[0];
     // 새 total_score 계산
     const recomputed = horses.map((h) => {
-      const newItems: any = {};
+      const newItems: Record<string, {
+        itemId: string;
+        itemName: string;
+        rawScore: number;
+        weight: number;
+        weightedScore: number;
+        status: string;
+      }> = {};
       let total = 0;
       for (const itemId of ALL_ITEMS) {
         const raw = h.item_scores?.[itemId]?.rawScore ?? 0;
