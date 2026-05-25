@@ -102,7 +102,7 @@ export function HorseDetail() {
                 </div>
               </>
             ) : (
-              horse.rating !== null && (
+              horse.rating != null && horse.rating > 0 && (
                 <div className="text-3xl font-bold font-mono-num text-[var(--color-accent-cyan)] glow-cyan">
                   {horse.rating}
                   <span className="text-lg">레이팅</span>
@@ -121,7 +121,7 @@ export function HorseDetail() {
             ...(horse.wg_budam !== null
               ? [{ label: '부담중량', value: `${horse.wg_budam}kg` }]
               : []),
-            ...(horse.wg_jk !== null
+            ...(horse.wg_jk != null && horse.wg_jk !== 0
               ? [{ label: '기수 체중', value: `${horse.wg_jk}kg` }]
               : []),
             ...(horse.wg_hr !== null
@@ -135,7 +135,7 @@ export function HorseDetail() {
             ...(horse.st_ord !== null
               ? [{ label: '발주 순위', value: `${horse.st_ord}위` }]
               : []),
-            ...(horse.rating !== null
+            ...(horse.rating != null && horse.rating > 0
               ? [{ label: '레이팅', value: `${horse.rating}` }]
               : []),
             ...(horse.jk_name

@@ -234,7 +234,7 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
               </div>
             </>
           ) : (
-            horse.rating !== null && (
+            horse.rating != null && horse.rating > 0 && (
               <div className="text-xl font-bold font-mono-num text-[var(--color-accent-cyan)]">
                 {horse.rating}
                 <span className="text-sm">레이팅</span>
@@ -274,7 +274,7 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
                 value={`${horse.wg_hr}kg ${formatDiff(horse.wg_hr_diff)}`}
               />
             )}
-            {horse.wg_jk !== null && (
+            {horse.wg_jk != null && horse.wg_jk !== 0 && (
               <DataRow label="기수 체중" value={`${horse.wg_jk}kg`} />
             )}
           </DataCategory>
