@@ -157,6 +157,7 @@ export const SCORE_ITEM_IDS = [
   '15_seasonal_pattern',
   '16_jockey_horse_chemistry',
   '17_market_odds',
+  '18_earnings',
 ] as const;
 
 export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
@@ -183,6 +184,7 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '15_seasonal_pattern': 4.39,
   '16_jockey_horse_chemistry': 3.51,
   '17_market_odds': 8.77,
+  '18_earnings': 8.77,
 };
 
 /** 17개 항목 한국어 이름 */
@@ -204,6 +206,7 @@ export const ITEM_NAMES: Record<ScoreItemId, string> = {
   '15_seasonal_pattern': '계절 패턴',
   '16_jockey_horse_chemistry': '기수-말 궁합',
   '17_market_odds': '배당률',
+  '18_earnings': '수득상금',
 };
 
 /** 본인이 평소 중시하는 4대 핵심 분석 영역 (UI 강조용) */

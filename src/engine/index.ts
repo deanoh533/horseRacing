@@ -35,6 +35,7 @@ import { calculatePedigreeScore } from './scoreItems/14_pedigree.js';
 import { calculateSeasonalPatternScore } from './scoreItems/15_seasonal_pattern.js';
 import { calculateChemistryScore } from './scoreItems/16_jockey_horse_chemistry.js';
 import { calculateMarketOddsScore } from './scoreItems/17_market_odds.js';
+import { calculateEarningsScore } from './scoreItems/18_earnings.js';
 
 /**
  * 점수 계산을 위한 입력 데이터
@@ -103,6 +104,9 @@ export interface ScoreEngineInput {
 
   // ⑰ 배당률
   recent5Popularities?: number[];
+
+  // ⑱ 수득상금 (race_cards에서)
+  erngSump?: number;
 }
 
 /**
@@ -265,6 +269,12 @@ export class ScoreEngine {
       calculateMarketOddsScore({
         recent5Popularities: input.recent5Popularities ?? [],
       })
+    );
+
+    // ⑱ 수득상금 (race_cards.erng_sump)
+    items['18_earnings'] = this.make(
+      '18_earnings',
+      calculateEarningsScore({ erngSump: input.erngSump })
     );
 
     // 종합 점수

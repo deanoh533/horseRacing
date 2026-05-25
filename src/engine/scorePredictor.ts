@@ -8,7 +8,7 @@
  * (예: 데뷔말 → 이력 0건 → 이력 의존 항목 0점, 의도된 동작)
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ScoreEngine, type HorseScoreResult } from './index.js';
+import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
 
 interface HorseRow {
   race_date: number;
@@ -67,10 +67,23 @@ export async function predictRace(
   const currentMonth = Math.floor((rcDate % 10000) / 100);
   const currentSeason = monthToSeason(currentMonth);
 
+  // 2-1. ⑱ 수득상금: race_cards에서 lookup (hr_name 기반)
+  const { data: cards } = await sb
+    .from('race_cards')
+    .select('hr_name, erng_sump')
+    .eq('race_date', rcDate)
+    .eq('meet', meet)
+    .eq('rc_no', rcNo);
+  const earningsByName = new Map<string, number>();
+  (cards ?? []).forEach((c) => {
+    if (c.erng_sump !== null) earningsByName.set(c.hr_name, c.erng_sump);
+  });
+
   // 3. 각 말의 점수 계산
   const results = await Promise.all(
     horseList.map(async (h) => {
       const input = await buildEngineInput(sb, h, totalHorses, currentMonth, currentSeason);
+      input.erngSump = earningsByName.get(h.hr_name);
       const score = engine.calculateScores(input);
       return { horse: h, score };
     })
@@ -100,7 +113,7 @@ async function buildEngineInput(
   totalHorses: number,
   currentMonth: number,
   currentSeason: 'spring' | 'summer' | 'autumn' | 'winter'
-) {
+): Promise<ScoreEngineInput> {
   const rcDate = h.race_date;
 
   // 같은 말의 과거 5경주
