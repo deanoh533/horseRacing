@@ -8,11 +8,12 @@
  */
 import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target } from 'lucide-react';
+import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target, History } from 'lucide-react';
 import {
   useHorsesByRace,
   usePredictionsByRace,
   useHorseSectionalAbility,
+  useHorseHistory,
   useJockeyStats,
 } from '../lib/queries';
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
@@ -416,6 +417,20 @@ function rankBadgeClass(rank: number): string {
   return 'text-[var(--color-text-disabled)] text-xs';
 }
 
+function ordBadgeClass(ord: number | null): string {
+  if (ord == null) return 'text-[var(--color-accent-pink)] text-[10px]';
+  if (ord === 1) return 'text-[var(--color-accent-gold)] font-bold';
+  if (ord <= 3) return 'text-[var(--color-success)] font-semibold';
+  if (ord <= 7) return 'text-[var(--color-text-primary)]';
+  return 'text-[var(--color-text-disabled)]';
+}
+
+function formatShortDate(rcDate: number): string {
+  const m = Math.floor((rcDate % 10000) / 100);
+  const d = rcDate % 100;
+  return `${m}/${String(d).padStart(2, '0')}`;
+}
+
 // ============================================================
 // Fragment wrapper for two-row entry (main + expand)
 // ============================================================
@@ -439,11 +454,12 @@ function ExpandedDetail({
 }) {
   const { data: ability, isLoading: abLoading } = useHorseSectionalAbility(entry.hr_name);
   const { data: jockeyStats } = useJockeyStats(entry.jcky_no ?? '', meet);
+  const { data: history, isLoading: histLoading } = useHorseHistory(entry.hr_name, rcDate, 5);
 
   const jockeyStat = jockeyStats?.[0]; // (jcky_no, meet) 단일 row
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
       {/* ① 출전마 메타 */}
       <DetailCard icon={<Award className="w-3.5 h-3.5" />} title="기본 정보">
         <KV label="출생지" value={entry.prds ?? '-'} />
@@ -521,8 +537,47 @@ function ExpandedDetail({
         )}
       </DetailCard>
 
+      {/* ④ 최근 5경주 */}
+      <DetailCard icon={<History className="w-3.5 h-3.5" />} title="최근 5경주">
+        {histLoading ? (
+          <div className="text-[var(--color-text-disabled)]">
+            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+            로딩…
+          </div>
+        ) : !history || history.length === 0 ? (
+          <div className="text-[var(--color-text-disabled)]">이력 없음</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="text-[10px] text-[var(--color-text-secondary)]">
+                <th className="text-left py-0.5">날짜</th>
+                <th className="text-right py-0.5">거리</th>
+                <th className="text-right py-0.5">착순</th>
+                <th className="text-right py-0.5">기록</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((h, i) => (
+                <tr key={i} className="border-t border-[var(--color-bg-elevated)]">
+                  <td className="py-1">{formatShortDate(h.race_date)}</td>
+                  <td className="py-1 text-right">{h.rc_dist ?? '-'}m</td>
+                  <td className="py-1 text-right">
+                    <span className={ordBadgeClass(h.ord)}>
+                      {h.ord != null ? `${h.ord}위` : '-'}
+                    </span>
+                  </td>
+                  <td className="py-1 text-right font-mono-num">
+                    {h.rc_time != null ? `${h.rc_time}s` : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </DetailCard>
+
       {/* 푸터 안내 */}
-      <div className="md:col-span-3 text-center text-[10px] text-[var(--color-text-disabled)] pt-1">
+      <div className="md:col-span-2 text-center text-[10px] text-[var(--color-text-disabled)] pt-1">
         <Link
           to={`/race/${meet}/${rcDate}/${rcNo}/horse/${entry.pthr_no}`}
           className="hover:text-[var(--color-accent-cyan)] underline"
