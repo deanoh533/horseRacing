@@ -10,6 +10,8 @@ import {
   type SectionalRecord,
   type TrainingLog,
   type JockeyStat,
+  type HorseSectionalAbility,
+  type RaceSectionalStats,
 } from './supabase';
 
 /**
@@ -407,6 +409,78 @@ export function useJockeyStats(jckyNo: string, meet?: number) {
     },
     enabled: !!jckyNo,
     staleTime: 24 * 60 * 60 * 1000, // 기수 성적은 하루 캐시
+  });
+}
+
+// ============================================
+// 구간기록 분석 view (007 마이그레이션)
+// ============================================
+
+/**
+ * 마별 통산 구간 능력치 조회 (horse_sectional_ability view)
+ *  - best_last_600m: 막판 추격력 (작을수록 빠름)
+ *  - best_s1f:       출발 가속력 (작을수록 빠름)
+ *  - surge_score:    양수=추격형, 음수=선행형
+ *  - avg_ord:        평균 착순 (참고)
+ */
+export function useHorseSectionalAbility(hrName: string) {
+  return useQuery({
+    queryKey: ['horse-sectional-ability', hrName],
+    queryFn: async (): Promise<HorseSectionalAbility | null> => {
+      const { data, error } = await supabase
+        .from('horse_sectional_ability')
+        .select('*')
+        .eq('hr_name', hrName)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? null;
+    },
+    enabled: !!hrName,
+    staleTime: 60 * 60 * 1000, // 1시간 캐시
+  });
+}
+
+/**
+ * 한 경주 출전마 전체의 구간 능력치 (펼침 영역에서 출전마 비교용)
+ */
+export function useHorseSectionalAbilityByNames(hrNames: string[]) {
+  return useQuery({
+    queryKey: ['horse-sectional-ability-batch', hrNames.slice().sort().join(',')],
+    queryFn: async (): Promise<HorseSectionalAbility[]> => {
+      if (hrNames.length === 0) return [];
+      const { data, error } = await supabase
+        .from('horse_sectional_ability')
+        .select('*')
+        .in('hr_name', hrNames);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: hrNames.length > 0,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+/**
+ * 경주별 페이스 표준 통계 (race_sectional_stats view)
+ *  - "그 경주가 빠른 페이스였는지" 판단
+ *  - best_last_600m=그 경주의 막판 600m 최단 / avg=평균
+ */
+export function useRaceSectionalStats(rcDate: number, meet: number, rcNo: number) {
+  return useQuery({
+    queryKey: ['race-sectional-stats', rcDate, meet, rcNo],
+    queryFn: async (): Promise<RaceSectionalStats | null> => {
+      const { data, error } = await supabase
+        .from('race_sectional_stats')
+        .select('*')
+        .eq('race_date', rcDate)
+        .eq('meet', meet)
+        .eq('rc_no', rcNo)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? null;
+    },
+    enabled: !!rcDate && !!meet && !!rcNo,
+    staleTime: 10 * 60 * 1000,
   });
 }
 

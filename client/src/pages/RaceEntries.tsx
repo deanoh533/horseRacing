@@ -8,8 +8,13 @@
  */
 import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot } from 'lucide-react';
-import { useHorsesByRace, usePredictionsByRace } from '../lib/queries';
+import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target } from 'lucide-react';
+import {
+  useHorsesByRace,
+  usePredictionsByRace,
+  useHorseSectionalAbility,
+  useJockeyStats,
+} from '../lib/queries';
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
 
@@ -86,6 +91,7 @@ export function RaceEntries() {
 
   const [sortKey, setSortKey] = useState<SortKey>('pthr_no');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [expandedPthr, setExpandedPthr] = useState<number | null>(null);
 
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
@@ -247,46 +253,69 @@ export function RaceEntries() {
                 {rows.map((h) => {
                   const sex = h.gndr ?? '';
                   const rankLabel = formatPredRank(h.predicted_rank);
+                  const isExpanded = expandedPthr === h.pthr_no;
                   return (
-                    <tr
-                      key={h.pthr_no}
-                      className="border-t border-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-elevated)]/50 transition-colors"
-                    >
-                      <td className="px-2 py-2 text-right font-semibold text-[var(--color-accent-cyan)]">
-                        {h.pthr_no}
-                      </td>
-                      <td className="px-2 py-2">
-                        <Link
-                          to={`/race/${meet}/${rcDate}/${rcNo}/horse/${h.pthr_no}`}
-                          className="font-semibold hover:text-[var(--color-accent-cyan)] hover:underline"
-                        >
-                          {h.hr_name}
-                        </Link>
-                      </td>
-                      <td className="px-2 py-2 text-center text-xs">
-                        {h.ag ?? '?'}{sex}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {h.burd_wgt ?? '-'}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {h.ratg && h.ratg > 0 ? h.ratg : '-'}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {formatErng(h.erng_sump)}
-                      </td>
-                      <td className="px-2 py-2 text-xs">
-                        {h.jcky_nm ?? '-'}
-                      </td>
-                      <td className="px-2 py-2 text-xs text-[var(--color-text-secondary)]">
-                        {h.recent_form}
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <span className={rankBadgeClass(h.predicted_rank)}>
-                          {rankLabel}
-                        </span>
-                      </td>
-                    </tr>
+                    <FragmentRow key={h.pthr_no}>
+                      <tr
+                        className={`border-t border-[var(--color-bg-elevated)] cursor-pointer transition-colors ${
+                          isExpanded
+                            ? 'bg-[var(--color-accent-cyan)]/10'
+                            : 'hover:bg-[var(--color-bg-elevated)]/50'
+                        }`}
+                        onClick={() => setExpandedPthr(isExpanded ? null : h.pthr_no)}
+                      >
+                        <td className="px-2 py-2 text-right font-semibold text-[var(--color-accent-cyan)]">
+                          <span className="inline-flex items-center gap-1">
+                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {h.pthr_no}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2">
+                          <Link
+                            to={`/race/${meet}/${rcDate}/${rcNo}/horse/${h.pthr_no}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-semibold hover:text-[var(--color-accent-cyan)] hover:underline"
+                          >
+                            {h.hr_name}
+                          </Link>
+                        </td>
+                        <td className="px-2 py-2 text-center text-xs">
+                          {h.ag ?? '?'}{sex}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {h.burd_wgt ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {h.ratg && h.ratg > 0 ? h.ratg : '-'}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {formatErng(h.erng_sump)}
+                        </td>
+                        <td className="px-2 py-2 text-xs">
+                          {h.jcky_nm ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-xs text-[var(--color-text-secondary)]">
+                          {h.recent_form}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={rankBadgeClass(h.predicted_rank)}>
+                            {rankLabel}
+                          </span>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-[var(--color-bg-primary)]/30">
+                          <td colSpan={9} className="p-4">
+                            <ExpandedDetail
+                              entry={h}
+                              meet={meet}
+                              rcDate={rcDate}
+                              rcNo={rcNo}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </FragmentRow>
                   );
                 })}
               </tbody>
@@ -385,4 +414,151 @@ function rankBadgeClass(rank: number): string {
   if (rank === 1) return 'text-[var(--color-accent-gold)] font-bold';
   if (rank === 2 || rank === 3) return 'text-[var(--color-accent-cyan)] font-semibold';
   return 'text-[var(--color-text-disabled)] text-xs';
+}
+
+// ============================================================
+// Fragment wrapper for two-row entry (main + expand)
+// ============================================================
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+// ============================================================
+// ExpandedDetail — 행 펼침 시 추가 데이터 표시
+// ============================================================
+function ExpandedDetail({
+  entry,
+  meet,
+  rcDate,
+  rcNo,
+}: {
+  entry: RaceEntry;
+  meet: number;
+  rcDate: number;
+  rcNo: number;
+}) {
+  const { data: ability, isLoading: abLoading } = useHorseSectionalAbility(entry.hr_name);
+  const { data: jockeyStats } = useJockeyStats(entry.jcky_no ?? '', meet);
+
+  const jockeyStat = jockeyStats?.[0]; // (jcky_no, meet) 단일 row
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+      {/* ① 출전마 메타 */}
+      <DetailCard icon={<Award className="w-3.5 h-3.5" />} title="기본 정보">
+        <KV label="출생지" value={entry.prds ?? '-'} />
+        <KV label="마주" value={entry.owner_nm ?? '-'} />
+        <KV label="조교사" value={entry.trar_nm ?? '-'} />
+        <KV label="수득상금" value={formatErng(entry.erng_sump)} />
+        <KV label="최근1년" value={formatErng(entry.erng_loy)} />
+        <KV label="최근6개월" value={formatErng(entry.erng_lsm)} />
+        {entry.sump_rcod_fplc != null && (
+          <KV
+            label="통산전적"
+            value={`${entry.sump_rcod_sum ?? '?'}전 / 1위 ${entry.sump_rcod_fplc} · 2위 ${entry.sump_rcod_splc} · 3위 ${entry.sump_rcod_tplc}`}
+          />
+        )}
+      </DetailCard>
+
+      {/* ② 기수 통산 */}
+      <DetailCard icon={<Target className="w-3.5 h-3.5" />} title="기수 통산">
+        {!entry.jcky_no ? (
+          <div className="text-[var(--color-text-disabled)]">기수 번호 없음</div>
+        ) : !jockeyStat ? (
+          <div className="text-[var(--color-text-disabled)]">데이터 없음 (sync 필요)</div>
+        ) : (
+          <>
+            <KV label="기수" value={`${jockeyStat.jcky_nm ?? '-'} (${entry.jcky_no})`} />
+            <KV label="통산 출주" value={`${jockeyStat.race_cnt_t ?? '-'}회`} />
+            <KV label="1위" value={`${jockeyStat.first_cnt ?? 0}회`} />
+            <KV label="2-3위" value={`${(jockeyStat.second_cnt ?? 0) + (jockeyStat.third_cnt ?? 0)}회`} />
+            <KV label="단승률" value={`${jockeyStat.win_rate_t ?? '-'}%`} />
+            <KV label="입상률" value={`${jockeyStat.qu_rate_t ?? '-'}%`} />
+          </>
+        )}
+      </DetailCard>
+
+      {/* ③ 구간 능력치 */}
+      <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="구간 능력치">
+        {abLoading ? (
+          <div className="text-[var(--color-text-disabled)]">
+            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+            로딩…
+          </div>
+        ) : !ability ? (
+          <div className="text-[var(--color-text-disabled)]">
+            3경주 미만 (분석 데이터 부족)
+          </div>
+        ) : (
+          <>
+            <KV label="분석경주수" value={`${ability.races}회`} />
+            <KV
+              label="출발 200m"
+              value={ability.best_s1f != null ? `${ability.best_s1f}초 (avg ${ability.avg_s1f})` : '-'}
+            />
+            <KV
+              label="막판 600m"
+              value={ability.best_last_600m != null ? `${ability.best_last_600m}초 (avg ${ability.avg_last_600m})` : '-'}
+            />
+            <KV
+              label="막판 200m"
+              value={ability.best_last_200m != null ? `${ability.best_last_200m}초 (avg ${ability.avg_last_200m})` : '-'}
+            />
+            <KV
+              label="추격 점수"
+              value={
+                ability.surge_score == null
+                  ? '-'
+                  : ability.surge_score > 1
+                    ? `${ability.surge_score} (추격형)`
+                    : ability.surge_score < -1
+                      ? `${ability.surge_score} (선행형)`
+                      : `${ability.surge_score} (균형)`
+              }
+            />
+            <KV label="평균 착순" value={ability.avg_ord != null ? `${ability.avg_ord}위` : '-'} />
+          </>
+        )}
+      </DetailCard>
+
+      {/* 푸터 안내 */}
+      <div className="md:col-span-3 text-center text-[10px] text-[var(--color-text-disabled)] pt-1">
+        <Link
+          to={`/race/${meet}/${rcDate}/${rcNo}/horse/${entry.pthr_no}`}
+          className="hover:text-[var(--color-accent-cyan)] underline"
+        >
+          🐎 {entry.hr_name} 상세 분석 보기 →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function DetailCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-[var(--color-bg-surface)] rounded-lg p-3 border border-[var(--color-bg-elevated)]">
+      <div className="flex items-center gap-1.5 text-[var(--color-accent-cyan)] text-[10px] uppercase tracking-wider font-semibold mb-2">
+        {icon}
+        {title}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function KV({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-[var(--color-text-secondary)] flex-shrink-0">{label}:</span>
+      <span className="font-mono-num text-right">{value}</span>
+    </div>
+  );
 }

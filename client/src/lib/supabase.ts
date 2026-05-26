@@ -60,6 +60,14 @@ export interface RaceEntry {
   trar_no: string | null;
   trar_nm: string | null;
   erng_sump: number | null; // 수득상금 통산
+  erng_loy: number | null;  // 수득상금 최근 1년
+  erng_lsm: number | null;  // 수득상금 최근 6개월
+  prds: string | null;      // 출생지
+  owner_nm: string | null;  // 마주
+  sump_rcod_fplc: number | null; // 통산 1위
+  sump_rcod_splc: number | null; // 통산 2위
+  sump_rcod_tplc: number | null; // 통산 3위
+  sump_rcod_sum: number | null;  // 통산 출주
   rc_dist: number | null;   // 경주 거리 (사후에 채워짐)
   track_type: string | null; // 주로 (사후에 채워짐)
   // 사후 결과 (경기 후 채워짐, 경기 전은 null)
@@ -192,6 +200,46 @@ export interface TrainingLog {
   sp_time: number | null;
   tr_term: number | null;
   fetched_at: string | null;
+}
+
+/**
+ * horse_sectional_ability VIEW (007 마이그레이션)
+ *   마별 통산 구간 능력치. 거리-무관 차이값 기반.
+ *   best_last_600m=막판 추격력, best_s1f=출발 가속력, surge_score 양수=추격형
+ */
+export interface HorseSectionalAbility {
+  hr_name: string;
+  races: number;
+  avg_s1f: number | null;
+  best_s1f: number | null;
+  avg_last_600m: number | null;
+  best_last_600m: number | null;
+  avg_last_200m: number | null;
+  best_last_200m: number | null;
+  avg_s1f_rank: number | null;
+  avg_g3f_rank: number | null;
+  avg_g1f_rank: number | null;
+  surge_score: number | null;
+  avg_ord: number | null;
+}
+
+/**
+ * race_sectional_stats VIEW (007 마이그레이션)
+ *   경주별 페이스 표준 통계 (그 경주에서 가장 빠른 / 평균)
+ */
+export interface RaceSectionalStats {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  rc_dist: number | null;
+  track_type: string | null;
+  horses: number;
+  best_last_600m: number | null;
+  avg_last_600m: number | null;
+  best_last_200m: number | null;
+  avg_last_200m: number | null;
+  best_s1f: number | null;
+  avg_s1f: number | null;
 }
 
 /**
