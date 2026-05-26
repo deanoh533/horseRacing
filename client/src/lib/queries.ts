@@ -11,7 +11,6 @@ import {
   type TrainingLog,
   type JockeyStat,
 } from './supabase';
-type HorseResult = RaceEntry; // 하위 호환
 
 /**
  * 특정 날짜의 모든 경주 (서울 + 부산경남)
