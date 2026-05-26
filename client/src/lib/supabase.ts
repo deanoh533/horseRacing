@@ -44,33 +44,38 @@ export interface Race {
   chaksun1: number | null;
 }
 
-export interface HorseResult {
+/** race_entries 통합 테이블 (사전 + 사후) */
+export interface RaceEntry {
   race_date: number;
   meet: number;
   rc_no: number;
-  chul_no: number;
-  st_ord: number | null;
-  hr_no: string;
+  pthr_no: number;          // 게이트 번호 (= chul_no)
   hr_name: string;
-  age: number | null;
-  sex: string | null;
-  rating: number | null;
-  rank_str: string | null;
-  ord: number | null;
+  ag: number | null;        // 연령
+  gndr: string | null;      // 성별
+  burd_wgt: number | null;  // 부담중량
+  ratg: number | null;      // 레이팅
+  jcky_no: string | null;
+  jcky_nm: string | null;
+  trar_no: string | null;
+  trar_nm: string | null;
+  erng_sump: number | null; // 수득상금 통산
+  rc_dist: number | null;   // 경주 거리 (사후에 채워짐)
+  track_type: string | null; // 주로 (사후에 채워짐)
+  // 사후 결과 (경기 후 채워짐, 경기 전은 null)
+  hr_no: string | null;
+  ord: number | null;       // 최종 착순
   rc_time: number | null;
-  rc_dist: number | null;
-  track: string | null;
-  wg_budam: number | null;
   wg_hr: number | null;
   wg_hr_diff: number | null;
   wg_jk: number | null;
   win_odds: number | null;
   popularity: number | null;
-  jk_no: string | null;
-  jk_name: string | null;
-  tr_no: string | null;
-  tr_name: string | null;
+  result_at: string | null;
 }
+
+/** @deprecated race_entries로 대체됨 — 기존 코드 호환용 alias */
+export type HorseResult = RaceEntry;
 
 export interface ItemScore {
   itemId: string;

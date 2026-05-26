@@ -2,7 +2,8 @@
  * React Query 훅 - Supabase 데이터 페칭
  */
 import { useQuery } from '@tanstack/react-query';
-import { supabase, type Race, type HorseResult, type Prediction } from './supabase';
+import { supabase, type Race, type RaceEntry, type Prediction } from './supabase';
+type HorseResult = RaceEntry; // 하위 호환
 
 /**
  * 특정 날짜의 모든 경주 (서울 + 부산경남)
@@ -26,19 +27,19 @@ export function useRacesByDate(rcDate: number) {
 }
 
 /**
- * 특정 경주의 출전마들
+ * 특정 경주의 출전마들 (race_entries 기반 — 사전/사후 통합)
  */
 export function useHorsesByRace(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
     queryKey: ['horses', rcDate, meet, rcNo],
-    queryFn: async (): Promise<HorseResult[]> => {
+    queryFn: async (): Promise<RaceEntry[]> => {
       const { data, error } = await supabase
-        .from('horse_results')
+        .from('race_entries')
         .select('*')
         .eq('race_date', rcDate)
         .eq('meet', meet)
         .eq('rc_no', rcNo)
-        .order('chul_no');
+        .order('pthr_no');
 
       if (error) throw error;
       return data ?? [];
@@ -49,17 +50,18 @@ export function useHorsesByRace(rcDate: number, meet: number, rcNo: number) {
 }
 
 /**
- * 한 말의 과거 5경주 이력
+ * 한 말의 과거 5경주 이력 (결과 있는 것만)
  */
 export function useHorseHistory(hrName: string, beforeDate: number, limit = 5) {
   return useQuery({
     queryKey: ['horse-history', hrName, beforeDate, limit],
-    queryFn: async (): Promise<HorseResult[]> => {
+    queryFn: async (): Promise<RaceEntry[]> => {
       const { data, error } = await supabase
-        .from('horse_results')
+        .from('race_entries')
         .select('*')
         .eq('hr_name', hrName)
         .lt('race_date', beforeDate)
+        .not('ord', 'is', null)
         .order('race_date', { ascending: false })
         .limit(limit);
 
@@ -67,7 +69,7 @@ export function useHorseHistory(hrName: string, beforeDate: number, limit = 5) {
       return data ?? [];
     },
     enabled: !!hrName,
-    staleTime: 60 * 60 * 1000, // 1시간
+    staleTime: 60 * 60 * 1000,
   });
 }
 
@@ -332,13 +334,13 @@ function monthOf(rcDate: number): string {
 }
 
 // ============================================
-// race_cards 기반 통계
+// 통계 (race_entries 기반)
 // ============================================
 
 /**
  * 수득상금 구간별 단승 적중률
- *  - race_cards (hr_name, erng_sump) JOIN predictions (hr_name)
- *  - 구간: 0 / 1~100만 / 100~1000만 / 1000만+
+ *  - race_entries (hr_name, erng_sump) JOIN predictions (hr_name)
+ *  - 구간: 0 / 1~100만 / 100~1000만 / 1000만~1억 / 1억+
  */
 export type EarningsBucket = {
   label: string;
@@ -352,12 +354,12 @@ export function useEarningsHitRate() {
   return useQuery({
     queryKey: ['earnings-hit-rate'],
     queryFn: async (): Promise<EarningsBucket[]> => {
-      // race_cards 전체 (hr_name + erng_sump)
-      type RcRow = { race_date: number; meet: number; rc_no: number; hr_name: string; erng_sump: number | null };
-      const cards: RcRow[] = [];
+      // race_entries에서 erng_sump 조회 (race_cards 불필요)
+      type EntryRow = { race_date: number; meet: number; rc_no: number; hr_name: string; erng_sump: number | null };
+      const entries: EntryRow[] = [];
       for (let off = 0; ; off += 1000) {
         const { data, error } = await supabase
-          .from('race_cards')
+          .from('race_entries')
           .select('race_date, meet, rc_no, hr_name, erng_sump')
           .order('race_date')
           .order('meet')
@@ -366,11 +368,11 @@ export function useEarningsHitRate() {
           .range(off, off + 999);
         if (error) throw error;
         if (!data || data.length === 0) break;
-        cards.push(...data);
+        entries.push(...data);
         if (data.length < 1000) break;
       }
 
-      // 예측 1위 row 가져오기 (race_date, meet, rc_no, hr_name 기준 join용)
+      // 예측 1위 row 가져오기
       type PredRow = { race_date: number; meet: number; rc_no: number; hr_name: string; actual_ord: number | null };
       const preds: PredRow[] = [];
       for (let off = 0; ; off += 1000) {
@@ -388,11 +390,10 @@ export function useEarningsHitRate() {
         if (data.length < 1000) break;
       }
 
-      // race_cards lookup
-      const cardKey = (r: { race_date: number; meet: number; rc_no: number; hr_name: string }) =>
+      const entryKey = (r: { race_date: number; meet: number; rc_no: number; hr_name: string }) =>
         `${r.race_date}-${r.meet}-${r.rc_no}-${r.hr_name}`;
-      const cardMap = new Map<string, RcRow>();
-      cards.forEach((c) => cardMap.set(cardKey(c), c));
+      const entryMap = new Map<string, EntryRow>();
+      entries.forEach((e) => entryMap.set(entryKey(e), e));
 
       const buckets: EarningsBucket[] = [
         { label: '미입상', range: '0원', count: 0, hits: 0, rate: 0 },
@@ -404,9 +405,9 @@ export function useEarningsHitRate() {
 
       for (const p of preds) {
         if (p.actual_ord === null) continue;
-        const card = cardMap.get(cardKey(p));
-        if (!card || card.erng_sump === null) continue;
-        const e = card.erng_sump;
+        const entry = entryMap.get(entryKey(p));
+        if (!entry || entry.erng_sump === null) continue;
+        const e = entry.erng_sump;
         let idx: number;
         if (e === 0) idx = 0;
         else if (e < 1_000_000) idx = 1;
@@ -427,32 +428,31 @@ export function useEarningsHitRate() {
 }
 
 /**
- * race_cards 데이터 커버리지 (디버그/모니터링용)
+ * race_entries 데이터 커버리지 (디버그/모니터링용)
  */
 export function useRaceCardsCoverage() {
   return useQuery({
-    queryKey: ['race-cards-coverage'],
+    queryKey: ['race-entries-coverage'],
     queryFn: async () => {
-      const { count: cardCount } = await supabase
-        .from('race_cards')
+      const { count: entryCount } = await supabase
+        .from('race_entries')
         .select('*', { count: 'exact', head: true });
       const { data: dateRange } = await supabase
-        .from('race_cards')
+        .from('race_entries')
         .select('race_date')
         .order('race_date', { ascending: false })
         .limit(1);
       const { data: dateRangeStart } = await supabase
-        .from('race_cards')
+        .from('race_entries')
         .select('race_date')
         .order('race_date', { ascending: true })
         .limit(1);
-      // 부상/진료 이력 있는 말 수
       const { count: injuredCount } = await supabase
-        .from('race_cards')
+        .from('race_entries')
         .select('*', { count: 'exact', head: true })
         .not('latst_trea1_txt', 'is', null);
       return {
-        totalRows: cardCount ?? 0,
+        totalRows: entryCount ?? 0,
         injuredRows: injuredCount ?? 0,
         latestDate: dateRange?.[0]?.race_date ?? null,
         earliestDate: dateRangeStart?.[0]?.race_date ?? null,

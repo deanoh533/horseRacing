@@ -4,6 +4,7 @@
  * 운영 사용:
  *   - 매주 수~목요일: 다음 주말 (금/토/일) 경주 출주표 fetch
  *   - 각 경주마다 rcNo 1~12 시도 (없으면 skip)
+ *   - race_entries + races 동시 채움 → 웹에서 사전 표시 가능
  *
  * CLI:
  *   tsx src/sync/raceCardSync.ts --date 20260530
@@ -11,9 +12,10 @@
  */
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
+import { toRaceEntryRow } from './transformer.js';
 import type { MeetCode } from '@app-types/index.js';
 
-const MAX_RC_NO = 13; // KRA 보통 최대 12경주
+const MAX_RC_NO = 13;
 
 export interface RaceCardSyncResult {
   meet: MeetCode;
@@ -61,50 +63,28 @@ async function syncOneMeet(
       const cards = await kra.getRaceCard({ meet, rcDate, rcNo });
       if (cards.length === 0) continue;
 
-      const rows = cards.map((c) => ({
-        race_date: rcDate,
-        meet,
-        rc_no: rcNo,
-        pthr_no: c.pthrNo,
-        hr_name: c.hrnm,
-        ag: c.ag ?? null,
-        gndr: c.gndr ?? null,
-        prds: c.prds ?? null,
-        burd_wgt: c.burdWgt ?? null,
-        ratg: c.ratg ?? null,
-        jcky_nm: c.jckyNm ?? null,
-        trar_nm: c.trarNm ?? null,
-        owner_nm: c.ownerNm ?? null,
-        erng_sump: c.erngSump ?? null,
-        erng_loy: c.erngLoy ?? null,
-        erng_lsm: c.erngLsm ?? null,
-        sump_rcod_fplc: c.sumpRcodFplc ?? null,
-        sump_rcod_splc: c.sumpRcodSplc ?? null,
-        sump_rcod_tplc: c.sumpRcodTplc ?? null,
-        sump_rcod_sum: c.sumpRcodSum ?? null,
-        loy_rcod_fplc: c.loyRcodFplc ?? null,
-        loy_rcod_splc: c.loyRcodSplc ?? null,
-        loy_rcod_tplc: c.loyRcodTplc ?? null,
-        loy_rcod_sum: c.loyRcodSum ?? null,
-        asis_equip1: dashToNull(c.asisEquip1),
-        asis_equip2: dashToNull(c.asisEquip2),
-        asis_equip3: dashToNull(c.asisEquip3),
-        asis_equip4: dashToNull(c.asisEquip4),
-        asis_equip5: dashToNull(c.asisEquip5),
-        latst_bledg1: dashToNull(c.latstBledg1),
-        latst_bledg2: dashToNull(c.latstBledg2),
-        latst_trea1_txt: dashToNull(c.latstTrea1Txt),
-        latst_trea2_txt: dashToNull(c.latstTrea2Txt),
-      }));
+      // race_entries rows 변환
+      const rows = cards.map((c) => toRaceEntryRow(c, meet, rcDate, rcNo));
 
-      const { error } = await sb.from('race_cards').upsert(rows, {
+      // race_entries upsert
+      const { error: entryError } = await sb.from('race_entries').upsert(rows, {
         onConflict: 'race_date,meet,rc_no,pthr_no',
       });
-      if (error) {
-        result.errors.push(`rcNo=${rcNo}: ${error.message}`);
-        console.error(`    rc_no=${rcNo} ❌ ${error.message}`);
+      if (entryError) {
+        result.errors.push(`rcNo=${rcNo}: ${entryError.message}`);
+        console.error(`    rc_no=${rcNo} ❌ race_entries: ${entryError.message}`);
         continue;
       }
+
+      // races 테이블에 경주 번호 먼저 insert (거리/주로는 경기 후 채워짐)
+      const { error: raceError } = await sb.from('races').upsert(
+        { race_date: rcDate, meet, rc_no: rcNo },
+        { onConflict: 'race_date,meet,rc_no' }
+      );
+      if (raceError) {
+        console.warn(`    rc_no=${rcNo} ⚠️ races insert 실패 (계속): ${raceError.message}`);
+      }
+
       result.racesSynced++;
       result.horsesSynced += rows.length;
       console.log(`    rc_no=${rcNo} ✓ ${rows.length}마`);
@@ -123,11 +103,6 @@ async function syncOneMeet(
     `  [meet=${meet}] 완료: ${result.racesSynced} 경주 / ${result.horsesSynced} 마 / 에러 ${result.errors.length}`
   );
   return result;
-}
-
-function dashToNull(v: string | undefined | null): string | null {
-  if (!v || v === '-') return null;
-  return v;
 }
 
 // ============================================

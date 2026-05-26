@@ -2,6 +2,7 @@
  * KRA API 응답 → Supabase DB 행 변환
  */
 import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@app-types/index.js';
+import type { KRARaceCard } from '@kra/client.js';
 import { parseWgHr, extractTrackType } from '@utils/parsers.js';
 
 /**
@@ -190,6 +191,166 @@ export function buildStOrdMap(details: KRARaceDetail[]): Map<string, number> {
     }
   }
   return map;
+}
+
+// ============================================
+// race_entries 관련 타입 및 변환 함수
+// ============================================
+
+/**
+ * race_entries 사전 정보 행 (수요일 출주표 기반)
+ */
+export interface RaceEntryRow {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  pthr_no: number;
+  hr_name: string;
+  ag: number | null;
+  gndr: string | null;
+  prds: string | null;
+  burd_wgt: number | null;
+  ratg: number | null;
+  jcky_nm: string | null;
+  trar_nm: string | null;
+  owner_nm: string | null;
+  erng_sump: number | null;
+  erng_loy: number | null;
+  erng_lsm: number | null;
+  sump_rcod_fplc: number | null;
+  sump_rcod_splc: number | null;
+  sump_rcod_tplc: number | null;
+  sump_rcod_sum: number | null;
+  loy_rcod_fplc: number | null;
+  loy_rcod_splc: number | null;
+  loy_rcod_tplc: number | null;
+  loy_rcod_sum: number | null;
+  asis_equip1: string | null;
+  asis_equip2: string | null;
+  asis_equip3: string | null;
+  asis_equip4: string | null;
+  asis_equip5: string | null;
+  latst_bledg1: string | null;
+  latst_bledg2: string | null;
+  latst_trea1_txt: string | null;
+  latst_trea2_txt: string | null;
+}
+
+/**
+ * race_entries 결과 컬럼 (경기 후 UPDATE용)
+ */
+export interface RaceEntryResultRow {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  hr_name: string;
+  hr_no: string | null;
+  jcky_no: string | null;
+  trar_no: string | null;
+  ord: number | null;
+  rc_time: number | null;
+  diff_unit: string | null;
+  wg_hr: number | null;
+  wg_hr_diff: number | null;
+  wg_jk: number | null;
+  win_odds: number | null;
+  plc_odds: number | null;
+  popularity: number | null;
+  bu_g1f_acc_time: number | null;
+  bu_g2f_acc_time: number | null;
+  bu_g3f_acc_time: number | null;
+  bu_g4f_acc_time: number | null;
+  bu_g6f_acc_time: number | null;
+  bu_g8f_acc_time: number | null;
+  bu_s1f_acc_time: number | null;
+  bu_g1f_ord: number | null;
+  bu_g2f_ord: number | null;
+  bu_g3f_ord: number | null;
+  bu_g4f_ord: number | null;
+  bu_s1f_ord: number | null;
+}
+
+function dashToNull(v: string | undefined | null): string | null {
+  if (!v || v === '-') return null;
+  return v;
+}
+
+/**
+ * KRARaceCard → race_entries 사전 정보 행
+ */
+export function toRaceEntryRow(c: KRARaceCard, meet: number, rcDate: number, rcNo: number): RaceEntryRow {
+  return {
+    race_date: rcDate,
+    meet,
+    rc_no: rcNo,
+    pthr_no: c.pthrNo,
+    hr_name: c.hrnm,
+    ag: c.ag ?? null,
+    gndr: c.gndr ?? null,
+    prds: c.prds ?? null,
+    burd_wgt: c.burdWgt ?? null,
+    ratg: c.ratg && c.ratg > 0 ? c.ratg : null,
+    jcky_nm: c.jckyNm ?? null,
+    trar_nm: c.trarNm ?? null,
+    owner_nm: c.ownerNm ?? null,
+    erng_sump: c.erngSump ?? null,
+    erng_loy: c.erngLoy ?? null,
+    erng_lsm: c.erngLsm ?? null,
+    sump_rcod_fplc: c.sumpRcodFplc ?? null,
+    sump_rcod_splc: c.sumpRcodSplc ?? null,
+    sump_rcod_tplc: c.sumpRcodTplc ?? null,
+    sump_rcod_sum: c.sumpRcodSum ?? null,
+    loy_rcod_fplc: c.loyRcodFplc ?? null,
+    loy_rcod_splc: c.loyRcodSplc ?? null,
+    loy_rcod_tplc: c.loyRcodTplc ?? null,
+    loy_rcod_sum: c.loyRcodSum ?? null,
+    asis_equip1: dashToNull(c.asisEquip1),
+    asis_equip2: dashToNull(c.asisEquip2),
+    asis_equip3: dashToNull(c.asisEquip3),
+    asis_equip4: dashToNull(c.asisEquip4),
+    asis_equip5: dashToNull(c.asisEquip5),
+    latst_bledg1: dashToNull(c.latstBledg1),
+    latst_bledg2: dashToNull(c.latstBledg2),
+    latst_trea1_txt: dashToNull(c.latstTrea1Txt),
+    latst_trea2_txt: dashToNull(c.latstTrea2Txt),
+  };
+}
+
+/**
+ * KRARaceResult → race_entries 결과 컬럼 (경기 후 UPDATE용)
+ */
+export function toRaceEntryResultRow(horse: KRARaceResult): RaceEntryResultRow {
+  const wgHrParsed = parseWgHr(horse.wgHr);
+  return {
+    race_date: horse.rcDate,
+    meet: meetNameToCode(horse.meet),
+    rc_no: horse.rcNo,
+    hr_name: horse.hrName,
+    hr_no: horse.hrNo ?? null,
+    jcky_no: horse.jkNo ?? null,
+    trar_no: horse.trNo ?? null,
+    ord: horse.ord != null && horse.ord < 90 ? horse.ord : null,
+    rc_time: horse.rcTime && horse.rcTime > 0 ? horse.rcTime : null,
+    diff_unit: typeof horse.diffUnit === 'number' ? String(horse.diffUnit) : horse.diffUnit ?? null,
+    wg_hr: wgHrParsed?.weight ?? null,
+    wg_hr_diff: wgHrParsed?.diff ?? null,
+    wg_jk: horse.wgJk ?? null,
+    win_odds: horse.winOdds ?? null,
+    plc_odds: horse.plcOdds ?? null,
+    popularity: null,
+    bu_g1f_acc_time: horse.buG1fAccTime ?? null,
+    bu_g2f_acc_time: horse.buG2fAccTime ?? null,
+    bu_g3f_acc_time: horse.buG3fAccTime ?? null,
+    bu_g4f_acc_time: horse.buG4fAccTime ?? null,
+    bu_g6f_acc_time: horse.buG6fAccTime ?? null,
+    bu_g8f_acc_time: horse.buG8fAccTime ?? null,
+    bu_s1f_acc_time: horse.buS1fAccTime ?? null,
+    bu_g1f_ord: horse.buG1fOrd ?? null,
+    bu_g2f_ord: horse.buG2fOrd ?? null,
+    bu_g3f_ord: horse.buG3fOrd ?? null,
+    bu_g4f_ord: horse.buG4fOrd ?? null,
+    bu_s1f_ord: horse.buS1fOrd ?? null,
+  };
 }
 
 /**

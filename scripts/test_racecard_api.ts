@@ -32,8 +32,20 @@ async function fetchRaceCard(meetUrl: string, rcDate: number, rcNo: number) {
 async function main() {
   const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  // 1. 서울 5/23 1R 출주표
-  console.log('=== 서울 (API314) 5/23 1R ===');
+  // 0. 미래 날짜로 출주표 호출 시도 (5/30, 5/31)
+  console.log('=== 서울 (API314) 미래 5/30 1R ===');
+  const future = await fetchRaceCard(
+    'https://apis.data.go.kr/B551015/API314/textDataHoldSePtinInfo',
+    20260530,
+    1
+  );
+  console.log(`수신 ${future.length}건`);
+  if (future.length > 0) {
+    console.log('미래 출주표 ✅:', JSON.stringify(future[0], null, 2).slice(0, 300));
+  }
+
+  // 1. 서울 5/23 1R 출주표 (이미 결과 있는 날)
+  console.log('\n=== 서울 (API314) 5/23 1R ===');
   const seoul = await fetchRaceCard(
     'https://apis.data.go.kr/B551015/API314/textDataHoldSePtinInfo',
     20260523,

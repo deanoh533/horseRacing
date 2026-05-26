@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronDown, Sparkles, Bot, Loader2 } from 'lucide-react';
 import { useHorsesByRace, usePredictionsByRace } from '../lib/queries';
-import { supabase, type HorseResult, type Race, type Prediction, formatActualOrd, isCancelled } from '../lib/supabase';
+import { supabase, type RaceEntry, type Race, type Prediction, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 
 const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부산경남' };
@@ -45,7 +45,7 @@ export function RaceDetail() {
     return map;
   }, [predictions]);
 
-  // 예측 순으로 정렬 (예측 없으면 chul_no 순)
+  // 예측 순으로 정렬 (예측 없으면 pthr_no 순)
   const sortedHorses = useMemo(() => {
     if (!horses) return [];
     const withPred = [...horses];
@@ -127,7 +127,7 @@ export function RaceDetail() {
         <div className="space-y-3">
           {topHorses.map((horse) => (
             <HorseCard
-              key={horse.chul_no}
+              key={horse.pthr_no}
               horse={horse}
               prediction={predictionMap.get(horse.hr_name)}
               meet={meetStr}
@@ -154,7 +154,7 @@ export function RaceDetail() {
             <div className="space-y-3">
               {lowerHorses.map((horse) => (
                 <HorseCard
-                  key={horse.chul_no}
+                  key={horse.pthr_no}
                   horse={horse}
                   prediction={predictionMap.get(horse.hr_name)}
                   meet={meetStr}
@@ -186,7 +186,7 @@ export function RaceDetail() {
 // ============================================
 
 interface HorseCardProps {
-  horse: HorseResult;
+  horse: RaceEntry;
   prediction: Prediction | undefined;
   meet: string | undefined;
   date: string | undefined;
@@ -199,10 +199,15 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
   const medals: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
   const predRank = prediction?.predicted_rank;
   const rankLabel = predRank ? (medals[predRank] ?? `${predRank}위`) : '-';
+  const hasResult = horse.result_at !== null;
   const cancelled = isCancelled(horse.ord);
-  const actualLabel = cancelled ? '🚫 출주 취소' : `실제 ${formatActualOrd(horse.ord)}`;
-  const isHit = !cancelled && predRank != null && horse.ord === predRank;
-  const sexLabel = horse.sex ?? '';
+  const actualLabel = hasResult
+    ? cancelled
+      ? '🚫 출주 취소'
+      : `실제 ${formatActualOrd(horse.ord)}`
+    : '경기 전';
+  const isHit = hasResult && !cancelled && predRank != null && horse.ord === predRank;
+  const sexLabel = horse.gndr ?? '';
 
   return (
     <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors overflow-hidden">
@@ -213,11 +218,11 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono-num text-[var(--color-text-secondary)] text-sm">
-                {horse.chul_no}번
+                {horse.pthr_no}번
               </span>
               <span className="font-semibold text-base">{horse.hr_name}</span>
               <span className="text-xs text-[var(--color-text-disabled)]">
-                ({horse.age ?? '?'}세 {sexLabel})
+                ({horse.ag ?? '?'}세 {sexLabel})
               </span>
             </div>
           </div>
@@ -234,20 +239,22 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
               </div>
             </>
           ) : (
-            horse.rating != null && horse.rating > 0 && (
+            horse.ratg != null && horse.ratg > 0 && (
               <div className="text-xl font-bold font-mono-num text-[var(--color-accent-cyan)]">
-                {horse.rating}
+                {horse.ratg}
                 <span className="text-sm">레이팅</span>
               </div>
             )
           )}
           <div
             className={`text-[10px] mt-0.5 ${
-              cancelled
-                ? 'text-[var(--color-accent-pink)]'
-                : isHit
-                  ? 'text-[var(--color-success)] font-bold'
-                  : 'text-[var(--color-text-disabled)]'
+              !hasResult
+                ? 'text-[var(--color-text-disabled)]'
+                : cancelled
+                  ? 'text-[var(--color-accent-pink)]'
+                  : isHit
+                    ? 'text-[var(--color-success)] font-bold'
+                    : 'text-[var(--color-text-disabled)]'
             }`}
           >
             {actualLabel}
@@ -265,8 +272,8 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
       {showDetail && (
         <div className="p-4 space-y-3">
           <DataCategory label="체중">
-            {horse.wg_budam !== null && (
-              <DataRow label="부담중량" value={`${horse.wg_budam}kg`} />
+            {horse.burd_wgt !== null && (
+              <DataRow label="부담중량" value={`${horse.burd_wgt}kg`} />
             )}
             {horse.wg_hr !== null && (
               <DataRow
@@ -280,26 +287,25 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
           </DataCategory>
 
           <DataCategory label="기수 / 조교사">
-            {horse.jk_name && (
-              <DataRow label="기수" value={`${horse.jk_name} (${horse.jk_no ?? '-'})`} />
+            {horse.jcky_nm && (
+              <DataRow label="기수" value={`${horse.jcky_nm} (${horse.jcky_no ?? '-'})`} />
             )}
-            {horse.tr_name && (
-              <DataRow label="조교사" value={`${horse.tr_name} (${horse.tr_no ?? '-'})`} />
+            {horse.trar_nm && (
+              <DataRow label="조교사" value={`${horse.trar_nm} (${horse.trar_no ?? '-'})`} />
             )}
           </DataCategory>
 
-          <DataCategory label="경주 결과">
-            {horse.st_ord !== null && (
-              <DataRow label="발주 순위" value={`${horse.st_ord}위`} />
-            )}
-            <DataRow label="결승 순위" value={formatActualOrd(horse.ord)} />
-            {horse.rc_time !== null && (
-              <DataRow label="경주 기록" value={formatRcTime(horse.rc_time)} />
-            )}
-            {horse.win_odds !== null && (
-              <DataRow label="단승 배당" value={`${horse.win_odds}배`} />
-            )}
-          </DataCategory>
+          {hasResult && (
+            <DataCategory label="경주 결과">
+              <DataRow label="결승 순위" value={formatActualOrd(horse.ord)} />
+              {horse.rc_time !== null && (
+                <DataRow label="경주 기록" value={formatRcTime(horse.rc_time)} />
+              )}
+              {horse.win_odds !== null && (
+                <DataRow label="단승 배당" value={`${horse.win_odds}배`} />
+              )}
+            </DataCategory>
+          )}
         </div>
       )}
 
@@ -314,7 +320,7 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
           />
         </button>
         <Link
-          to={`/race/${meet}/${date}/${rcNo}/horse/${horse.chul_no}`}
+          to={`/race/${meet}/${date}/${rcNo}/horse/${horse.pthr_no}`}
           className="text-xs text-[var(--color-accent-cyan)] hover:underline flex items-center gap-1"
         >
           <Sparkles className="w-3 h-3" />

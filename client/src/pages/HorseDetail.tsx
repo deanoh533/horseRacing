@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, FileText, GitCompare, Save, TrendingUp, Loader2, Star } from 'lucide-react';
 import { useHorseHistory, useHorsesByRace, usePredictionsByRace } from '../lib/queries';
-import { type HorseResult, type ItemScore, formatActualOrd, isCancelled } from '../lib/supabase';
+import { type RaceEntry, type ItemScore, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useMemo } from 'react';
 
 export function HorseDetail() {
@@ -13,7 +13,7 @@ export function HorseDetail() {
 
   const { data: horses, isLoading } = useHorsesByRace(rcDate, meet, rcNo);
   const horse = useMemo(
-    () => horses?.find((h) => h.chul_no === chulNo),
+    () => horses?.find((h) => h.pthr_no === chulNo),
     [horses, chulNo]
   );
 
@@ -44,13 +44,13 @@ export function HorseDetail() {
           경주 상세로
         </Link>
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-400">
-          ❌ 출전마 데이터 없음 (chul_no={chulNo})
+          ❌ 출전마 데이터 없음 (pthr_no={chulNo})
         </div>
       </div>
     );
   }
 
-  const sexFull = sexToFull(horse.sex);
+  const sexFull = sexToFull(horse.gndr);
   const recentSummary = history && history.length > 0 ? summarizeForm(history) : null;
 
   return (
@@ -73,7 +73,7 @@ export function HorseDetail() {
               <h1 className="text-2xl font-bold">{horse.hr_name}</h1>
             </div>
             <div className="text-sm text-[var(--color-text-secondary)]">
-              마번 {horse.chul_no} · {horse.age ?? '?'}세 {sexFull} · 마번호 {horse.hr_no}
+              마번 {horse.pthr_no} · {horse.ag ?? '?'}세 {sexFull} · 마번호 {horse.hr_no}
             </div>
           </div>
           <div className="text-right">
@@ -102,9 +102,9 @@ export function HorseDetail() {
                 </div>
               </>
             ) : (
-              horse.rating != null && horse.rating > 0 && (
+              horse.ratg != null && horse.ratg > 0 && (
                 <div className="text-3xl font-bold font-mono-num text-[var(--color-accent-cyan)] glow-cyan">
-                  {horse.rating}
+                  {horse.ratg}
                   <span className="text-lg">레이팅</span>
                 </div>
               )
@@ -117,9 +117,9 @@ export function HorseDetail() {
       <Section title="📊 기본 정보">
         <InfoGrid
           items={[
-            { label: '나이/성별', value: `${horse.age ?? '?'}세 ${sexFull}` },
-            ...(horse.wg_budam !== null
-              ? [{ label: '부담중량', value: `${horse.wg_budam}kg` }]
+            { label: '나이/성별', value: `${horse.ag ?? '?'}세 ${sexFull}` },
+            ...(horse.burd_wgt !== null
+              ? [{ label: '부담중량', value: `${horse.burd_wgt}kg` }]
               : []),
             ...(horse.wg_jk != null && horse.wg_jk !== 0
               ? [{ label: '기수 체중', value: `${horse.wg_jk}kg` }]
@@ -132,17 +132,14 @@ export function HorseDetail() {
                   },
                 ]
               : []),
-            ...(horse.st_ord !== null
-              ? [{ label: '발주 순위', value: `${horse.st_ord}위` }]
+            ...(horse.ratg != null && horse.ratg > 0
+              ? [{ label: '레이팅', value: `${horse.ratg}` }]
               : []),
-            ...(horse.rating != null && horse.rating > 0
-              ? [{ label: '레이팅', value: `${horse.rating}` }]
+            ...(horse.jcky_nm
+              ? [{ label: '기수', value: `${horse.jcky_nm} (${horse.jcky_no ?? '-'})` }]
               : []),
-            ...(horse.jk_name
-              ? [{ label: '기수', value: `${horse.jk_name} (${horse.jk_no ?? '-'})` }]
-              : []),
-            ...(horse.tr_name
-              ? [{ label: '조교사', value: `${horse.tr_name} (${horse.tr_no ?? '-'})` }]
+            ...(horse.trar_nm
+              ? [{ label: '조교사', value: `${horse.trar_nm} (${horse.trar_no ?? '-'})` }]
               : []),
             ...(horse.win_odds !== null
               ? [{ label: '단승 배당', value: `${horse.win_odds}배` }]
@@ -191,7 +188,7 @@ export function HorseDetail() {
                       <td className="px-2 py-2 text-right">
                         {race.rc_dist ?? '-'}m
                       </td>
-                      <td className="px-2 py-2">{race.track ?? '-'}</td>
+                      <td className="px-2 py-2">{race.track_type ?? '-'}</td>
                       <td className="px-2 py-2 text-right font-semibold">
                         <span
                           className={
@@ -210,7 +207,7 @@ export function HorseDetail() {
                       <td className="px-2 py-2 text-right">
                         {race.wg_hr ?? '-'}
                       </td>
-                      <td className="px-2 py-2">{race.jk_name ?? '-'}</td>
+                      <td className="px-2 py-2">{race.jcky_nm ?? '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -412,7 +409,7 @@ function formatRcTime(rcTime: number): string {
   return min > 0 ? `${min}:${rest.padStart(4, '0')}` : `${rest}초`;
 }
 
-function summarizeForm(history: HorseResult[]): string {
+function summarizeForm(history: RaceEntry[]): string {
   const ords = history
     .map((h) => h.ord)
     .filter((o): o is number => o !== null);

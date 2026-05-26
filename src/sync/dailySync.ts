@@ -5,14 +5,19 @@
  *   npm run sync -- --date 20260517 --meet 3
  *   또는
  *   tsx src/sync/dailySync.ts --date 20260517
+ *
+ * 흐름:
+ *   1. KRA 결과 API → races upsert (거리/주로/날씨 채움)
+ *   2. KRA 결과 API → race_entries UPDATE (결과 컬럼: ord, rc_time 등)
+ *      - race_entries가 없는 경우 (출주표 없이 결과만 있는 경우) INSERT
+ *   3. Score Engine → predictions upsert
  */
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import {
   toRaceRow,
-  toHorseResultRow,
+  toRaceEntryResultRow,
   calculatePopularities,
-  buildStOrdMap,
 } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
 import type { MeetCode } from '@app-types/index.js';
@@ -29,9 +34,6 @@ interface SyncResult {
   errors: string[];
 }
 
-/**
- * 하루치 동기화
- */
 export async function syncDay(options: SyncOptions): Promise<SyncResult[]> {
   const meets: MeetCode[] = options.meets ?? [1, 3];
   const results: SyncResult[] = [];
@@ -61,7 +63,6 @@ async function syncMeet(
   const supabase = getSupabaseAdmin();
 
   try {
-    // 1. KRA에서 해당 날짜 모든 경주 데이터 가져오기
     console.log(`\n  [meet=${meet}] KRA API 호출 중...`);
     const allHorses = await kra.getAllRaceResults({ meet, rcDate });
     console.log(`  [meet=${meet}] ${allHorses.length}건 수신`);
@@ -71,60 +72,127 @@ async function syncMeet(
       return result;
     }
 
-    // 2. 경주별 그룹핑 (rc_no 기준)
+    // 경주별 그룹핑
     const racesByRcNo = new Map<number, typeof allHorses>();
     for (const horse of allHorses) {
-      if (!racesByRcNo.has(horse.rcNo)) {
-        racesByRcNo.set(horse.rcNo, []);
-      }
+      if (!racesByRcNo.has(horse.rcNo)) racesByRcNo.set(horse.rcNo, []);
       racesByRcNo.get(horse.rcNo)!.push(horse);
     }
 
-    // 3. 각 경주마다: races + horse_results upsert
     for (const [rcNo, horses] of racesByRcNo) {
       try {
-        // races 테이블 upsert
+        // 1. races upsert (거리/주로/날씨 채움)
         const raceRow = toRaceRow(horses[0]!);
         const { error: raceError } = await supabase
           .from('races')
           .upsert(raceRow, { onConflict: 'race_date,meet,rc_no' });
+        if (raceError) throw new Error(`races upsert: ${raceError.message}`);
 
-        if (raceError) {
-          throw new Error(`races upsert: ${raceError.message}`);
-        }
-
-        // racedetailresult로 stOrd 가져오기 (선택, 실패해도 계속)
-        let stOrdMap = new Map<string, number>();
-        try {
-          const details = await kra.getRaceDetailResult({ meet, rcDate, rcNo });
-          stOrdMap = buildStOrdMap(details);
-        } catch {
-          console.warn(`    [meet=${meet}, rcNo=${rcNo}] stOrd 가져오기 실패 (계속)`);
-        }
-
-        // 인기도 계산
+        // 2. 인기도 계산
         const popMap = calculatePopularities(horses);
 
-        // horse_results 행 변환 (stOrd + popularity 채움)
-        const horseRows = horses.map((h) => {
-          const row = toHorseResultRow(h);
-          row.st_ord = stOrdMap.get(h.hrNo) ?? null;
-          row.popularity = popMap.get(h.hrNo) ?? null;
-          return row;
-        });
+        // 4. race_entries 결과 컬럼 UPDATE (hr_name 기준)
+        for (const horse of horses) {
+          const resultRow = toRaceEntryResultRow(horse);
+          resultRow.popularity = popMap.get(horse.hrNo) ?? null;
 
-        // horse_results upsert (batch)
-        const { error: hrError } = await supabase
-          .from('horse_results')
-          .upsert(horseRows, {
-            onConflict: 'race_date,meet,rc_no,hr_no',
-          });
+          // race_entries UPDATE 시도
+          const { data: existing } = await supabase
+            .from('race_entries')
+            .select('pthr_no')
+            .eq('race_date', rcDate)
+            .eq('meet', meet)
+            .eq('rc_no', rcNo)
+            .eq('hr_name', horse.hrName)
+            .maybeSingle();
 
-        if (hrError) {
-          throw new Error(`horse_results upsert: ${hrError.message}`);
+          if (existing) {
+            // 출주표 있음 → 결과 컬럼만 UPDATE (rc_dist/track_type 포함)
+            const { error: updErr } = await supabase
+              .from('race_entries')
+              .update({
+                rc_dist: raceRow.rc_dist ?? null,
+                track_type: raceRow.track_type ?? null,
+                hr_no: resultRow.hr_no,
+                jcky_no: resultRow.jcky_no,
+                trar_no: resultRow.trar_no,
+                ord: resultRow.ord,
+                rc_time: resultRow.rc_time,
+                diff_unit: resultRow.diff_unit,
+                wg_hr: resultRow.wg_hr,
+                wg_hr_diff: resultRow.wg_hr_diff,
+                wg_jk: resultRow.wg_jk,
+                win_odds: resultRow.win_odds,
+                plc_odds: resultRow.plc_odds,
+                popularity: resultRow.popularity,
+                bu_g1f_acc_time: resultRow.bu_g1f_acc_time,
+                bu_g2f_acc_time: resultRow.bu_g2f_acc_time,
+                bu_g3f_acc_time: resultRow.bu_g3f_acc_time,
+                bu_g4f_acc_time: resultRow.bu_g4f_acc_time,
+                bu_g6f_acc_time: resultRow.bu_g6f_acc_time,
+                bu_g8f_acc_time: resultRow.bu_g8f_acc_time,
+                bu_s1f_acc_time: resultRow.bu_s1f_acc_time,
+                bu_g1f_ord: resultRow.bu_g1f_ord,
+                bu_g2f_ord: resultRow.bu_g2f_ord,
+                bu_g3f_ord: resultRow.bu_g3f_ord,
+                bu_g4f_ord: resultRow.bu_g4f_ord,
+                bu_s1f_ord: resultRow.bu_s1f_ord,
+                result_at: new Date().toISOString(),
+              })
+              .eq('race_date', rcDate)
+              .eq('meet', meet)
+              .eq('rc_no', rcNo)
+              .eq('hr_name', horse.hrName);
+            if (updErr) throw new Error(`race_entries update: ${updErr.message}`);
+          } else {
+            // 출주표 없음 (과거 데이터) → 사전+결과 동시 INSERT
+            const { error: insErr } = await supabase
+              .from('race_entries')
+              .upsert({
+                race_date: rcDate,
+                meet,
+                rc_no: rcNo,
+                pthr_no: horse.chulNo,
+                hr_name: horse.hrName,
+                ag: horse.age ?? null,
+                gndr: horse.sex ?? null,
+                burd_wgt: horse.wgBudam ?? null,
+                ratg: horse.rating ?? null,
+                rc_dist: raceRow.rc_dist ?? null,
+                track_type: raceRow.track_type ?? null,
+                jcky_no: resultRow.jcky_no,
+                jcky_nm: horse.jkName ?? null,
+                trar_no: resultRow.trar_no,
+                trar_nm: horse.trName ?? null,
+                hr_no: resultRow.hr_no,
+                ord: resultRow.ord,
+                rc_time: resultRow.rc_time,
+                diff_unit: resultRow.diff_unit,
+                wg_hr: resultRow.wg_hr,
+                wg_hr_diff: resultRow.wg_hr_diff,
+                wg_jk: resultRow.wg_jk,
+                win_odds: resultRow.win_odds,
+                plc_odds: resultRow.plc_odds,
+                popularity: resultRow.popularity,
+                bu_g1f_acc_time: resultRow.bu_g1f_acc_time,
+                bu_g2f_acc_time: resultRow.bu_g2f_acc_time,
+                bu_g3f_acc_time: resultRow.bu_g3f_acc_time,
+                bu_g4f_acc_time: resultRow.bu_g4f_acc_time,
+                bu_g6f_acc_time: resultRow.bu_g6f_acc_time,
+                bu_g8f_acc_time: resultRow.bu_g8f_acc_time,
+                bu_s1f_acc_time: resultRow.bu_s1f_acc_time,
+                bu_g1f_ord: resultRow.bu_g1f_ord,
+                bu_g2f_ord: resultRow.bu_g2f_ord,
+                bu_g3f_ord: resultRow.bu_g3f_ord,
+                bu_g4f_ord: resultRow.bu_g4f_ord,
+                bu_s1f_ord: resultRow.bu_s1f_ord,
+                result_at: new Date().toISOString(),
+              }, { onConflict: 'race_date,meet,rc_no,pthr_no' });
+            if (insErr) throw new Error(`race_entries insert: ${insErr.message}`);
+          }
         }
 
-        // Score Engine으로 예측 계산 → predictions 테이블 저장
+        // 5. Score Engine → predictions upsert
         try {
           const predictions = await predictRace(supabase, rcDate, meet, rcNo);
           if (predictions.length > 0) {
@@ -134,9 +202,7 @@ async function syncMeet(
               .eq('race_date', rcDate)
               .eq('meet', meet)
               .eq('rc_no', rcNo);
-            const { error: predErr } = await supabase
-              .from('predictions')
-              .insert(predictions);
+            const { error: predErr } = await supabase.from('predictions').insert(predictions);
             if (predErr) throw predErr;
           }
         } catch (err) {
@@ -146,10 +212,8 @@ async function syncMeet(
         }
 
         result.racesSynced++;
-        result.horsesSynced += horseRows.length;
-        console.log(
-          `    [meet=${meet}, rcNo=${rcNo}] ✓ ${horseRows.length}두 + 예측`
-        );
+        result.horsesSynced += horses.length;
+        console.log(`    [meet=${meet}, rcNo=${rcNo}] ✓ ${horses.length}두 + 예측`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         result.errors.push(`rcNo=${rcNo}: ${msg}`);
@@ -157,7 +221,6 @@ async function syncMeet(
       }
     }
 
-    // 4. 동기화 로그 기록
     await supabase.from('sync_logs').insert({
       sync_type: 'manual',
       start_date: rcDate,
@@ -187,10 +250,9 @@ async function syncMeet(
 }
 
 // ============================================
-// CLI 실행
+// CLI
 // ============================================
 async function main() {
-  // 인자 파싱: --date 20260517 [--meet 1,3]
   const args = process.argv.slice(2);
   let rcDate = 0;
   let meets: MeetCode[] = [1, 3];
@@ -209,7 +271,6 @@ async function main() {
   }
 
   if (!rcDate) {
-    // 기본값: 어제
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     rcDate =
@@ -221,7 +282,6 @@ async function main() {
 
   const results = await syncDay({ rcDate, meets });
 
-  // 요약
   console.log('\n' + '='.repeat(50));
   console.log('📊 동기화 결과 요약');
   console.log('='.repeat(50));
@@ -230,7 +290,6 @@ async function main() {
   }
 }
 
-// CLI 직접 실행 시에만 main() 호출 (import 시에는 실행 X)
 const isMainModule =
   process.argv[1] && process.argv[1].includes('dailySync');
 if (isMainModule) {
