@@ -114,9 +114,10 @@ async function buildEngineInput(
   const rcDate = e.race_date;
 
   // 같은 말의 과거 5경주 (race_entries에서 ord 있는 것만)
+  // 구간기록 컬럼 포함: ④ lastFurlong 계산, ⑤ positions 계산용
   const { data: hist5raw } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time')
+    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord')
     .eq('hr_name', e.hr_name)
     .lt('race_date', rcDate)
     .not('ord', 'is', null)
@@ -131,12 +132,28 @@ async function buildEngineInput(
     .filter((r) => r.rc_dist === e.rc_dist && r.ord != null)
     .map((r) => r.ord as number);
 
+  // ④ 같은 말의 과거 경주에서 마지막 200m(g1f) 시간 계산
+  // meet 1=서울→se_g1f, 3=부경→bu_g1f. 데이터 없으면 0 (알고리즘이 중립 처리).
+  const calcLastFurlong = (r: typeof hist5[number]): number => {
+    const g1f = r.meet === 1 ? r.se_g1f_acc_time : r.bu_g1f_acc_time;
+    return r.rc_time != null && g1f != null ? (r.rc_time as number) - (g1f as number) : 0;
+  };
+
   const sameDistTrackTimes = hist5
     .filter((r) => r.rc_dist === e.rc_dist && r.track_type === e.track_type && r.rc_time != null)
-    .map((r) => ({ rcTime: r.rc_time as number, lastFurlong: 0 }));
+    .map((r) => ({ rcTime: r.rc_time as number, lastFurlong: calcLastFurlong(r) }));
   const sameDistOnlyTimes = hist5
     .filter((r) => r.rc_dist === e.rc_dist && r.rc_time != null)
-    .map((r) => ({ rcTime: r.rc_time as number, lastFurlong: 0 }));
+    .map((r) => ({ rcTime: r.rc_time as number, lastFurlong: calcLastFurlong(r) }));
+
+  // ⑤ 후반 구간 순위 — startOrd = s1f_ord(초반 200m, 에이스경마 21번 시점)
+  const positions = hist5
+    .filter((r) => r.ord != null)
+    .map((r) => {
+      const startOrd = r.meet === 1 ? r.sj_s1f_ord : r.bu_s1f_ord;
+      return { startOrd: (startOrd as number) ?? 0, finishOrd: r.ord as number };
+    })
+    .filter((p) => p.startOrd > 0);
 
   const overallOrds = hist5.filter((r) => r.ord != null).map((r) => r.ord as number);
   const sameTrackOrds = hist5
@@ -209,7 +226,7 @@ async function buildEngineInput(
     ord5: histAsc.filter((r) => r.ord != null).map((r) => r.ord as number),
     sameDistTrackTimes,
     sameDistOnlyTimes,
-    positions: [],
+    positions,
     sameDistOrds,
     overallOrds,
     sameTrackOrds,
