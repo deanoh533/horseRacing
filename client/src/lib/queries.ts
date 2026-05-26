@@ -390,23 +390,20 @@ export function useHorseTraining(hrNo: string, daysBack = 30) {
 }
 
 /**
- * 기수 성적 조회
- * [TODO] jockey_stats 테이블은 jkresult API 구독 승인 후 데이터가 채워짐
+ * 기수 통산 성적 조회 (meet별로 여러 row 가능)
  *
  * @param jckyNo 기수 번호 (예: "051174")
+ * @param meet 1=서울, 3=부산경남. 생략 시 양쪽 모두
  */
-export function useJockeyStats(jckyNo: string) {
+export function useJockeyStats(jckyNo: string, meet?: number) {
   return useQuery({
-    queryKey: ['jockey-stats', jckyNo],
-    queryFn: async (): Promise<JockeyStat | null> => {
-      const { data, error } = await supabase
-        .from('jockey_stats')
-        .select('*')
-        .eq('jcky_no', jckyNo)
-        .maybeSingle();
-
+    queryKey: ['jockey-stats', jckyNo, meet],
+    queryFn: async (): Promise<JockeyStat[]> => {
+      let q = supabase.from('jockey_stats').select('*').eq('jcky_no', jckyNo);
+      if (meet != null) q = q.eq('meet', meet);
+      const { data, error } = await q;
       if (error) throw error;
-      return data ?? null;
+      return data ?? [];
     },
     enabled: !!jckyNo,
     staleTime: 24 * 60 * 60 * 1000, // 기수 성적은 하루 캐시

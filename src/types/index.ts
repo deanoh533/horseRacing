@@ -47,7 +47,7 @@ export interface KRARaceResult {
   wgHr: string;          // "463(+3)"
   wgJk: number;
   winOdds: number;
-  // 구간별 시간/순위
+  // 구간별 부산경남 누적시간 (buG* = 부경, 0이면 해당 경마장 아님)
   buG1fAccTime?: number;
   buG2fAccTime?: number;
   buG3fAccTime?: number;
@@ -60,6 +60,38 @@ export interface KRARaceResult {
   buG3fOrd?: number;
   buG4fOrd?: number;
   buS1fOrd?: number;
+  // 구간별 서울 누적시간 (seG* = 서울, 0이면 해당 경마장 아님)
+  seG1fAccTime?: number;  // 서울 G1F 누적통과시간 (초)
+  seG3fAccTime?: number;  // 서울 G3F 누적통과시간
+  seS1fAccTime?: number;  // 서울 S1F 누적통과시간
+  se_1cAccTime?: number;  // 서울 1코너 누적통과시간
+  se_2cAccTime?: number;  // 서울 2코너 누적통과시간
+  se_3cAccTime?: number;  // 서울 3코너 누적통과시간
+  se_4cAccTime?: number;  // 서울 4코너 누적통과시간
+  sjG1fOrd?: number;      // 서울 G1F 구간순위
+  sjG3fOrd?: number;      // 서울 G3F 구간순위
+  sjS1fOrd?: number;      // 서울 S1F 구간순위
+  sj_1cOrd?: number;      // 서울 1코너 구간순위
+  sj_2cOrd?: number;      // 서울 2코너 구간순위
+  sj_3cOrd?: number;      // 서울 3코너 구간순위
+  sj_4cOrd?: number;      // 서울 4코너 구간순위
+  // 제주 구간시간 (je* = 제주)
+  jeG1fTime?: number;
+  jeG3fTime?: number;
+  jeS1fTime?: number;
+  je_1cTime?: number;
+  je_2cTime?: number;
+  je_3cTime?: number;
+  je_4cTime?: number;
+  // 부경 구간별 개별시간
+  buS1fTime?: number;
+  bu_1fGTime?: number;
+  bu_2fGTime?: number;
+  bu_3fGTime?: number;
+  bu_4_2fTime?: number;
+  bu_6_4fTime?: number;
+  bu_8_6fTime?: number;
+  bu_10_8fTime?: number;
   // 상금
   chaksun1?: number;
   chaksun2?: number;

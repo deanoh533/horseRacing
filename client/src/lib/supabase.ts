@@ -72,6 +72,34 @@ export interface RaceEntry {
   win_odds: number | null;
   popularity: number | null;
   result_at: string | null;
+  // 구간기록 — 부경 (부경 경주만 채워짐)
+  bu_g1f_acc_time?: number | null;
+  bu_g2f_acc_time?: number | null;
+  bu_g3f_acc_time?: number | null;
+  bu_g4f_acc_time?: number | null;
+  bu_g6f_acc_time?: number | null;
+  bu_g8f_acc_time?: number | null;
+  bu_s1f_acc_time?: number | null;
+  bu_g1f_ord?: number | null;
+  bu_g2f_ord?: number | null;
+  bu_g3f_ord?: number | null;
+  bu_g4f_ord?: number | null;
+  bu_s1f_ord?: number | null;
+  // 구간기록 — 서울 (서울 경주만 채워짐)
+  se_g1f_acc_time?: number | null;
+  se_g3f_acc_time?: number | null;
+  se_s1f_acc_time?: number | null;
+  se_1c_acc_time?: number | null;
+  se_2c_acc_time?: number | null;
+  se_3c_acc_time?: number | null;
+  se_4c_acc_time?: number | null;
+  sj_g1f_ord?: number | null;
+  sj_g3f_ord?: number | null;
+  sj_s1f_ord?: number | null;
+  sj_1c_ord?: number | null;
+  sj_2c_ord?: number | null;
+  sj_3c_ord?: number | null;
+  sj_4c_ord?: number | null;
 }
 
 /** @deprecated race_entries로 대체됨 — 기존 코드 호환용 alias */
@@ -116,7 +144,9 @@ export function isCancelled(ord: number | null): boolean {
 
 /**
  * sectional_records — 경주 후 구간별 통과기록
- * [TODO] API37_1/sectionRecord_1 — 현재 403. 실제 필드 확인 후 수정 필요.
+ * 출처: API37_1/sectionRecord_1 (data.go.kr #15057859)
+ * [구독 필요 — 현재 403. 신청: https://www.data.go.kr/data/15057859/openapi.do]
+ * ※ API214_1 응답에 seG1fAccTime 등 구간데이터가 이미 포함됨 (대안 활용 가능).
  */
 export interface SectionalRecord {
   race_date: number;
@@ -165,22 +195,18 @@ export interface TrainingLog {
 }
 
 /**
- * jockey_stats — 기수별 성적
- * [TODO] jkresult API — 현재 500. 실제 필드 확인 후 수정 필요.
+ * jockey_stats — 기수 통산 성적
+ * 출처: jkpresult/getjkpresult (이미 구독, probe 검증됨)
  */
 export interface JockeyStat {
   jcky_no: string;
-  meet: number | null;
+  meet: number;               // 1=서울, 3=부산경남
   jcky_nm: string | null;
-  total_races: number | null;
-  win1: number | null;
-  win2: number | null;
-  win3: number | null;
-  win_rate: number | null;
-  plc_rate: number | null;
-  loy1: number | null;
-  loy2: number | null;
-  lsm1: number | null;
-  lsm2: number | null;
+  race_cnt_t: number | null;  // 통산 출주 수
+  first_cnt: number | null;   // 통산 1위 횟수
+  second_cnt: number | null;  // 통산 2위 횟수
+  third_cnt: number | null;   // 통산 3위 횟수
+  win_rate_t: number | null;  // 통산 단승률 (%)
+  qu_rate_t: number | null;   // 통산 입상률 (%)
   updated_at: string | null;
 }

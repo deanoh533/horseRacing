@@ -2,7 +2,7 @@
  * KRA API 응답 → Supabase DB 행 변환
  */
 import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@app-types/index.js';
-import type { KRARaceCard } from '@kra/client.js';
+import type { KRARaceCard, KRASectionalRecord, KRATrainingRecord, KRAJockeyStat } from '@kra/client.js';
 import { parseWgHr, extractTrackType } from '@utils/parsers.js';
 
 /**
@@ -268,6 +268,21 @@ export interface RaceEntryResultRow {
   bu_g3f_ord: number | null;
   bu_g4f_ord: number | null;
   bu_s1f_ord: number | null;
+  // 서울 구간기록 (서울 경주만 채워짐)
+  se_g1f_acc_time: number | null;
+  se_g3f_acc_time: number | null;
+  se_s1f_acc_time: number | null;
+  se_1c_acc_time: number | null;
+  se_2c_acc_time: number | null;
+  se_3c_acc_time: number | null;
+  se_4c_acc_time: number | null;
+  sj_g1f_ord: number | null;
+  sj_g3f_ord: number | null;
+  sj_s1f_ord: number | null;
+  sj_1c_ord: number | null;
+  sj_2c_ord: number | null;
+  sj_3c_ord: number | null;
+  sj_4c_ord: number | null;
 }
 
 function dashToNull(v: string | undefined | null): string | null {
@@ -350,6 +365,160 @@ export function toRaceEntryResultRow(horse: KRARaceResult): RaceEntryResultRow {
     bu_g3f_ord: horse.buG3fOrd ?? null,
     bu_g4f_ord: horse.buG4fOrd ?? null,
     bu_s1f_ord: horse.buS1fOrd ?? null,
+    se_g1f_acc_time: horse.seG1fAccTime ?? null,
+    se_g3f_acc_time: horse.seG3fAccTime ?? null,
+    se_s1f_acc_time: horse.seS1fAccTime ?? null,
+    se_1c_acc_time: horse.se_1cAccTime ?? null,
+    se_2c_acc_time: horse.se_2cAccTime ?? null,
+    se_3c_acc_time: horse.se_3cAccTime ?? null,
+    se_4c_acc_time: horse.se_4cAccTime ?? null,
+    sj_g1f_ord: horse.sjG1fOrd ?? null,
+    sj_g3f_ord: horse.sjG3fOrd ?? null,
+    sj_s1f_ord: horse.sjS1fOrd ?? null,
+    sj_1c_ord: horse.sj_1cOrd ?? null,
+    sj_2c_ord: horse.sj_2cOrd ?? null,
+    sj_3c_ord: horse.sj_3cOrd ?? null,
+    sj_4c_ord: horse.sj_4cOrd ?? null,
+  };
+}
+
+// ============================================
+// 신규 API (P0b) 변환 함수
+// ============================================
+
+/**
+ * sectional_records 테이블 행
+ */
+export interface SectionalRecordRow {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  hr_no: string;
+  hr_name: string;
+  chul_no: number | null;
+  ord: number | null;
+  bu_g1f_acc_time: number | null;
+  bu_g2f_acc_time: number | null;
+  bu_g3f_acc_time: number | null;
+  bu_g4f_acc_time: number | null;
+  bu_g6f_acc_time: number | null;
+  bu_g8f_acc_time: number | null;
+  bu_s1f_acc_time: number | null;
+  bu_g1f_ord: number | null;
+  bu_g2f_ord: number | null;
+  bu_g3f_ord: number | null;
+  bu_g4f_ord: number | null;
+  bu_s1f_ord: number | null;
+}
+
+/**
+ * training_logs 테이블 행
+ */
+export interface TrainingLogRow {
+  train_date: number;
+  meet: number;
+  hr_no: string;
+  hr_name: string;
+  trar_nm: string | null;
+  part: number | null;
+  part_no: number | null;
+  chul_gubun: string | null;
+  pr_gubun: string | null;
+  pr_no: string | null;
+  run1_cnt: number | null;
+  run2_cnt: number | null;
+  st_time: number | null;
+  sp_time: number | null;
+  tr_term: number | null;
+}
+
+/**
+ * jockey_stats 테이블 행
+ * 출처: jkpresult/getjkpresult (한국마사회 기수 통산 성적)
+ */
+export interface JockeyStatsRow {
+  jcky_no: string;
+  jcky_nm: string | null;
+  meet: number;               // 1=서울, 3=부산경남
+  race_cnt_t: number | null;  // 통산 출주 수
+  first_cnt: number | null;   // 통산 1위 횟수
+  second_cnt: number | null;  // 통산 2위 횟수
+  third_cnt: number | null;   // 통산 3위 횟수
+  win_rate_t: number | null;  // 통산 단승률 (%)
+  qu_rate_t: number | null;   // 통산 입상률 (%)
+}
+
+/**
+ * KRASectionalRecord → sectional_records 행
+ */
+export function toSectionalRow(
+  r: KRASectionalRecord,
+  meet: number,
+): SectionalRecordRow {
+  return {
+    race_date: r.rcDate,
+    meet,
+    rc_no: r.rcNo,
+    hr_no: r.hrNo,
+    hr_name: r.hrName,
+    chul_no: r.chulNo ?? null,
+    ord: r.ord != null && r.ord < 90 ? r.ord : null,
+    bu_g1f_acc_time: r.buG1fAccTime ?? null,
+    bu_g2f_acc_time: r.buG2fAccTime ?? null,
+    bu_g3f_acc_time: r.buG3fAccTime ?? null,
+    bu_g4f_acc_time: r.buG4fAccTime ?? null,
+    bu_g6f_acc_time: r.buG6fAccTime ?? null,
+    bu_g8f_acc_time: r.buG8fAccTime ?? null,
+    bu_s1f_acc_time: r.buS1fAccTime ?? null,
+    bu_g1f_ord: r.buG1fOrd ?? null,
+    bu_g2f_ord: r.buG2fOrd ?? null,
+    bu_g3f_ord: r.buG3fOrd ?? null,
+    bu_g4f_ord: r.buG4fOrd ?? null,
+    bu_s1f_ord: r.buS1fOrd ?? null,
+  };
+}
+
+/**
+ * KRATrainingRecord → training_logs 행
+ *
+ * meet 문자열("서울"|"부산경남") → 숫자 코드 변환 포함
+ */
+export function toTrainingRow(r: KRATrainingRecord): TrainingLogRow {
+  const meetCode = r.meet?.includes('서울') ? 1 : r.meet?.includes('부산') ? 3 : 0;
+  return {
+    train_date: r.trDate,
+    meet: meetCode,
+    hr_no: r.hrNo,
+    hr_name: r.hrName,
+    trar_nm: r.trName ?? null,
+    part: r.part ?? null,
+    part_no: r.partNo ?? null,
+    chul_gubun: r.chulGubun || null,
+    pr_gubun: r.prGubun === '-' ? null : r.prGubun ?? null,
+    pr_no: r.prNo === '-' ? null : r.prNo ?? null,
+    run1_cnt: r.run1Cnt ?? null,
+    run2_cnt: r.run2Cnt ?? null,
+    st_time: r.stTime ?? null,
+    sp_time: r.spTime ?? null,
+    tr_term: r.trTerm ?? null,
+  };
+}
+
+/**
+ * KRAJockeyStat → jockey_stats 행
+ * API: jkpresult/getjkpresult (한국마사회 기수 통산 성적)
+ */
+export function toJockeyStatsRow(r: KRAJockeyStat): JockeyStatsRow {
+  return {
+    jcky_no: r.jkNo,
+    jcky_nm: r.jkName ?? null,
+    meet: r.meet,
+    race_cnt_t: r.raceCnttsum ?? null,
+    first_cnt: r.firstCnt ?? null,
+    second_cnt: r.secondCnt ?? null,
+    third_cnt: r.thirdCnt ?? null,
+    win_rate_t: r.winRateTsum ?? null,
+    qu_rate_t: r.quRateTsum ?? null,
   };
 }
 
