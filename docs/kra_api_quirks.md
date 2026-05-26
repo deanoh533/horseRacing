@@ -80,9 +80,9 @@ GET /API314/textDataHoldSePtinInfo?race_dt=20260524    → 정상 (11건)
 
 **진짜 운영 흐름**:
 ```
-수~목  : npm run sync:cards -- --date YYYYMMDD  (다음 금/토/일 출주표)
-금~일  : predictFromCards → UI 사전 예측 표시
-일 밤  : npm run sync (결과) + npm run backfill (predictions 재계산)
+수~목  : npx tsx src/sync/raceCardSync.ts --date YYYYMMDD  (다음 금/토/일 출주표 → race_entries 사전 채움)
+금~일  : predictRace → UI 사전 예측 표시 (race_entries.ord=null → 사전 모드 자동 분기)
+일 밤  : npx tsx src/sync/dailySync.ts (결과 → race_entries UPDATE) + npm run backfill (predictions 재계산)
 ```
 
 ---
@@ -92,8 +92,8 @@ GET /API314/textDataHoldSePtinInfo?race_dt=20260524    → 정상 (11건)
 **증상:** racedetailresult API 의 `stOrd` 필드는 명세상 "출발 순위" 인데, 실측 결과 **항상 `ord` (결승순위)와 100% 동일**. 예측 입력으로 쓰면 정답을 미리 본 셈 (cheating).
 
 **검증:**
-- 우리 DB의 `horse_results.st_ord` 와 `ord` 가 모든 row에서 동일 (995/995 = 100%).
-- 출주표 API (API314) 의 `pthrNo` (진짜 출주마번호) 와 비교: pthrNo == `chul_no` (우리 마구간 번호), `ord` 와 무관.
+- (구) `horse_results.st_ord` 와 `ord` 가 모든 row에서 동일 (995/995 = 100%) → race_entries 통합 시 st_ord 컬럼 제거됨.
+- 출주표 API (API314) 의 `pthrNo` (진짜 출주마번호) 와 비교: pthrNo == `race_entries.pthr_no` (마구간 번호), `ord` 와 무관.
 
 **영향:** 초기 측정 단승 26.9% 는 cheating 부풀림. 정직한 베이스라인은 23.8%.
 

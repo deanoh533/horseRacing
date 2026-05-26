@@ -62,7 +62,7 @@ rankRise 필드는 KRA에서 등급 변동(±1) 정보 제공:
 ## 🔗 의존성
 
 - KRA API: API214_1 (`rating`)
-- DB: `horse_results.rating`, `horse_results.rank_str`
+- DB: `race_entries.ratg` (= 구 `horse_results.rating`). rank_str 은 race_entries 에 통합되지 않음 (필요 시 별도 컬럼 추가)
 
 ## 📚 변경 이력
 

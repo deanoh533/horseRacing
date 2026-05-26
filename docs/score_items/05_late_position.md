@@ -7,7 +7,7 @@
 **상태:** 🚫 KRA 데이터 누락 (bu_*_ord 컬럼 모두 0)
 **최근 업데이트:** 2026-05-26 (PRD 동기화)
 
-> ⚠️ **알고리즘은 정확하지만 KRA 가 데이터를 안 줌**. horse_results 의 bu_g1f_ord 등 구간 순위 컬럼이 모두 0 으로 동기화됨.
+> ⚠️ **알고리즘은 정확하지만 KRA 가 데이터를 안 줌**. race_entries 의 bu_g1f_ord 등 구간 순위 컬럼이 모두 0 으로 동기화됨.
 > 향후 KRA 별도 endpoint 발견 시 보강 가능. 현재는 항상 중립값 (0.5) 반환 → ρ 0.
 
 ---
@@ -144,7 +144,7 @@ function calculateLatePositionScore(recent5Races) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`buG1fOrd`, `buS1fOrd`)
-- DB: `horse_results` 테이블의 관련 컬럼들
+- DB: `race_entries.bu_g1f_ord`, `bu_g2f_ord`, `bu_g3f_ord`, `bu_g4f_ord`, `bu_s1f_ord` (전부 KRA 가 0 으로 보냄)
 
 ## 📚 변경 이력
 

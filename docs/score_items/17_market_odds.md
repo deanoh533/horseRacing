@@ -44,9 +44,9 @@ function calculatePopularity(race) {
 async function calculatePopScore(hrName, todayDate) {
   // 최근 5경주 조회
   const recent5 = await db.query(`
-    SELECT * FROM horse_results 
-    WHERE hr_name = $1 AND rc_date < $2
-    ORDER BY rc_date DESC 
+    SELECT * FROM race_entries 
+    WHERE hr_name = $1 AND race_date < $2 AND ord IS NOT NULL
+    ORDER BY race_date DESC 
     LIMIT 5
   `, [hrName, todayDate]);
   
@@ -88,7 +88,7 @@ async function calculatePopScore(hrName, todayDate) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`winOdds`)
-- DB: `horse_results.win_odds`, `horse_results.popularity` (계산 후 저장)
+- DB: `race_entries.win_odds`, `race_entries.popularity` (사후 채워짐, 인기도는 sync 시 계산해서 저장)
 
 ## 📚 변경 이력
 

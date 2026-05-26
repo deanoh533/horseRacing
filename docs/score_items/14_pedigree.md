@@ -93,7 +93,7 @@ horseinfohi API 는 hrno (camelCase) 파라미터를 정확히 인식.
 ### 향후 개선 (별개 세션 작업)
 
 1. **부마별 거리 패턴 알고리즘 신규 작성**
-   - input: hr_name → horses.sire_hr_nm → 같은 sire 의 자손들 + horse_results 거리 입상률
+   - input: hr_name → horses.sire_hr_nm → 같은 sire 의 자손들 + race_entries 거리 입상률
    - output: 이번 경주 거리에 대한 자손 평균 입상률 (정규화)
    - PRD 의 50/30/20 비중 적용 (부/모/모부)
 

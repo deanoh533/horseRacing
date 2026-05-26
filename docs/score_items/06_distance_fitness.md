@@ -131,7 +131,7 @@ function calculateDistanceFitnessScore(horseHistory, today) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`rcDist`, `ord`)
-- DB: `horse_results.rc_dist`, `horse_results.ord`
+- DB: `race_entries.rc_dist`, `race_entries.ord`
 
 ## 📚 변경 이력
 

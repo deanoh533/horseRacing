@@ -98,8 +98,8 @@ clamp to [0, 1]
 ## 🔗 의존성
 
 - KRA API: API214_1 (`wgBudam`)
-- DB: `horse_results.wg_budam`, `horse_results.ord`
-- 보조 fetch: 같은 (race_date, meet, rc_no) 의 다른 horses 의 wg_budam 평균 (raceAvgBudam 계산용)
+- DB: `race_entries.burd_wgt`, `race_entries.ord`
+- 보조 fetch: 같은 (race_date, meet, rc_no) 의 다른 race_entries row 의 burd_wgt 평균 (raceAvgBudam 계산용)
 
 ---
 

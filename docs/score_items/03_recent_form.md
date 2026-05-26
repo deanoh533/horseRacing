@@ -154,7 +154,7 @@ ord5[4] (가장 과거): 0.10
 ## 🔗 의존성
 
 - KRA API: API214_1 (`ord`)
-- DB: `horse_results` 테이블의 `ord` 컬럼
+- DB: `race_entries.ord` (사후 채워짐, hr_name 으로 과거 5경주 조회)
 
 ## 📚 변경 이력
 

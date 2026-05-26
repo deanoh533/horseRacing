@@ -41,14 +41,14 @@ async function calculateChemistryScore(hrName, jkNo, todayDate) {
   
   // 말의 1년 내 모든 경주
   const horseRecent = await db.query(`
-    SELECT ord FROM horse_results
-    WHERE hr_name = $1 AND race_date >= $2
+    SELECT ord FROM race_entries
+    WHERE hr_name = $1 AND race_date >= $2 AND ord IS NOT NULL
   `, [hrName, oneYearAgo]);
   
   // 이 기수와의 조합 1년 내 경주
   const combinationRecent = await db.query(`
-    SELECT ord FROM horse_results
-    WHERE hr_name = $1 AND jk_no = $2 AND race_date >= $3
+    SELECT ord FROM race_entries
+    WHERE hr_name = $1 AND jcky_no = $2 AND race_date >= $3 AND ord IS NOT NULL
   `, [hrName, jkNo, oneYearAgo]);
   
   if (combinationRecent.length === 0) return 0.5; // 1년 내 처음 조합
@@ -137,7 +137,7 @@ function mapImprovement(imp) {
 
 ## 🔗 의존성
 
-- DB: `horse_results.hr_name`, `horse_results.jk_no`, `horse_results.ord`, `horse_results.race_date`
+- DB: `race_entries.hr_name`, `race_entries.jcky_no`, `race_entries.ord`, `race_entries.race_date`
 
 ## 📚 변경 이력
 

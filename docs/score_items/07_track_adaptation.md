@@ -109,7 +109,7 @@ function extractTrackType(track) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`track`, `ord`)
-- DB: `horse_results.track`, `horse_results.ord`
+- DB: `race_entries.track_type`, `race_entries.ord`
 
 ## 📚 변경 이력
 

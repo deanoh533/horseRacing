@@ -35,8 +35,8 @@ function calculateJockeyFormScore(jkNo, todayDate) {
   // 최근 30일 기수의 모든 경주 (서울 + 부산경남 통합)
   const thirtyDaysAgo = subtractDays(todayDate, 30);
   const recent = db.query(`
-    SELECT ord FROM horse_results
-    WHERE jk_no = $1 AND race_date >= $2
+    SELECT ord FROM race_entries
+    WHERE jcky_no = $1 AND race_date >= $2 AND ord IS NOT NULL
   `, [jkNo, thirtyDaysAgo]);
   
   if (recent.length < 5) return 0.5; // 데이터 부족 (5회 미만)
@@ -102,7 +102,7 @@ function calculateJockeyFormScore(jkNo, todayDate) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`jkNo`, `ord`)
-- DB: `horse_results.jk_no`, `horse_results.race_date`, `horse_results.ord`
+- DB: `race_entries.jcky_no`, `race_entries.race_date`, `race_entries.ord` (= 구 `horse_results.jk_no`)
 
 ## 📚 변경 이력
 

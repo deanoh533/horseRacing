@@ -12,7 +12,7 @@
 
 KRA 상금 시스템은 강한 말에게 더 많은 상금을 분배함.
 → 누적 수득상금이 클수록 그 말은 이미 실력으로 검증된 강자.
-→ 출주표(race_cards) 의 `erng_sump` 필드로 정량 측정 가능.
+→ `race_entries.erng_sump` 필드로 정량 측정 가능 (출주표 sync 시 채워짐).
 
 ---
 
@@ -24,7 +24,7 @@ KRA 상금 시스템은 강한 말에게 더 많은 상금을 분배함.
 
 | 통산 수득상금 | 점수 | 해석 |
 |---|---|---|
-| `undefined` (race_cards 없음) | 0.5 | 중립 (정보 없음) |
+| `undefined` (race_entries 사전 컬럼 비어있음) | 0.5 | 중립 (정보 없음) |
 | 0원 | 0.0 | 미입상 |
 | 100만 미만 | 0.1 | 입문 |
 | 1000만 미만 | 0.25 | 중수 |
@@ -32,10 +32,10 @@ KRA 상금 시스템은 강한 말에게 더 많은 상금을 분배함.
 | 5억 미만 | 0.85 | 강자 |
 | 5억 이상 | 1.0 | 최상위 |
 
-**데이터 출처:** `race_cards.erng_sump` (사전 정보, 출주표 발표 시 KRA 가 제공).
+**데이터 출처:** `race_entries.erng_sump` (사전 정보, 출주표 발표 시 KRA 가 제공, raceCardSync 가 채움).
 
 **입력 흐름:**
-1. `scorePredictor.predictRace()` 가 race_cards 에서 hr_name → erng_sump map 구성
+1. `scorePredictor.predictRace()` 가 race_entries SELECT 시 erng_sump 같이 가져옴
 2. `ScoreEngineInput.erngSump` 로 전달
 3. `calculateEarningsScore()` 호출
 
@@ -71,7 +71,7 @@ KRA 상금 시스템은 강한 말에게 더 많은 상금을 분배함.
 
 ### 1. 6개월/1년 상금 미사용
 
-race_cards 에는 통산뿐 아니라:
+race_entries 에는 통산뿐 아니라:
 - `erng_loy`: 최근 1년 상금
 - `erng_lsm`: 최근 6개월 상금
 
@@ -79,9 +79,9 @@ race_cards 에는 통산뿐 아니라:
 
 → 향후 별도 sub-항목 또는 가중 평균 (예: `0.5 × 통산 + 0.5 × 1년`).
 
-### 2. race_cards 없는 경주는 중립값 (0.5)
+### 2. 출주표 백필 안 된 경주는 중립값 (0.5)
 
-race_cards 백필이 77% (2,994/4,302 horses) 라 나머지 23% 는 점수 0.5 받음.
+raceCardSync 백필이 77% (2,994/4,302 horses) 라 나머지 23% race_entries row 의 erng_sump 가 null → 점수 0.5 받음.
 → KRA 일일 한도 회복하면 자동 채워짐.
 
 ### 3. 5억+ 상한 임의 설정
@@ -99,9 +99,10 @@ race_cards 백필이 77% (2,994/4,302 horses) 라 나머지 23% 는 점수 0.5 �
 ## 🔗 의존성
 
 - KRA API: **API314** (서울) / **API316** (부산경남) — 출주표 endpoint
-- DB: `race_cards.erng_sump`
+- DB: `race_entries.erng_sump`
 - Score Engine: `src/engine/index.ts` ScoreEngineInput.erngSump
-- 사전 lookup: `src/engine/scorePredictor.ts` race_cards JOIN
+- 사전 sync: `src/sync/raceCardSync.ts` → race_entries.erng_sump 채움
+- 예측: `src/engine/scorePredictor.ts` race_entries SELECT 시 동시 조회
 
 ---
 
@@ -110,3 +111,4 @@ race_cards 백필이 77% (2,994/4,302 horses) 라 나머지 23% 는 점수 0.5 �
 | 일자 | 변경 | Commit |
 |---|---|---|
 | 2026-05-25 | 신규 항목 도입. 5-tier 알고리즘 + race_cards 연결. | `febd5c3` |
+| 2026-05-26 | race_cards → race_entries 통합 (스키마 단순화) | `db4bd4a` |

@@ -4,16 +4,16 @@
 **사용자:** 본인 1명 (5년차 경마 분석가)
 **목적:** 적중률 향상 → 수익 증대
 **최종 업데이트:** 2026-05-26
-**버전:** v6.0 (18개 항목 + race_cards 사전 예측 모드)
+**버전:** v6.1 (18개 항목 + race_entries 통합 단일 모드)
 **배포:** [horse-racing-xi-one.vercel.app](https://horse-racing-xi-one.vercel.app/) ✅ 운영 중
 
 ---
 
-## 🆕 v5.1 → v6.0 변경 (2026-05-25 ~ 26)
+## 🆕 v5.1 → v6.1 변경 (2026-05-25 ~ 26)
 
 ```
 1. 17개 → 18개 항목
-   - ⑱ 수득상금 (race_cards.erng_sump) 신규
+   - ⑱ 수득상금 (race_entries.erng_sump) 신규
    - ρ=0.239 (3번째 강한 신호)
 
 2. ⑧ 부담중량 알고리즘 재설계
@@ -23,22 +23,25 @@
 
 3. ⑫ 출발번호 입력 변경
    - 기존: stOrd (KRA의 "출발 순위" 필드)
-   - 신규: chul_no (마구간 번호 = 진짜 게이트 번호)
+   - 신규: chul_no = pthr_no (마구간 번호 = 진짜 게이트 번호)
    - 이유: stOrd가 결승순위와 100% 동일 = cheating 발견
 
-4. 데이터 흐름 2-모드
-   - 사후 (predictRace): horse_results 기반 (백테스트)
-   - 사전 (predictFromCards): race_cards 기반 (실시간 예측)
-   - 같은 predictRace() 함수가 자동 분기
+4. DB 스키마 통합 (v6.1, 2026-05-26)
+   - race_cards (사전) + horse_results (사후) → race_entries 단일 테이블
+   - PK: (race_date, meet, rc_no, pthr_no)
+   - result_at 으로 사전/사후 판별 (null = 경기 전)
+   - 효과: 수요일부터 웹에서 출전마 즉시 표시 가능
+   - 마이그레이션: 004_race_entries.sql (38,517 rows 통합 완료)
 
-5. race_cards 테이블 신규
-   - KRA API314 (서울) / API316 (부산경남) 출주표
-   - 수~목 발표 → 우리가 fetch → 금~일 사전 예측
+5. Score Engine 단일 모드
+   - 듀얼 함수 (predictRace + predictFromCards) → predictRace 단일
+   - race_entries.ord === null 이면 사전 모드 자동 분기
+   - scorePredictor.ts -47% (310 → 165 줄)
 
 6. 운영 가능
-   - 수/목: sync:cards (다음 주말 출주표)
+   - 수/목: raceCardSync (다음 주말 출주표 → race_entries 사전 채움)
    - 금~일: UI에서 사전 예측 확인 (베팅 결정)
-   - 일 밤: sync (결과) + backfill (적중률 갱신)
+   - 일 밤: dailySync (결과 → race_entries UPDATE + predictions 갱신)
 
 7. 학습 시스템 정착
    - Spearman ρ 측정 → blend 0.5 적용
@@ -117,45 +120,46 @@ AI: Claude API (선택된 4개 핵심에 대한 인사이트)
 
 - 🥇 **⑧ 부담 극복** (ρ +0.317): 사용자 도메인 통찰 (handicap 시스템) 으로 알고리즘 재설계 후 가장 강한 신호
 - 🥈 **③ 착순 추세** (ρ +0.290): 최근 폼이 가장 직관적인 예측력
-- 🥉 **⑱ 수득상금** (ρ +0.239): 신규 도입. race_cards 의 통산 상금 = 검증된 실력
+- 🥉 **⑱ 수득상금** (ρ +0.239): 신규 도입. race_entries 의 통산 상금 = 검증된 실력
 - ⚠️ **② ⑤ ⑬ ⑭** (ρ ≤ 0): 학습 후 가중치 0. 알고리즘 또는 데이터 보강 필요
 
 ---
 
-## 🔄 데이터 흐름 (2-모드)
+## 🔄 데이터 흐름 (race_entries 단일 모드)
 
 상세: [data_flow.md](data_flow.md)
 
-### 사후 모드 (predictRace)
+### 통합 흐름
 
 ```
-[KRA 결과 API] → horse_results → predictRace → predictions (actual_ord 있음)
+[KRA 출주표 API314/316] → raceCardSync → race_entries (사전 컬럼 + result_at=null)
+                                       → races (race_date, meet, rc_no)
+
+[KRA 결과 API214_1] → dailySync → race_entries UPDATE (결과 컬럼 + result_at=NOW)
+                               → races UPDATE (rc_dist, track_type 등)
+                               → predictions upsert
+
+[Score Engine] → predictRace(rcDate, meet, rcNo)
+              → race_entries.ord === null ? 사전 모드 : 사후 모드 (자동 분기)
+              → predictions
 ```
 
-용도: 과거 데이터 백테스트, 가중치 학습 데이터 생성.
-
-### 사전 모드 (predictFromCards)
-
-```
-[KRA 출주표 API314/316] → race_cards → predictFromCards → predictions (actual_ord = null)
-```
-
-용도: 실제 베팅 전 예측. 출주표가 발표된 금~일 경주에 대해 사전 예측 가능.
+**사전/사후 판별**: `race_entries.result_at === null` (= 경기 전) 또는 `ord === null`.
 
 ### 운영 시나리오
 
 ```
-[수~목]  npm run sync:cards -- --date 20260530   ← 토요일 출주표
-         npm run sync:cards -- --date 20260531   ← 일요일 출주표
-         npm run backfill -- --date 20260530     ← predictFromCards 동작
+[수~목]  npx tsx src/sync/raceCardSync.ts --date 20260530   ← 토요일 출주표
+         npx tsx src/sync/raceCardSync.ts --date 20260531   ← 일요일 출주표
+         npm run backfill -- --date 20260530                ← 사전 예측 채움
          npm run backfill -- --date 20260531
 
 [금~일]  https://horse-racing-xi-one.vercel.app/dashboard
          → 예측 1-3위 + 종합 점수 + 항목별 점수 확인
          → 베팅 결정
 
-[일 밤]  npm run sync                            ← horse_results 채움
-         npm run backfill                        ← actual_ord 채움 + 적중 갱신
+[일 밤]  npx tsx src/sync/dailySync.ts --date 20260530      ← race_entries 결과 UPDATE
+         npm run backfill                                   ← actual_ord 채움 + 적중 갱신
 
 [누적 학습]
          npx tsx scripts/apply_learned_weights.ts
@@ -265,7 +269,7 @@ user_settings.insight_indicators = [
 
 - **⑭ 혈통**: API284 가 `hr_no` 파라미터를 필터링하지 않음 → 데이터 사실상 수집 불가. 우회: horseinfohi 의 sireHrnm/damHrnm 으로 부마별 자손 거리 패턴 직접 통계 (scripts/analyze_sires.ts 분석 진행 중)
 - **⑤ 후반 구간 순위**: KRA bu_*_ord 컬럼이 모두 0 으로 옴 → 데이터 자체 없음. 다른 endpoint 발견 시 보강 가능
-- **race_cards 백필 77%**: KRA 일일 한도로 분할 진행 중 (2,994/4,302 horses, 약 30% 잔여)
+- **race_entries 사전 컬럼 백필 77%**: KRA 일일 한도로 분할 진행 중 (2,994/4,302 horses, 약 30% 잔여). 누락된 row 는 ⑱ 수득상금에 영향
 - **horses 70%**: 동일 (KRA 한도)
 
 ### 알고리즘 측면
@@ -276,8 +280,9 @@ user_settings.insight_indicators = [
 
 ### 운영 측면
 
-- **jockeys/trainers 테이블 미동기화**: race_cards 의 jcky_nm 으로 horse_results 최근 row 에서 jk_no 역추정. 동명 기수 매핑 오류 가능
-- **사전 예측 vs 사후 백테스트의 데이터 차이**: race_cards 에 없는 일부 정보 (wg_hr=경기직전 마체중 등) 는 사전 모드에서 누락 → 약간의 정확도 차이 가능
+- **jockeys/trainers 테이블 미동기화**: race_entries 의 jcky_nm 만 채워지고 jcky_no 는 결과 sync 후에야 채워짐. 동명 기수 매핑 오류 가능
+- **사전 예측 vs 사후 백테스트의 데이터 차이**: race_entries 의 일부 컬럼 (wg_hr=경기직전 마체중, win_odds 등) 은 사전 모드에서 null → 약간의 정확도 차이 가능
+- **구버전 테이블 잔존**: race_cards (29,194 rows), horse_results (38,331 rows) — 데이터 검증 후 DROP 예정. 현재 코드는 안 읽음
 
 ### 향후 계획
 
@@ -293,6 +298,7 @@ user_settings.insight_indicators = [
 
 | 일자 | 버전 | 변경 |
 |---|---|---|
+| 2026-05-26 | v6.1 | race_entries 통합 (race_cards + horse_results 합침) + scorePredictor 단일 모드 |
 | 2026-05-26 | v6.0 | 18개 항목 + race_cards 사전 예측 + 학습 시스템 정착 + 측정 결과 |
 | 2026-05-22 | v5.1 | 17개 항목 구조 + 사용자 선택 4개 핵심 |
 | 2026-05-22 | v5.0 | 분리 문서 구조로 재편 |

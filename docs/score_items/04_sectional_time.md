@@ -147,7 +147,7 @@ function extractTrackType(track) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`rcTime`, `buS1fAccTime`, `rcDist`, `track`)
-- DB: `horse_results` 테이블의 관련 컬럼들
+- DB: `race_entries.rc_time`, `race_entries.bu_s1f_acc_time`, `race_entries.rc_dist`, `race_entries.track_type` (사후 채워짐)
 
 ## 📚 변경 이력
 

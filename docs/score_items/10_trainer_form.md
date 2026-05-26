@@ -35,8 +35,8 @@ function calculateTrainerFormScore(trNo, todayDate) {
   // 최근 60일 마방 전체 (서울 + 부산경남 통합)
   const sixtyDaysAgo = subtractDays(todayDate, 60);
   const recent = db.query(`
-    SELECT ord FROM horse_results
-    WHERE tr_no = $1 AND race_date >= $2
+    SELECT ord FROM race_entries
+    WHERE trar_no = $1 AND race_date >= $2 AND ord IS NOT NULL
   `, [trNo, sixtyDaysAgo]);
   
   if (recent.length < 20) return 0.5; // 데이터 부족 (20회 미만)
@@ -97,7 +97,7 @@ function calculateTrainerFormScore(trNo, todayDate) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`trNo`, `ord`)
-- DB: `horse_results.tr_no`, `horse_results.race_date`, `horse_results.ord`
+- DB: `race_entries.trar_no`, `race_entries.race_date`, `race_entries.ord` (= 구 `horse_results.tr_no`)
 
 ## 📚 변경 이력
 

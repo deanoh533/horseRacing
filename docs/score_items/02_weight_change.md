@@ -108,7 +108,7 @@ function parseWgHr(wgHrStr) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`wgHr`, `sex`)
-- DB: `horse_results` 테이블의 `wg_hr_str`, `wg_hr`, `wg_hr_diff` 컬럼
+- DB: `race_entries.wg_hr`, `race_entries.wg_hr_diff` (사후 채워짐). `wg_hr_str` 은 race_entries 에 통합되지 않음
 
 ## 📚 변경 이력
 

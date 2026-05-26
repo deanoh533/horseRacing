@@ -75,7 +75,7 @@ function calculateAgeDistanceGenderScore(age, sex, rcDist) {
 ## 🔗 의존성
 
 - KRA API: API214_1 (`age`, `sex`, `rcDist`)
-- DB: `horse_results.age`, `horse_results.sex`, `horse_results.rc_dist`
+- DB: `race_entries.ag`, `race_entries.gndr`, `race_entries.rc_dist` (= 구 horse_results.age/sex)
 
 ## 📚 변경 이력
 

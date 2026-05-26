@@ -29,9 +29,9 @@
 async function calculateRaceIntervalScore(hrName, todayDate) {
   // DB에서 직전 경주 조회
   const prevRace = await db.query(`
-    SELECT rc_date FROM horse_results
-    WHERE hr_name = $1 AND rc_date < $2
-    ORDER BY rc_date DESC
+    SELECT race_date FROM race_entries
+    WHERE hr_name = $1 AND race_date < $2 AND ord IS NOT NULL
+    ORDER BY race_date DESC
     LIMIT 1
   `, [hrName, todayDate]);
   
@@ -73,7 +73,7 @@ async function calculateRaceIntervalScore(hrName, todayDate) {
 
 ## 🔗 의존성
 
-- DB: `horse_results.race_date`, `horse_results.hr_name`
+- DB: `race_entries.race_date`, `race_entries.hr_name`
 - (KRA API는 데이터 수집 시에만 사용)
 
 ## 📚 변경 이력

@@ -64,7 +64,7 @@ Q2. 데이터 기간 (1년)
 ## 🔗 의존성
 
 - KRA API: API214_1 (`rcDate`, `ord`)
-- DB: `horse_results.race_date`, `horse_results.ord`
+- DB: `race_entries.race_date`, `race_entries.ord`
 
 ## 📚 변경 이력
 

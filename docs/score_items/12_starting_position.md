@@ -103,7 +103,7 @@ stOrd: h.chul_no,
 
 ### 1. chul_no = 게이트 번호 가정
 
-KRA 실무에서 일반적으로 마구간 번호(chul_no) 순서대로 게이트 배정되지만, 일부 경주에서 별도 추첨할 수도 있음. 진짜 게이트 추첨 결과는 출주표에 명시되어 있지만 우리 race_cards 의 pthrNo 가 chul_no 와 동일한 의미라 따로 구분 안 함.
+KRA 실무에서 일반적으로 마구간 번호(chul_no = race_entries.pthr_no) 순서대로 게이트 배정되지만, 일부 경주에서 별도 추첨할 수도 있음. 진짜 게이트 추첨 결과는 출주표에 명시되어 있지만 출주표 pthrNo 와 마구간 번호가 동일한 의미라 따로 구분 안 함.
 
 → 만약 KRA 가 별도 게이트 번호 endpoint 를 풀면 보강 가능.
 
@@ -115,8 +115,7 @@ KRA 실무에서 일반적으로 마구간 번호(chul_no) 순서대로 게이�
 
 ## 🔗 의존성
 
-- DB: `horse_results.chul_no` (이미 모든 row 에 있음)
-- 사전 모드: `race_cards.pthr_no` (= chul_no)
+- DB: `race_entries.pthr_no` (= 구 horse_results.chul_no = race_cards.pthr_no). 사전/사후 모두 동일 컬럼
 
 ---
 
