@@ -8,13 +8,15 @@
  */
 import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target, History } from 'lucide-react';
+import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target, History, Dumbbell, Dna } from 'lucide-react';
 import {
   useHorsesByRace,
   usePredictionsByRace,
   useHorseSectionalAbility,
   useHorseHistory,
+  useHorseTraining,
   useJockeyStats,
+  useHorseInfo,
 } from '../lib/queries';
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
@@ -455,6 +457,8 @@ function ExpandedDetail({
   const { data: ability, isLoading: abLoading } = useHorseSectionalAbility(entry.hr_name);
   const { data: jockeyStats } = useJockeyStats(entry.jcky_no ?? '', meet);
   const { data: history, isLoading: histLoading } = useHorseHistory(entry.hr_name, rcDate, 5);
+  const { data: training, isLoading: trLoading } = useHorseTraining(entry.hr_no ?? '', 30);
+  const { data: horseInfo } = useHorseInfo(entry.hr_no ?? '');
 
   const jockeyStat = jockeyStats?.[0]; // (jcky_no, meet) 단일 row
 
@@ -573,6 +577,62 @@ function ExpandedDetail({
               ))}
             </tbody>
           </table>
+        )}
+      </DetailCard>
+
+      {/* ⑤ 최근 훈련 (30일) */}
+      <DetailCard icon={<Dumbbell className="w-3.5 h-3.5" />} title="최근 훈련 (30일)">
+        {!entry.hr_no ? (
+          <div className="text-[var(--color-text-disabled)]">말 번호 없음</div>
+        ) : trLoading ? (
+          <div className="text-[var(--color-text-disabled)]">
+            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+            로딩…
+          </div>
+        ) : !training || training.length === 0 ? (
+          <div className="text-[var(--color-text-disabled)]">훈련 기록 없음</div>
+        ) : (
+          <>
+            <KV label="총 훈련" value={`${training.length}회`} />
+            <KV
+              label="마지막"
+              value={formatShortDate(training[0]!.train_date)}
+            />
+            <KV
+              label="조교사"
+              value={training[0]!.trar_nm ?? '-'}
+            />
+            <KV
+              label="총 달린 횟수"
+              value={`${training.reduce((s, t) => s + (t.run1_cnt ?? 0) + (t.run2_cnt ?? 0), 0)}회`}
+            />
+            <KV
+              label="출전 구분"
+              value={training[0]!.chul_gubun ?? '-'}
+            />
+          </>
+        )}
+      </DetailCard>
+
+      {/* ⑥ 혈통 */}
+      <DetailCard icon={<Dna className="w-3.5 h-3.5" />} title="혈통">
+        {!entry.hr_no ? (
+          <div className="text-[var(--color-text-disabled)]">말 번호 없음</div>
+        ) : !horseInfo ? (
+          <div className="text-[var(--color-text-disabled)]">혈통 데이터 없음 (horses 테이블 sync 필요)</div>
+        ) : (
+          <>
+            <KV label="부마" value={horseInfo.sire_hr_nm ?? '-'} />
+            <KV label="모마" value={horseInfo.dam_hr_nm ?? '-'} />
+            <KV label="모부마" value={horseInfo.dam_sire_hr_nm ?? '-'} />
+            {horseInfo.spcs_nm && <KV label="품종" value={horseInfo.spcs_nm} />}
+            {horseInfo.dsidx_vl != null && horseInfo.dsidx_vl > 0 && (
+              <KV label="혈통지수" value={`${horseInfo.dsidx_vl}`} />
+            )}
+            {horseInfo.dsa_coi_rt != null && horseInfo.dsa_coi_rt > 0 && (
+              <KV label="근친도" value={`${horseInfo.dsa_coi_rt}%`} />
+            )}
+          </>
         )}
       </DetailCard>
 

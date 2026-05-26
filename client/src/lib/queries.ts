@@ -12,6 +12,7 @@ import {
   type JockeyStat,
   type HorseSectionalAbility,
   type RaceSectionalStats,
+  type Horse,
 } from './supabase';
 
 /**
@@ -481,6 +482,26 @@ export function useRaceSectionalStats(rcDate: number, meet: number, rcNo: number
     },
     enabled: !!rcDate && !!meet && !!rcNo,
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 말의 혈통·메타 정보 (horses 테이블)
+ */
+export function useHorseInfo(hrNo: string) {
+  return useQuery({
+    queryKey: ['horse-info', hrNo],
+    queryFn: async (): Promise<Horse | null> => {
+      const { data, error } = await supabase
+        .from('horses')
+        .select('*')
+        .eq('hr_no', hrNo)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? null;
+    },
+    enabled: !!hrNo,
+    staleTime: 24 * 60 * 60 * 1000, // 정적 정보는 하루 캐시
   });
 }
 

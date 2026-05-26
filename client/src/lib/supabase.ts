@@ -203,6 +203,30 @@ export interface TrainingLog {
 }
 
 /**
+ * horses 테이블 — 말 정적 정보 (혈통 + 메타)
+ */
+export interface Horse {
+  hr_no: string;
+  hr_name: string;
+  eng_hr_name: string | null;
+  birthday: number | null;
+  foalg_dt: string | null;
+  sex: string | null;
+  pcty_nm: string | null;       // 산지
+  spcs_nm: string | null;       // 품종
+  sire_hr_nm: string | null;    // 부마
+  dam_hr_nm: string | null;     // 모마
+  dam_sire_hr_nm: string | null; // 모부마
+  dsa_bri_vl: number | null;
+  dsa_clc_vl: number | null;
+  dsa_ier_vl: number | null;
+  dsa_prf_vl: number | null;
+  dsa_coi_rt: number | null;
+  dsidx_vl: number | null;
+  last_updated: string | null;
+}
+
+/**
  * horse_sectional_ability VIEW (007 마이그레이션)
  *   마별 통산 구간 능력치. 거리-무관 차이값 기반.
  *   best_last_600m=막판 추격력, best_s1f=출발 가속력, surge_score 양수=추격형
