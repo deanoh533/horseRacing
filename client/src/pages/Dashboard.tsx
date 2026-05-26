@@ -3,8 +3,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
-  ArrowRight,
   Loader2,
+  Bot,
+  ClipboardList,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -200,12 +201,12 @@ function RaceCard({ race, predictions }: RaceCardProps) {
   const dateStr = race.race_date.toString();
   const top3 = predictions.slice(0, 3);
   const hasResult = predictions.some((p) => p.actual_ord !== null);
+  const predictionUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}`;
+  const entriesUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}/entries`;
 
   return (
-    <Link
-      to={`/race/${race.meet}/${dateStr}/${race.rc_no}`}
-      className="block bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)] transition-all group"
-    >
+    <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors">
+      {/* 경주 헤더 */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3 text-sm flex-wrap">
           <span className="font-bold text-[var(--color-accent-cyan)]">
@@ -221,7 +222,6 @@ function RaceCard({ race, predictions }: RaceCardProps) {
             </span>
           )}
         </div>
-        <ArrowRight className="w-4 h-4 text-[var(--color-text-disabled)] group-hover:text-[var(--color-accent-cyan)] transition-colors" />
       </div>
 
       {/* 예측 1-3위 (Score Engine 결과) */}
@@ -251,7 +251,25 @@ function RaceCard({ race, predictions }: RaceCardProps) {
           {hasResult ? '예측 데이터 없음' : '예측 계산 대기 (npm run backfill)'}
         </div>
       )}
-    </Link>
+
+      {/* 두 입구: AI 예측 vs 출마정보 */}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Link
+          to={predictionUrl}
+          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
+        >
+          <Bot className="w-3.5 h-3.5" />
+          AI 예측 보기
+        </Link>
+        <Link
+          to={entriesUrl}
+          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
+        >
+          <ClipboardList className="w-3.5 h-3.5" />
+          출마정보 보기
+        </Link>
+      </div>
+    </div>
   );
 }
 

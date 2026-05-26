@@ -144,6 +144,12 @@ const isPreRace = entry.result_at === null;  // 또는 entry.ord === null
 
 ## 미완료 항목
 
+- [ ] **PRD v6.1 — 출마정보 비교 화면 + 신규 API 통합** ([docs/PRD_v6.1_entries_view.md](docs/PRD_v6.1_entries_view.md))
+  - 핵심 인사이트: AI 예측은 메인 그대로, 사용자가 검증할 수 있는 **raw 데이터 화면**이 필요함
+  - **P0a (프론트엔드, 병렬):** `/race/.../entries` 신규 라우트 + 비교 표 + 대시보드 두 입구
+  - **P0b (백엔드, 병렬):** KRA API 3개 신규 통합 — API6_1(구간기록) / API18_1(훈련) / jkpresult(기수)
+  - 두 작업 분리 가능 (다른 파일 영역). 데이터 준비되는 대로 UI에 통합
+  - P1: HorseDetail 18항목 점수 → 원시값+맥락 표현으로 개선
 - [ ] `race_cards`, `horse_results` 테이블 DROP (데이터 검증 후)
 - [ ] jockeys / trainers 테이블 별도 동기화
 - [ ] AI 인사이트 (Claude API 연동, Phase 2)

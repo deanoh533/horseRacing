@@ -109,3 +109,78 @@ export function formatActualOrd(ord: number | null): string {
 export function isCancelled(ord: number | null): boolean {
   return ord === null;
 }
+
+// ============================================
+// 신규 API 테이블 타입 (P0b)
+// ============================================
+
+/**
+ * sectional_records — 경주 후 구간별 통과기록
+ * [TODO] API37_1/sectionRecord_1 — 현재 403. 실제 필드 확인 후 수정 필요.
+ */
+export interface SectionalRecord {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  hr_no: string;
+  hr_name: string | null;
+  chul_no: number | null;
+  ord: number | null;
+  bu_g1f_acc_time: number | null;
+  bu_g2f_acc_time: number | null;
+  bu_g3f_acc_time: number | null;
+  bu_g4f_acc_time: number | null;
+  bu_g6f_acc_time: number | null;
+  bu_g8f_acc_time: number | null;
+  bu_s1f_acc_time: number | null;
+  bu_g1f_ord: number | null;
+  bu_g2f_ord: number | null;
+  bu_g3f_ord: number | null;
+  bu_g4f_ord: number | null;
+  bu_s1f_ord: number | null;
+  fetched_at: string | null;
+}
+
+/**
+ * training_logs — 일별 훈련 정보
+ * (API18_1/dailyTraining_1 — 검증됨)
+ */
+export interface TrainingLog {
+  train_date: number;
+  meet: number;
+  hr_no: string;
+  part: number;
+  hr_name: string | null;
+  trar_nm: string | null;
+  part_no: number | null;
+  chul_gubun: string | null;
+  pr_gubun: string | null;
+  pr_no: string | null;
+  run1_cnt: number | null;
+  run2_cnt: number | null;
+  st_time: number | null;
+  sp_time: number | null;
+  tr_term: number | null;
+  fetched_at: string | null;
+}
+
+/**
+ * jockey_stats — 기수별 성적
+ * [TODO] jkresult API — 현재 500. 실제 필드 확인 후 수정 필요.
+ */
+export interface JockeyStat {
+  jcky_no: string;
+  meet: number | null;
+  jcky_nm: string | null;
+  total_races: number | null;
+  win1: number | null;
+  win2: number | null;
+  win3: number | null;
+  win_rate: number | null;
+  plc_rate: number | null;
+  loy1: number | null;
+  loy2: number | null;
+  lsm1: number | null;
+  lsm2: number | null;
+  updated_at: string | null;
+}

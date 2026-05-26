@@ -2,7 +2,15 @@
  * React Query 훅 - Supabase 데이터 페칭
  */
 import { useQuery } from '@tanstack/react-query';
-import { supabase, type Race, type RaceEntry, type Prediction } from './supabase';
+import {
+  supabase,
+  type Race,
+  type RaceEntry,
+  type Prediction,
+  type SectionalRecord,
+  type TrainingLog,
+  type JockeyStat,
+} from './supabase';
 type HorseResult = RaceEntry; // 하위 호환
 
 /**
@@ -325,6 +333,97 @@ export function useRecentArchives(limit = 30) {
     },
     staleTime: 10 * 60 * 1000,
   });
+}
+
+// ============================================
+// 신규 API 훅 (P0b)
+// ============================================
+
+/**
+ * 특정 경주의 구간별 통과기록
+ * [TODO] sectional_records 테이블은 API37_1 구독 승인 후 데이터가 채워짐
+ */
+export function useSectionalRecords(rcDate: number, meet: number, rcNo: number) {
+  return useQuery({
+    queryKey: ['sectional-records', rcDate, meet, rcNo],
+    queryFn: async (): Promise<SectionalRecord[]> => {
+      const { data, error } = await supabase
+        .from('sectional_records')
+        .select('*')
+        .eq('race_date', rcDate)
+        .eq('meet', meet)
+        .eq('rc_no', rcNo)
+        .order('chul_no');
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!rcDate && !!meet && !!rcNo,
+    staleTime: 60 * 60 * 1000, // 경기 후 기록은 변하지 않으므로 1시간 캐시
+  });
+}
+
+/**
+ * 특정 말의 최근 N일치 훈련 기록
+ *
+ * @param hrNo   말 번호 (예: "0050860")
+ * @param daysBack 최근 며칠치 (기본 30)
+ */
+export function useHorseTraining(hrNo: string, daysBack = 30) {
+  return useQuery({
+    queryKey: ['horse-training', hrNo, daysBack],
+    queryFn: async (): Promise<TrainingLog[]> => {
+      const cutoff = getDateNDaysAgo(daysBack);
+      const { data, error } = await supabase
+        .from('training_logs')
+        .select('*')
+        .eq('hr_no', hrNo)
+        .gte('train_date', cutoff)
+        .order('train_date', { ascending: false })
+        .order('part', { ascending: false });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!hrNo,
+    staleTime: 30 * 60 * 1000, // 30분 캐시
+  });
+}
+
+/**
+ * 기수 성적 조회
+ * [TODO] jockey_stats 테이블은 jkresult API 구독 승인 후 데이터가 채워짐
+ *
+ * @param jckyNo 기수 번호 (예: "051174")
+ */
+export function useJockeyStats(jckyNo: string) {
+  return useQuery({
+    queryKey: ['jockey-stats', jckyNo],
+    queryFn: async (): Promise<JockeyStat | null> => {
+      const { data, error } = await supabase
+        .from('jockey_stats')
+        .select('*')
+        .eq('jcky_no', jckyNo)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data ?? null;
+    },
+    enabled: !!jckyNo,
+    staleTime: 24 * 60 * 60 * 1000, // 기수 성적은 하루 캐시
+  });
+}
+
+/**
+ * N일 전 날짜를 YYYYMMDD 숫자로 반환
+ */
+function getDateNDaysAgo(days: number): number {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return parseInt(`${y}${m}${day}`, 10);
 }
 
 function monthOf(rcDate: number): string {

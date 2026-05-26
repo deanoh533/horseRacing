@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { RaceDetail } from './pages/RaceDetail';
+import { RaceEntries } from './pages/RaceEntries';
 import { HorseDetail } from './pages/HorseDetail';
 import { Statistics } from './pages/Statistics';
 import { Settings } from './pages/Settings';
@@ -14,6 +15,10 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/race/:meet/:date/:rcNo" element={<RaceDetail />} />
+          <Route
+            path="/race/:meet/:date/:rcNo/entries"
+            element={<RaceEntries />}
+          />
           <Route
             path="/race/:meet/:date/:rcNo/horse/:chulNo"
             element={<HorseDetail />}
