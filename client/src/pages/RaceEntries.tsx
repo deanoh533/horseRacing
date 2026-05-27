@@ -13,6 +13,8 @@ import {
   useHorsesByRace,
   usePredictionsByRace,
   useHorseSectionalAbility,
+  useHorseSectionalAbilityByNames,
+  useHorseRunningStyleByDistance,
   useHorseHistory,
   useHorseTraining,
   useJockeyStats,
@@ -20,6 +22,7 @@ import {
 } from '../lib/queries';
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { classifyRunningStyle, STYLE_INFO, describeFrontRunSuccess, type RunningStyle } from '../lib/runningStyle';
 
 const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부산경남' };
 
@@ -102,6 +105,16 @@ export function RaceEntries() {
 
   const hrNames = useMemo(() => (horses ?? []).map((h) => h.hr_name), [horses]);
   const historyQueries = useMultipleHorseHistories(hrNames, rcDate);
+  const { data: abilities } = useHorseSectionalAbilityByNames(hrNames);
+
+  // hr_name → 주행 성향 분류 맵
+  const styleByName = useMemo(() => {
+    const map = new Map<string, RunningStyle>();
+    (abilities ?? []).forEach((a) => {
+      map.set(a.hr_name, classifyRunningStyle(a.avg_position_ratio, a.stddev_position_ratio));
+    });
+    return map;
+  }, [abilities]);
 
   // hr_name → predicted_rank 맵
   const predRankByName = useMemo(() => {
@@ -274,13 +287,29 @@ export function RaceEntries() {
                           </span>
                         </td>
                         <td className="px-2 py-2">
-                          <Link
-                            to={`/race/${meet}/${rcDate}/${rcNo}/horse/${h.pthr_no}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="font-semibold hover:text-[var(--color-accent-cyan)] hover:underline"
-                          >
-                            {h.hr_name}
-                          </Link>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link
+                              to={`/race/${meet}/${rcDate}/${rcNo}/horse/${h.pthr_no}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-semibold hover:text-[var(--color-accent-cyan)] hover:underline"
+                            >
+                              {h.hr_name}
+                            </Link>
+                            {(() => {
+                              const style = styleByName.get(h.hr_name) ?? 'unknown';
+                              if (style === 'unknown') return null;
+                              const info = STYLE_INFO[style];
+                              return (
+                                <span
+                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border ${info.className}`}
+                                  title={info.description}
+                                >
+                                  <span>{info.emoji}</span>
+                                  {info.shortName}
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </td>
                         <td className="px-2 py-2 text-center text-xs">
                           {h.ag ?? '?'}{sex}
@@ -498,8 +527,8 @@ function ExpandedDetail({
         )}
       </DetailCard>
 
-      {/* ③ 구간 능력치 */}
-      <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="구간 능력치">
+      {/* ③ 구간 능력치 + 주행 성향 */}
+      <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="구간 능력치 · 주행 성향">
         {abLoading ? (
           <div className="text-[var(--color-text-disabled)]">
             <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
@@ -511,7 +540,52 @@ function ExpandedDetail({
           </div>
         ) : (
           <>
+            {(() => {
+              const style = classifyRunningStyle(ability.avg_position_ratio, ability.stddev_position_ratio);
+              const info = STYLE_INFO[style];
+              return (
+                <div className="mb-2 pb-2 border-b border-[var(--color-bg-elevated)]">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${info.className}`}
+                  >
+                    <span>{info.emoji}</span>
+                    {info.name}
+                  </span>
+                  <span className="ml-2 text-[10px] text-[var(--color-text-secondary)]">
+                    {info.description}
+                  </span>
+                </div>
+              );
+            })()}
             <KV label="분석경주수" value={`${ability.races}회`} />
+            <KV
+              label="평균 출발 위치"
+              value={
+                ability.avg_position_ratio != null
+                  ? `${(ability.avg_position_ratio * 100).toFixed(0)}% (0=선두, 100=후미)`
+                  : '-'
+              }
+            />
+            <KV
+              label="스타일 안정성"
+              value={
+                ability.stddev_position_ratio != null
+                  ? ability.stddev_position_ratio < 0.2
+                    ? `${ability.stddev_position_ratio.toFixed(2)} (매우 일관)`
+                    : ability.stddev_position_ratio < 0.35
+                      ? `${ability.stddev_position_ratio.toFixed(2)} (보통)`
+                      : `${ability.stddev_position_ratio.toFixed(2)} (변동 큼 → 자유마)`
+                  : '-'
+              }
+            />
+            <KV
+              label="선행 성공률"
+              value={describeFrontRunSuccess(ability.front_run_success_rate)}
+            />
+            <KV label="평균 착순" value={ability.avg_ord != null ? `${ability.avg_ord}위` : '-'} />
+            <div className="my-2 pt-2 border-t border-[var(--color-bg-elevated)] text-[10px] text-[var(--color-text-secondary)]">
+              구간 시간 (best · avg)
+            </div>
             <KV
               label="출발 200m"
               value={ability.best_s1f != null ? `${ability.best_s1f}초 (avg ${ability.avg_s1f})` : '-'}
@@ -524,22 +598,13 @@ function ExpandedDetail({
               label="막판 200m"
               value={ability.best_last_200m != null ? `${ability.best_last_200m}초 (avg ${ability.avg_last_200m})` : '-'}
             />
-            <KV
-              label="추격 점수"
-              value={
-                ability.surge_score == null
-                  ? '-'
-                  : ability.surge_score > 1
-                    ? `${ability.surge_score} (추격형)`
-                    : ability.surge_score < -1
-                      ? `${ability.surge_score} (선행형)`
-                      : `${ability.surge_score} (균형)`
-              }
-            />
-            <KV label="평균 착순" value={ability.avg_ord != null ? `${ability.avg_ord}위` : '-'} />
           </>
         )}
       </DetailCard>
+
+      {/* ③-2 거리별 주행 성향 (Phase 3) */}
+      <DistanceStyleCard hrName={entry.hr_name} />
+
 
       {/* ④ 최근 5경주 */}
       <DetailCard icon={<History className="w-3.5 h-3.5" />} title="최근 5경주">
@@ -675,5 +740,64 @@ function KV({ label, value }: { label: string; value: string | number }) {
       <span className="text-[var(--color-text-secondary)] flex-shrink-0">{label}:</span>
       <span className="font-mono-num text-right">{value}</span>
     </div>
+  );
+}
+
+const DIST_LABEL: Record<string, string> = {
+  short: '단거리 (<1400m)',
+  middle: '중거리 (1400-1800m)',
+  long: '장거리 (>1800m)',
+};
+
+function DistanceStyleCard({ hrName }: { hrName: string }) {
+  const { data, isLoading } = useHorseRunningStyleByDistance(hrName);
+
+  return (
+    <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="거리별 주행 성향">
+      {isLoading ? (
+        <div className="text-[var(--color-text-disabled)]">
+          <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+          로딩…
+        </div>
+      ) : !data || data.length === 0 ? (
+        <div className="text-[var(--color-text-disabled)]">
+          거리별 데이터 부족 (거리당 2경주 미만)
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {(['short', 'middle', 'long'] as const).map((cat) => {
+            const row = data.find((d) => d.dist_category === cat);
+            if (!row) {
+              return (
+                <div key={cat} className="flex justify-between text-[var(--color-text-disabled)]">
+                  <span>{DIST_LABEL[cat]}:</span>
+                  <span>-</span>
+                </div>
+              );
+            }
+            const style = classifyRunningStyle(row.avg_position_ratio, row.stddev_position_ratio);
+            const info = STYLE_INFO[style];
+            return (
+              <div key={cat} className="flex justify-between items-center gap-2">
+                <span className="text-[var(--color-text-secondary)] flex-shrink-0">
+                  {DIST_LABEL[cat]}:
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="font-mono-num text-[10px] text-[var(--color-text-secondary)]">
+                    {row.races}회 · ratio {row.avg_position_ratio?.toFixed(2) ?? '-'}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border ${info.className}`}
+                  >
+                    <span>{info.emoji}</span>
+                    {info.shortName}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </DetailCard>
   );
 }

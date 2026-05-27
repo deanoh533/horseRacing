@@ -11,6 +11,7 @@ import {
   type TrainingLog,
   type JockeyStat,
   type HorseSectionalAbility,
+  type HorseRunningStyleByDistance,
   type RaceSectionalStats,
   type Horse,
 } from './supabase';
@@ -457,6 +458,27 @@ export function useHorseSectionalAbilityByNames(hrNames: string[]) {
       return data ?? [];
     },
     enabled: hrNames.length > 0,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+/**
+ * 거리 카테고리별 마별 주행 성향 (horse_running_style_by_distance view)
+ *  - 한 말이 short/middle/long 거리에서 다른 ratio 보일 수 있음
+ *  - 펼침 영역 "거리별 성향" 표시용
+ */
+export function useHorseRunningStyleByDistance(hrName: string) {
+  return useQuery({
+    queryKey: ['horse-running-style-by-distance', hrName],
+    queryFn: async (): Promise<HorseRunningStyleByDistance[]> => {
+      const { data, error } = await supabase
+        .from('horse_running_style_by_distance')
+        .select('*')
+        .eq('hr_name', hrName);
+      if (error) throw error;
+      return (data ?? []) as HorseRunningStyleByDistance[];
+    },
+    enabled: !!hrName,
     staleTime: 60 * 60 * 1000,
   });
 }

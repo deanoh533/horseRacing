@@ -227,9 +227,14 @@ export interface Horse {
 }
 
 /**
- * horse_sectional_ability VIEW (007 마이그레이션)
+ * horse_sectional_ability VIEW (008 마이그레이션 — Step 4 Phase 1)
  *   마별 통산 구간 능력치. 거리-무관 차이값 기반.
  *   best_last_600m=막판 추격력, best_s1f=출발 가속력, surge_score 양수=추격형
+ *
+ *   [신규 — Step 4 주행 성향 분류용]
+ *   avg_position_ratio: 출전두수 정규화 출발 위치 (0=1등, 1=꼴등)
+ *   stddev_position_ratio: 스타일 안정성 (≥ 0.35 → 자유마)
+ *   front_run_success_rate: 출발 상위 30% → 결승 상위 30% 비율
  */
 export interface HorseSectionalAbility {
   hr_name: string;
@@ -244,6 +249,26 @@ export interface HorseSectionalAbility {
   avg_g3f_rank: number | null;
   avg_g1f_rank: number | null;
   surge_score: number | null;
+  avg_ord: number | null;
+  // Step 4 Phase 1 신규
+  avg_position_ratio: number | null;
+  stddev_position_ratio: number | null;
+  front_run_success_rate: number | null;
+}
+
+/**
+ * horse_running_style_by_distance VIEW (008 마이그레이션 — Step 4 Phase 3)
+ *   거리 카테고리별 마별 주행 성향
+ *   dist_category: 'short' (<1400m) / 'middle' (1400-1800m) / 'long' (>1800m)
+ *   HAVING ≥ 2경주 (거리별이라 기준 완화)
+ */
+export interface HorseRunningStyleByDistance {
+  hr_name: string;
+  dist_category: 'short' | 'middle' | 'long';
+  races: number;
+  avg_position_ratio: number | null;
+  stddev_position_ratio: number | null;
+  avg_finish_ratio: number | null;
   avg_ord: number | null;
 }
 
