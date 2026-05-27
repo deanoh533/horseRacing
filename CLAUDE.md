@@ -1,7 +1,7 @@
 # KRA 경마 분석 도구 — Claude 컨텍스트
 
 > 새 세션에서 이 파일을 가장 먼저 읽습니다.
-> 마지막 업데이트: 2026-05-27 (CLAUDE.md 슬림화 + 큰그림/서브문서 구조 도입)
+> 마지막 업데이트: 2026-05-28 (핵심 이슈·DB 현황 갱신)
 
 ---
 
@@ -71,6 +71,7 @@ npm run test:run     # vitest 단위 테스트
 | `predictions` | 경주마별 종합점수 + 항목점수 | dailySync / backfill |
 | `weight_history` | Spearman 학습 가중치 변천 | apply_learned_weights |
 | `horse_sectional_ability` | 마별 통산 구간 능력치 (view) | 007 마이그레이션 |
+| `horse_running_style_by_distance` | 거리별 마필 주행 성향 (view) | 008 마이그레이션 |
 | `race_sectional_stats` | 경주별 페이스 통계 (view) | 007 마이그레이션 |
 | `training_logs` | 일별 훈련 기록 | trainingSync (API18_1) |
 | `jockey_stats` | 기수 통산 성적 | jockeySync (jkpresult) |
@@ -153,15 +154,15 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
-1. **[T-001/T-002] ④⑤ 항목 입력 미연결** — 구간기록 14컬럼이 race_entries에 있는데 scorePredictor가 안 읽어서 점수 변별력 잃음. P0.
-2. **[T-003] 2025·2026 서울 구간기록 51%·2.4% 누락** — backfill 재실행 필요.
-3. **⑧⑬⑭ 임시 산식** — 전문가 자문 대기.
+1. **[T-015] ① 레이팅 재설계 필요** — Spearman ρ=0.078 (가중치 1위인데 실측 13위). Range restriction 문제. 클래스 내 상대값 전환 필요.
+2. **[T-016] ⑥⑤ 가중치 재학습 대기** — ⑬ 비활성화 완료 후 Spearman 재실행 필요. 이상 비중: ⑥~24, ⑤~12.5.
+3. **⑧ 부담중량 산식** — ρ=0.263으로 강하나 핸디캡=능력proxy 메커니즘 이해 후 개선 여지 있음. 전문가 자문 대기.
 
-→ 자세한 건 [docs/troubleshooting.md](docs/troubleshooting.md)
+→ 자세한 건 [TODO.md](TODO.md) P0 섹션 / [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ---
 
-## DB 현황 (2026-05-26 기준)
+## DB 현황 (2026-05-28 기준)
 
 | 테이블/뷰 | rows |
 |---|---|
@@ -172,4 +173,4 @@ npm run test:run     # vitest 단위 테스트
 | jockey_stats | 59 (서울 34·부경 25) |
 | horses | 2,864 (모두 혈통 있음) |
 
-서울 구간기록 backfill: 2024 100% / 2025 51% / 2026 2.4% (부경 99.9%)
+서울 구간기록 backfill: 2024 100% / 2025 97.3% / 2026 97.9% (부경 99.9%) — 에러 ~3%는 KRA 원천 없음
