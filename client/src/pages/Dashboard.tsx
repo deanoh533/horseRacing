@@ -6,6 +6,7 @@ import {
   Loader2,
   Bot,
   ClipboardList,
+  BarChart2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -203,6 +204,7 @@ function RaceCard({ race, predictions }: RaceCardProps) {
   const hasResult = predictions.some((p) => p.actual_ord !== null);
   const predictionUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}`;
   const entriesUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}/entries`;
+  const sheetUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}/sheet`;
 
   return (
     <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors">
@@ -252,21 +254,28 @@ function RaceCard({ race, predictions }: RaceCardProps) {
         </div>
       )}
 
-      {/* 두 입구: AI 예측 vs 출마정보 */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      {/* 세 입구: AI 예측 / 예상지 / 출마정보 */}
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
         <Link
           to={predictionUrl}
-          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
+          className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
         >
-          <Bot className="w-3.5 h-3.5" />
-          AI 예측 보기
+          <Bot className="w-3 h-3" />
+          AI 예측
+        </Link>
+        <Link
+          to={sheetUrl}
+          className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30 hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium text-[var(--color-accent-cyan)]"
+        >
+          <BarChart2 className="w-3 h-3" />
+          예상지
         </Link>
         <Link
           to={entriesUrl}
-          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
+          className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
         >
-          <ClipboardList className="w-3.5 h-3.5" />
-          출마정보 보기
+          <ClipboardList className="w-3 h-3" />
+          출마정보
         </Link>
       </div>
     </div>

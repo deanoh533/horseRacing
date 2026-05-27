@@ -3,6 +3,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { RaceDetail } from './pages/RaceDetail';
 import { RaceEntries } from './pages/RaceEntries';
+import { PredictionSheet } from './pages/PredictionSheet';
 import { HorseDetail } from './pages/HorseDetail';
 import { Statistics } from './pages/Statistics';
 import { Settings } from './pages/Settings';
@@ -18,6 +19,10 @@ function App() {
           <Route
             path="/race/:meet/:date/:rcNo/entries"
             element={<RaceEntries />}
+          />
+          <Route
+            path="/race/:meet/:date/:rcNo/sheet"
+            element={<PredictionSheet />}
           />
           <Route
             path="/race/:meet/:date/:rcNo/horse/:chulNo"
