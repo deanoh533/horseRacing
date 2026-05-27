@@ -139,6 +139,13 @@ function formatDate(d: number): string {
   return `${m}/${String(day).padStart(2, '0')}`;
 }
 
+function formatRcDate(d: number): string {
+  const y = Math.floor(d / 10000);
+  const m = Math.floor((d % 10000) / 100);
+  const day = d % 100;
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 function ordColor(ord: number | null): string {
   if (ord === 1) return 'var(--color-accent-gold)';
   if (ord != null && ord <= 3) return 'var(--color-success)';
@@ -563,7 +570,7 @@ function Col5Items({
         >
           <button
             onClick={() => onViewModeChange('bar')}
-            className="flex items-center gap-0.5 px-2 py-1 transition-all"
+            className="flex items-center justify-center gap-0.5 w-[52px] py-1 transition-all"
             style={{
               background: viewMode === 'bar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'bar' ? '#0a0e27' : 'var(--color-text-secondary)',
@@ -573,7 +580,7 @@ function Col5Items({
           </button>
           <button
             onClick={() => onViewModeChange('radar')}
-            className="flex items-center gap-0.5 px-2 py-1 transition-all"
+            className="flex items-center justify-center gap-0.5 w-[52px] py-1 transition-all"
             style={{
               background: viewMode === 'radar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'radar' ? '#0a0e27' : 'var(--color-text-secondary)',
@@ -584,6 +591,8 @@ function Col5Items({
         </div>
       </div>
 
+      {/* min-height: radar(160) + 여유 → bar↔radar 토글 시 카드 높이 고정 */}
+      <div style={{ minHeight: 172 }}>
       {!hasScores && (
         <p className="text-[12px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
@@ -669,6 +678,7 @@ function Col5Items({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -837,6 +847,9 @@ export function PredictionSheet() {
         </Link>
         <span style={{ color: 'var(--color-text-disabled)' }}>|</span>
         <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono-num text-xs" style={{ color: 'var(--color-text-disabled)' }}>
+            {formatRcDate(rcDate)}
+          </span>
           <span className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
             {MEET_NAMES[meet] ?? '?'} {rcNo}R
           </span>

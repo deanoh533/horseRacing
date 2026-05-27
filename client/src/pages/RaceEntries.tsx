@@ -172,32 +172,70 @@ export function RaceEntries() {
   return (
     <div className="space-y-4">
       {/* 헤더 */}
-      <div className="flex items-center gap-2 text-sm flex-wrap">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1 text-[var(--color-text-secondary)] hover:text-white"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          뒤로
-        </Link>
-        <span className="text-[var(--color-text-disabled)]">|</span>
-        <span className="font-semibold">
-          {MEET_NAMES[meet] ?? '?'} {rcNo}R
-        </span>
-        {race?.rc_dist && <span className="font-mono-num">{race.rc_dist}m</span>}
-        {race?.rc_name && (
-          <span className="text-[var(--color-text-secondary)]">{race.rc_name}</span>
-        )}
-        {race?.track && (
-          <>
-            <span>|</span>
-            <span>{race.track}</span>
-          </>
-        )}
-        {horses && (
-          <span className="text-xs text-[var(--color-text-disabled)] ml-auto">
-            {horses.length}마
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 text-sm flex-wrap">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-1 text-[var(--color-text-secondary)] hover:text-white"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            뒤로
+          </Link>
+          <span className="text-[var(--color-text-disabled)]">|</span>
+          <span className="font-mono-num text-xs text-[var(--color-text-disabled)]">
+            {formatFullDate(rcDate)}
           </span>
+          <span className="font-semibold">
+            {MEET_NAMES[meet] ?? '?'} {rcNo}R
+          </span>
+          {race?.rc_dist != null && (
+            <span className="font-mono-num">{race.rc_dist}m</span>
+          )}
+          {race?.rc_name && (
+            <span className="text-[var(--color-text-secondary)]">{race.rc_name}</span>
+          )}
+          {horses && (
+            <span className="text-xs text-[var(--color-text-disabled)] ml-auto">
+              {horses.length}마
+            </span>
+          )}
+        </div>
+        {/* 경주 조건 배지 (데이터 로드 후 표시) */}
+        {race && (
+          <div className="flex items-center gap-1.5 flex-wrap text-xs">
+            {race.age_cond && (
+              <span className="px-2 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]">
+                {race.age_cond}
+              </span>
+            )}
+            {race.prize_cond && (
+              <span
+                className="px-2 py-0.5 rounded border font-medium"
+                style={{
+                  background: 'rgba(0,229,255,0.08)',
+                  border: '1px solid rgba(0,229,255,0.3)',
+                  color: 'var(--color-accent-cyan)',
+                }}
+              >
+                {race.prize_cond}
+              </span>
+            )}
+            {race.track && (
+              <span className="px-2 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]">
+                {race.track}
+              </span>
+            )}
+            {race.weather && (
+              <span className="px-2 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]">
+                {race.weather}
+              </span>
+            )}
+            {race.chaksun1 != null && race.chaksun1 > 0 && (
+              <span className="font-mono-num font-semibold" style={{ color: 'var(--color-accent-gold)' }}>
+                1위 {formatErng(race.chaksun1)}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -460,6 +498,13 @@ function formatShortDate(rcDate: number): string {
   const m = Math.floor((rcDate % 10000) / 100);
   const d = rcDate % 100;
   return `${m}/${String(d).padStart(2, '0')}`;
+}
+
+function formatFullDate(d: number): string {
+  const y = Math.floor(d / 10000);
+  const m = Math.floor((d % 10000) / 100);
+  const day = d % 100;
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 // ============================================================
