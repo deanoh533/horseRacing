@@ -42,3 +42,68 @@ describe('⑫ 출발번호', () => {
     ).toBe(0.6);
   });
 });
+
+describe('⑫ 출발번호 — 주행 성향 multiplier', () => {
+  it('도주마(avg=0.1) + 안쪽 번호(1번) → base(1.0) × 1.5 → 클램프 1.0', () => {
+    // baseScore = 1.0, ×1.5 = 1.5 → clamp → 1.0
+    expect(
+      calculateStartingPositionScore({
+        stOrd: 1,
+        totalHorses: 10,
+        rcDist: 1200,
+        avgPositionRatio: 0.1,
+      })
+    ).toBe(1.0);
+  });
+
+  it('도주마(avg=0.1) + 바깥 번호(10번) → base(0.0) × 1.5 → 클램프 0 이상', () => {
+    // baseScore = 0.0, ×1.5 = 0.0 → 0
+    const score = calculateStartingPositionScore({
+      stOrd: 10,
+      totalHorses: 10,
+      rcDist: 1200,
+      avgPositionRatio: 0.1,
+    });
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBe(0);
+  });
+
+  it('추입마(avg=0.8) → base × 0.5', () => {
+    // base for stOrd=1, 10마, 1200m = 1.0 → ×0.5 = 0.5
+    expect(
+      calculateStartingPositionScore({
+        stOrd: 1,
+        totalHorses: 10,
+        rcDist: 1200,
+        avgPositionRatio: 0.8,
+      })
+    ).toBe(0.5);
+  });
+
+  it('자유마(stddev=0.4) → multiplier 1.0 그대로', () => {
+    // stddev ≥ 0.35 → 자유마, ×1.0
+    // base for stOrd=1, 10마, 1200m = 1.0 → ×1.0 = 1.0
+    expect(
+      calculateStartingPositionScore({
+        stOrd: 1,
+        totalHorses: 10,
+        rcDist: 1200,
+        avgPositionRatio: 0.1, // 도주마 범위지만 stddev 우선
+        stddevPositionRatio: 0.4,
+      })
+    ).toBe(1.0);
+  });
+
+  it('avgPositionRatio 없으면 × 1.0 그대로', () => {
+    // 데이터 없음 → multiplier 1.0
+    // base for stOrd=1, 10마, 1200m = 1.0
+    expect(
+      calculateStartingPositionScore({
+        stOrd: 1,
+        totalHorses: 10,
+        rcDist: 1200,
+        avgPositionRatio: null,
+      })
+    ).toBe(1.0);
+  });
+});

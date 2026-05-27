@@ -90,6 +90,8 @@ export interface ScoreEngineInput {
   stOrd?: number;
   totalHorses?: number;
   rcDist?: number;
+  avgPositionRatio?: number | null;     // 주행 성향 multiplier용
+  stddevPositionRatio?: number | null;  // 자유마 판정용
 
   // ⑬ 나이/거리/성별
   age?: number;
@@ -241,6 +243,8 @@ export class ScoreEngine {
         stOrd: input.stOrd ?? 0,
         totalHorses: input.totalHorses ?? 0,
         rcDist: input.rcDist ?? 0,
+        avgPositionRatio: input.avgPositionRatio,
+        stddevPositionRatio: input.stddevPositionRatio,
       })
     );
 

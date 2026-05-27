@@ -184,7 +184,7 @@ async function buildEngineInput(
   const distCategory = rcDistToCategory(e.rc_dist);
   const [abilityResult, distStyleResult] = await Promise.all([
     sb.from('horse_sectional_ability')
-      .select('front_run_success_rate')
+      .select('front_run_success_rate, avg_position_ratio, stddev_position_ratio')
       .eq('hr_name', e.hr_name)
       .maybeSingle(),
     distCategory
@@ -197,6 +197,8 @@ async function buildEngineInput(
   ]);
   const frontRunSuccessRate = abilityResult.data?.front_run_success_rate ?? undefined;
   const distFinishRatio: number | null = (distStyleResult.data as { avg_finish_ratio?: number | null } | null)?.avg_finish_ratio ?? null;
+  const avgPositionRatio: number | null = (abilityResult.data as { avg_position_ratio?: number | null } | null)?.avg_position_ratio ?? null;
+  const stddevPositionRatio: number | null = (abilityResult.data as { stddev_position_ratio?: number | null } | null)?.stddev_position_ratio ?? null;
 
   const overallOrds = hist5.filter((r) => r.ord != null).map((r) => r.ord as number);
   const sameTrackOrds = hist5
@@ -282,6 +284,8 @@ async function buildEngineInput(
     stOrd: e.pthr_no,
     totalHorses,
     rcDist: e.rc_dist ?? 0,
+    avgPositionRatio,
+    stddevPositionRatio,
     age: e.ag ?? 0,
     pedigree: {},
     sameSeasonOrds,
