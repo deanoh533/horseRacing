@@ -29,6 +29,7 @@ import {
   useTrainerStatsBatch,
   useJockeyStatsBatch,
   useGradeWinnerStats,
+  useTrainingBatchByNames,
 } from '../lib/queries';
 import {
   supabase,
@@ -37,6 +38,7 @@ import {
   type Prediction,
   type ItemScore,
   type JockeyStat,
+  type TrainingLog,
 } from '../lib/supabase';
 import { classifyRunningStyle, STYLE_INFO, type RunningStyle } from '../lib/runningStyle';
 
@@ -140,6 +142,13 @@ function formatDate(d: number): string {
   return `${m}/${String(day).padStart(2, '0')}`;
 }
 
+
+function formatTrTerm(trTerm: number): string {
+  if (trTerm < 60) return `${trTerm}초`;
+  const min = Math.floor(trTerm / 60);
+  const sec = trTerm % 60;
+  return sec > 0 ? `${min}분${sec}초` : `${min}분`;
+}
 
 function ordColor(ord: number | null): string {
   if (ord === 1) return 'var(--color-accent-gold)';
@@ -255,6 +264,7 @@ function ColHorseInfo({
   bloodline,
   history,
   trainerStat,
+  latestTraining,
 }: {
   horse: RaceEntry;
   prediction: Prediction | undefined;
@@ -263,6 +273,7 @@ function ColHorseInfo({
   bloodline: BloodlineInfo | undefined;
   history: RaceEntry[];
   trainerStat: { total: number; wins: number } | undefined;
+  latestTraining: TrainingLog | undefined;
 }) {
   const pRank = prediction?.predicted_rank ?? 999;
   const pScore = prediction?.total_score ?? 0;
@@ -397,6 +408,24 @@ function ColHorseInfo({
             <span className="ml-1" style={{ color: 'var(--color-text-disabled)' }}>
               ({timeStats.formStr})
             </span>
+          )}
+        </div>
+      )}
+
+      {/* 최근 조교 */}
+      {latestTraining && (
+        <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+          조교 {formatDate(latestTraining.train_date)}
+          {latestTraining.tr_term != null && latestTraining.tr_term > 0 && (
+            <span className="ml-1" style={{ color: 'var(--color-text-secondary)' }}>
+              {formatTrTerm(latestTraining.tr_term)}
+            </span>
+          )}
+          {latestTraining.pr_gubun && (
+            <span className="ml-1">{latestTraining.pr_gubun}</span>
+          )}
+          {latestTraining.chul_gubun && (
+            <span className="ml-1">[{latestTraining.chul_gubun}]</span>
           )}
         </div>
       )}
@@ -691,6 +720,7 @@ function HorseCard({
   bloodline,
   trainerStat,
   jockeyStat,
+  latestTraining,
   viewMode,
   onViewModeChange,
 }: {
@@ -701,6 +731,7 @@ function HorseCard({
   bloodline: BloodlineInfo | undefined;
   trainerStat: { total: number; wins: number } | undefined;
   jockeyStat: JockeyStat | undefined;
+  latestTraining: TrainingLog | undefined;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
@@ -724,6 +755,7 @@ function HorseCard({
             bloodline={bloodline}
             history={history}
             trainerStat={trainerStat}
+            latestTraining={latestTraining}
           />
         </div>
         <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
@@ -780,6 +812,9 @@ export function PredictionSheet() {
 
   // 해당 등급/거리 우승마 평균기록
   const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
+
+  // 조교 기록 (최근 30일, 말 이름 기준 배치 조회)
+  const { data: trainingMap } = useTrainingBatchByNames(hrNames, meet, 30);
 
   const predByName = useMemo(() => {
     const map = new Map<string, Prediction>();
@@ -903,6 +938,7 @@ export function PredictionSheet() {
               bloodline={bloodlineByName.get(horse.hr_name)}
               trainerStat={trainerStatsMap?.get(horse.trar_nm ?? '')}
               jockeyStat={jockeyStatsMap?.get(horse.jcky_no ?? '')}
+              latestTraining={trainingMap?.get(horse.hr_name)?.[0]}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />

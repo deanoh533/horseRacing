@@ -394,6 +394,40 @@ export function useHorseTraining(hrNo: string, daysBack = 30) {
 }
 
 /**
+ * 한 경주 출전마 전체의 최근 조교 기록 (예상지 일괄 조회용)
+ * - hr_name 기준 조회 (사전 엔트리에 hr_no가 없을 수 있음)
+ * - 말별 최신 기록 우선 (train_date desc, part desc)
+ */
+export function useTrainingBatchByNames(hrNames: string[], meet: number, daysBack = 30) {
+  return useQuery({
+    queryKey: ['training-batch-names', meet, hrNames.slice().sort().join(',')],
+    queryFn: async (): Promise<Map<string, TrainingLog[]>> => {
+      if (hrNames.length === 0) return new Map();
+      const cutoff = getDateNDaysAgo(daysBack);
+      const { data, error } = await supabase
+        .from('training_logs')
+        .select('*')
+        .in('hr_name', hrNames)
+        .eq('meet', meet)
+        .gte('train_date', cutoff)
+        .order('train_date', { ascending: false })
+        .order('part', { ascending: false });
+      if (error) throw error;
+      const map = new Map<string, TrainingLog[]>();
+      for (const r of data ?? []) {
+        if (!r.hr_name) continue;
+        const arr = map.get(r.hr_name) ?? [];
+        arr.push(r);
+        map.set(r.hr_name, arr);
+      }
+      return map;
+    },
+    enabled: hrNames.length > 0 && meet > 0,
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+/**
  * 기수 통산 성적 조회 (meet별로 여러 row 가능)
  *
  * @param jckyNo 기수 번호 (예: "051174")

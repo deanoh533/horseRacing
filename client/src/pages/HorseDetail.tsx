@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, FileText, GitCompare, Save, TrendingUp, Loader2, Star } from 'lucide-react';
-import { useHorseHistory, useHorsesByRace, usePredictionsByRace } from '../lib/queries';
+import { useHorseHistory, useHorsesByRace, usePredictionsByRace, useHorseTraining } from '../lib/queries';
 import { type RaceEntry, type ItemScore, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useMemo } from 'react';
 
@@ -18,6 +18,7 @@ export function HorseDetail() {
   );
 
   const { data: history } = useHorseHistory(horse?.hr_name ?? '', rcDate, 5);
+  const { data: trainingLogs } = useHorseTraining(horse?.hr_no ?? '', 30);
   const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
   const prediction = useMemo(
     () => predictions?.find((p) => p.hr_name === horse?.hr_name),
@@ -223,13 +224,66 @@ export function HorseDetail() {
         )}
       </Section>
 
-      {/* Score Engine 17개 항목 */}
+      {/* 조교 이력 */}
+      <Section title="🏃 최근 조교 이력 (30일)">
+        {!trainingLogs && (
+          <div className="text-xs text-[var(--color-text-disabled)] py-2">
+            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+            조교 기록 로딩 중...
+          </div>
+        )}
+        {trainingLogs && trainingLogs.length === 0 && (
+          <div className="text-xs text-[var(--color-text-disabled)] py-2">
+            최근 30일 조교 기록 없음
+          </div>
+        )}
+        {trainingLogs && trainingLogs.length > 0 && (
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full text-sm font-mono-num">
+              <thead>
+                <tr className="text-[var(--color-text-secondary)] text-xs">
+                  <th className="px-2 py-2 text-left">날짜</th>
+                  <th className="px-2 py-2 text-left">달림</th>
+                  <th className="px-2 py-2 text-left">기승자</th>
+                  <th className="px-2 py-2 text-right">소요시간</th>
+                  <th className="px-2 py-2 text-right">횟수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trainingLogs.map((log, i) => (
+                  <tr key={i} className="border-t border-[var(--color-bg-elevated)]">
+                    <td className="px-2 py-1.5">{formatDate(log.train_date)}</td>
+                    <td className="px-2 py-1.5 text-[var(--color-text-secondary)]">
+                      {log.chul_gubun ?? '-'}
+                    </td>
+                    <td className="px-2 py-1.5 text-[var(--color-text-secondary)]">
+                      {log.pr_gubun ?? '-'}
+                    </td>
+                    <td className="px-2 py-1.5 text-right">
+                      {log.tr_term != null && log.tr_term > 0
+                        ? formatTrTerm(log.tr_term)
+                        : '-'}
+                    </td>
+                    <td className="px-2 py-1.5 text-right text-[var(--color-text-disabled)]">
+                      {(log.run1_cnt ?? 0) + (log.run2_cnt ?? 0) > 0
+                        ? `${(log.run1_cnt ?? 0) + (log.run2_cnt ?? 0)}회`
+                        : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
+      {/* Score Engine 항목 점수 */}
       {prediction && <ItemScoresSection items={prediction.item_scores} />}
 
       {!prediction && (
-        <Section title="⭐ 17개 항목 점수" subtitle="예측 데이터 없음">
+        <Section title="⭐ 항목 점수" subtitle="예측 데이터 없음">
           <div className="text-sm text-[var(--color-text-disabled)]">
-            이 경주는 아직 점수 계산 전이에요 (`npm run backfill` 또는 다음 sync 시 생성)
+            아직 점수 계산 전입니다
           </div>
         </Section>
       )}
@@ -407,6 +461,13 @@ function formatRcTime(rcTime: number): string {
   const min = Math.floor(sec / 60);
   const rest = (sec - min * 60).toFixed(1);
   return min > 0 ? `${min}:${rest.padStart(4, '0')}` : `${rest}초`;
+}
+
+function formatTrTerm(trTerm: number): string {
+  if (trTerm < 60) return `${trTerm}초`;
+  const min = Math.floor(trTerm / 60);
+  const sec = trTerm % 60;
+  return sec > 0 ? `${min}분${sec}초` : `${min}분`;
 }
 
 function summarizeForm(history: RaceEntry[]): string {
