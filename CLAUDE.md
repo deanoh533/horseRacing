@@ -1,7 +1,7 @@
 # KRA 경마 분석 도구 — Claude 컨텍스트
 
 > 새 세션에서 이 파일을 가장 먼저 읽습니다.
-> 마지막 업데이트: 2026-05-28 (핵심 이슈·DB 현황 갱신)
+> 마지막 업데이트: 2026-05-28 (조교이력 추가, 대시보드 UX 개선, 문서 정리)
 
 ---
 
@@ -137,6 +137,10 @@ npm run test:run     # vitest 단위 테스트
 ### 화면·기능
 - [docs/PRD_v6.1_entries_view.md](docs/PRD_v6.1_entries_view.md) — 출마정보 화면 PRD
 - [docs/PRD_v6.1_race_info_legend.md](docs/PRD_v6.1_race_info_legend.md) — 에이스경마 1-34번 매핑
+
+> **UI 현황 (2026-05-28):** 예상지 = 4열 그리드(마정보·기수·직전경주·항목점수), RaceInfoBlock 공통 헤더(3개 화면 공유), 조교 이력 추가 완료. 대시보드 개발 용어 제거·모바일 버튼 개선 완료.
+>
+> **training_logs 주의:** `st_time`/`sp_time`은 YYYYMMDDHHmmss 타임스탬프 (훈련 시작/종료 시각). 실제 소요시간은 `tr_term`(초). `pr_gubun` 범례: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더.
 
 ### 운영·디버깅
 - [docs/kra_api_quirks.md](docs/kra_api_quirks.md) — KRA API 컬럼명 함정
