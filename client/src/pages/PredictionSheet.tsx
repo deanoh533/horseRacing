@@ -488,22 +488,22 @@ function HorseCard({
   return (
     <div className="rounded-xl overflow-hidden"
       style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}>
-      <div className="grid"
+      {/* 모바일: 1열 세로 스택 / 데스크탑: 4열 그리드 */}
+      <div className="flex flex-col md:grid"
         style={{ gridTemplateColumns: '2fr 1.2fr 3fr 2fr' }}>
 
-        {/* 열 구분선 */}
-        <div style={{ borderRight: '1px solid var(--color-bg-elevated)' }}>
+        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r md:border-[var(--color-bg-elevated)]">
           <ColHorseInfo
             horse={horse} prediction={prediction}
             maxScore={maxScore} runningStyle={runningStyle} accentColor={accentColor}
           />
         </div>
 
-        <div style={{ borderRight: '1px solid var(--color-bg-elevated)' }}>
+        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r md:border-[var(--color-bg-elevated)]">
           <ColJockeyInfo horse={horse} />
         </div>
 
-        <div style={{ borderRight: '1px solid var(--color-bg-elevated)' }}>
+        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r md:border-[var(--color-bg-elevated)]">
           <ColHistory history={history} />
         </div>
 
