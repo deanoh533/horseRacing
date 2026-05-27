@@ -129,6 +129,7 @@ npm run test:run     # vitest 단위 테스트
 
 ### 알고리즘·예측
 - [docs/score_algorithm.md](docs/score_algorithm.md) — 18 항목 알고리즘 + 수정 가이드
+- [docs/score_roadmap.md](docs/score_roadmap.md) — **평가항목 고도화 로드맵** (클린 슬레이트 비교·변경 이력 Living Doc)
 - [docs/prediction_mode.md](docs/prediction_mode.md) — 사전/사후 데이터 소스 차이
 - [docs/accuracy_metrics.md](docs/accuracy_metrics.md) — 적중률 4개 지표 정의
 

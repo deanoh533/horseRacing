@@ -30,7 +30,7 @@ import { calculateJockeyFormScore } from './scoreItems/09_jockey_form.js';
 import { calculateTrainerFormScore } from './scoreItems/10_trainer_form.js';
 import { calculateRaceIntervalScore } from './scoreItems/11_race_interval.js';
 import { calculateStartingPositionScore } from './scoreItems/12_starting_position.js';
-import { calculateAgeDistanceGenderScore } from './scoreItems/13_age_distance_gender.js';
+// import { calculateAgeDistanceGenderScore } from './scoreItems/13_age_distance_gender.js'; // 비활성화
 import { calculatePedigreeScore } from './scoreItems/14_pedigree.js';
 import { calculateSeasonalPatternScore } from './scoreItems/15_seasonal_pattern.js';
 import { calculateChemistryScore } from './scoreItems/16_jockey_horse_chemistry.js';
@@ -77,8 +77,9 @@ export interface ScoreEngineInput {
   // ⑧ 부담중량 (부담 극복 지수)
   burdenHistory?: Array<{ ord: number; myBudam: number; raceAvgBudam: number }>;
 
-  // ⑨ 기수 폼
-  jockey30DayOrds?: number[];
+  // ⑨ 기수 통산 성적 (jockey_stats)
+  jockeyCareerWinRate?: number | null;
+  jockeyCareerQuRate?: number | null;
 
   // ⑩ 조교사 폼
   trainer60DayOrds?: number[];
@@ -218,10 +219,13 @@ export class ScoreEngine {
       })
     );
 
-    // ⑨ 기수 폼
+    // ⑨ 기수 통산 성적
     items['09_jockey_form'] = this.make(
       '09_jockey_form',
-      calculateJockeyFormScore({ recent30DayOrds: input.jockey30DayOrds ?? [] })
+      calculateJockeyFormScore({
+        careerWinRate: input.jockeyCareerWinRate ?? null,
+        careerQuRate: input.jockeyCareerQuRate ?? null,
+      })
     );
 
     // ⑩ 조교사 폼
@@ -248,15 +252,8 @@ export class ScoreEngine {
       })
     );
 
-    // ⑬ 나이/거리/성별
-    items['13_age_distance_gender'] = this.make(
-      '13_age_distance_gender',
-      calculateAgeDistanceGenderScore({
-        age: input.age ?? 0,
-        sex: input.sex ?? '',
-        rcDist: input.rcDist ?? 0,
-      })
-    );
+    // ⑬ 나이/거리/성별 — 비활성화 (Spearman ρ=-0.017, 역방향 확인). 가중치=0. 고정 중립값 기록.
+    items['13_age_distance_gender'] = this.make('13_age_distance_gender', 0.5);
 
     // ⑭ 혈통
     items['14_pedigree'] = this.make(

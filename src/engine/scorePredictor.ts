@@ -205,17 +205,17 @@ async function buildEngineInput(
     .filter((r) => r.track_type === e.track_type && r.ord != null)
     .map((r) => r.ord as number);
 
-  const thirtyDaysAgo = subtractDays(rcDate, 30);
-  let jockey30DayOrds: number[] = [];
+  let jockeyCareerWinRate: number | null = null;
+  let jockeyCareerQuRate: number | null = null;
   if (e.jcky_no) {
-    const { data: jk } = await sb
-      .from('race_entries')
-      .select('ord')
+    const { data: jkStat } = await sb
+      .from('jockey_stats')
+      .select('win_rate_t, qu_rate_t')
       .eq('jcky_no', e.jcky_no)
-      .gte('race_date', thirtyDaysAgo)
-      .lt('race_date', rcDate)
-      .not('ord', 'is', null);
-    jockey30DayOrds = (jk ?? []).map((r) => r.ord as number);
+      .eq('meet', e.meet)
+      .maybeSingle();
+    jockeyCareerWinRate = jkStat?.win_rate_t ?? null;
+    jockeyCareerQuRate = jkStat?.qu_rate_t ?? null;
   }
 
   const sixtyDaysAgo = subtractDays(rcDate, 60);
@@ -278,7 +278,8 @@ async function buildEngineInput(
     overallOrds,
     sameTrackOrds,
     burdenHistory,
-    jockey30DayOrds,
+    jockeyCareerWinRate,
+    jockeyCareerQuRate,
     trainer60DayOrds,
     intervalDays,
     stOrd: e.pthr_no,

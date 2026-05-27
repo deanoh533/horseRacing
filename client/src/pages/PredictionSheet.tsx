@@ -402,9 +402,12 @@ function ColHorseInfo({
       )}
 
       {/* 건강정보 */}
-      {horse.latst_trea1_txt && (
-        <div className="text-[13px]" style={{ color: 'var(--color-accent-pink)' }}>
-          부상이력: {horse.latst_trea1_txt}
+      {(horse.latst_bledg1 || horse.latst_bledg2 || horse.latst_trea1_txt || horse.latst_trea2_txt) && (
+        <div className="text-[13px] flex flex-col gap-0.5" style={{ color: 'var(--color-accent-pink)' }}>
+          {horse.latst_bledg1 && <span>폐출혈1: {horse.latst_bledg1}</span>}
+          {horse.latst_bledg2 && <span>폐출혈2: {horse.latst_bledg2}</span>}
+          {horse.latst_trea1_txt && <span>진료1: {horse.latst_trea1_txt}</span>}
+          {horse.latst_trea2_txt && <span>진료2: {horse.latst_trea2_txt}</span>}
         </div>
       )}
     </div>

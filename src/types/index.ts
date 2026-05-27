@@ -211,7 +211,7 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '10_trainer_form': 7.02,
   '11_race_interval': 3.51,
   '12_starting_position': 2.63,
-  '13_age_distance_gender': 2.63,
+  '13_age_distance_gender': 0,  // ρ=-0.017 (역방향). 예측 방해 확인 → 비활성화
   '14_pedigree': 4.39,
   '15_seasonal_pattern': 4.39,
   '16_jockey_horse_chemistry': 3.51,
