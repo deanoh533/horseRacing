@@ -488,11 +488,8 @@ function HorseCard({
   return (
     <div className="rounded-xl overflow-hidden"
       style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}>
-      <div className="grid divide-x"
-        style={{
-          gridTemplateColumns: '2fr 1.2fr 3fr 2fr',
-          divideColor: 'var(--color-bg-elevated)',
-        }}>
+      <div className="grid"
+        style={{ gridTemplateColumns: '2fr 1.2fr 3fr 2fr' }}>
 
         {/* 열 구분선 */}
         <div style={{ borderRight: '1px solid var(--color-bg-elevated)' }}>
