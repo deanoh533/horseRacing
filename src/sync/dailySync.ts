@@ -171,7 +171,7 @@ async function syncMeet(
                 ag: horse.age ?? null,
                 gndr: horse.sex ?? null,
                 burd_wgt: horse.wgBudam ?? null,
-                ratg: horse.rating ?? null,
+                ratg: horse.rating && horse.rating > 0 ? horse.rating : null,
                 rc_dist: raceRow.rc_dist ?? null,
                 track_type: raceRow.track_type ?? null,
                 jcky_no: resultRow.jcky_no,

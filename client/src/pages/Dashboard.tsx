@@ -22,11 +22,11 @@ const MEET_NAMES: Record<number, string> = {
   3: '부산경남',
 };
 
-const MOCK_WEIGHTS_TOP4 = [
-  { id: '01_rating', name: '레이팅', value: 17.5 },
-  { id: '09_jockey_form', name: '기수 폼', value: 10.5 },
-  { id: '06_distance_fitness', name: '거리 적성', value: 8.8 },
-  { id: '17_market_odds', name: '배당률', value: 8.8 },
+const TOP4_WEIGHTS = [
+  { id: '06_distance_fitness', name: '거리 적성', value: 24.0 },
+  { id: '05_late_position', name: '후반 구간 순위', value: 12.5 },
+  { id: '08_burden_weight', name: '부담중량', value: 11.0 },
+  { id: '03_recent_form', name: '착순 추세', value: 10.0 },
 ];
 
 export function Dashboard() {
@@ -109,14 +109,11 @@ export function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold flex items-center gap-2">
             <span className="text-[var(--color-accent-gold)]">⭐</span>
-            현재 적용 가중치 (상위 4)
+            예측 핵심 지표 (가중치 상위 4)
           </h2>
-          <span className="text-xs text-[var(--color-text-disabled)]">
-            ⚠️ 학습 전 초기값
-          </span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {MOCK_WEIGHTS_TOP4.map((w) => (
+          {TOP4_WEIGHTS.map((w) => (
             <div
               key={w.id}
               className="bg-[var(--color-bg-elevated)] rounded-lg p-3"
@@ -264,31 +261,31 @@ function RaceCard({ race, predictions }: RaceCardProps) {
         </>
       ) : (
         <div className="text-xs text-[var(--color-text-disabled)] py-2">
-          {hasResult ? '예측 데이터 없음' : '예측 계산 대기 (npm run backfill)'}
+          {hasResult ? '예측 데이터 없음' : '예측 점수 준비 중'}
         </div>
       )}
 
       {/* 세 입구: AI 예측 / 예상지 / 출마정보 */}
-      <div className="mt-3 grid grid-cols-3 gap-1.5">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <Link
           to={predictionUrl}
-          className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
+          className="flex items-center justify-center gap-1.5 px-2 py-3 rounded-lg text-sm bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
         >
-          <Bot className="w-3 h-3" />
+          <Bot className="w-4 h-4" />
           AI 예측
         </Link>
         <Link
           to={sheetUrl}
-          className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30 hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium text-[var(--color-accent-cyan)]"
+          className="flex items-center justify-center gap-1.5 px-2 py-3 rounded-lg text-sm bg-[var(--color-accent-cyan)]/10 border border-[var(--color-accent-cyan)]/30 hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium text-[var(--color-accent-cyan)]"
         >
-          <BarChart2 className="w-3 h-3" />
+          <BarChart2 className="w-4 h-4" />
           예상지
         </Link>
         <Link
           to={entriesUrl}
-          className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
+          className="flex items-center justify-center gap-1.5 px-2 py-3 rounded-lg text-sm bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors font-medium"
         >
-          <ClipboardList className="w-3 h-3" />
+          <ClipboardList className="w-4 h-4" />
           출마정보
         </Link>
       </div>
