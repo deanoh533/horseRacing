@@ -194,6 +194,8 @@ interface RaceCardProps {
     rc_dist: number | null;
     rc_name: string | null;
     track: string | null;
+    age_cond: string | null;
+    prize_cond: string | null;
   };
   predictions: PredictionPreview[];
 }
@@ -210,14 +212,26 @@ function RaceCard({ race, predictions }: RaceCardProps) {
     <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors">
       {/* 경주 헤더 */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3 text-sm flex-wrap">
+        <div className="flex items-center gap-2 text-sm flex-wrap">
           <span className="font-bold text-[var(--color-accent-cyan)]">
             {race.rc_no}R
           </span>
-          <span className="font-mono-num">{race.rc_dist}m</span>
-          <span className="text-[var(--color-text-secondary)]">
-            {race.rc_name}
-          </span>
+          {race.rc_dist != null && (
+            <span className="font-mono-num">{race.rc_dist}m</span>
+          )}
+          {race.rc_name && (
+            <span className="text-[var(--color-text-secondary)]">{race.rc_name}</span>
+          )}
+          {race.age_cond && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-disabled)]">
+              {race.age_cond}
+            </span>
+          )}
+          {race.prize_cond && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-disabled)]">
+              {race.prize_cond}
+            </span>
+          )}
           {race.track && (
             <span className="text-xs text-[var(--color-text-disabled)]">
               {race.track}

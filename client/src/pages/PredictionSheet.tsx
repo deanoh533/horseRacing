@@ -31,7 +31,6 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
 
 const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부경' };
 
-// 비중 상위 5항목: 레이팅(17.5) · 기수폼(10.5) · 거리적성(8.8) · 착순추세(4.2) · 배당률(8.8)
 const TOP5_ITEMS: { id: string; label: string }[] = [
   { id: '01_rating',           label: '레이팅'  },
   { id: '09_jockey_form',      label: '기수폼'  },
@@ -47,6 +46,8 @@ const PODIUM_STYLES = [
 ];
 
 type ViewMode = 'bar' | 'radar';
+
+type BloodlineInfo = { sire_hr_nm: string | null; dam_hr_nm: string | null };
 
 // ─── 데이터 훅 ───────────────────────────────────────────────────────
 
@@ -85,6 +86,23 @@ function useMultipleHorseHistories(hrNames: string[], beforeDate: number) {
   });
 }
 
+function useHorseBloodlinesByNames(hrNames: string[]) {
+  return useQuery({
+    queryKey: ['horse-bloodlines', hrNames.slice().sort().join(',')],
+    queryFn: async (): Promise<{ hr_name: string; sire_hr_nm: string | null; dam_hr_nm: string | null }[]> => {
+      if (hrNames.length === 0) return [];
+      const { data, error } = await supabase
+        .from('horses')
+        .select('hr_name, sire_hr_nm, dam_hr_nm')
+        .in('hr_name', hrNames);
+      if (error) throw error;
+      return (data ?? []) as { hr_name: string; sire_hr_nm: string | null; dam_hr_nm: string | null }[];
+    },
+    enabled: hrNames.length > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
 // ─── 유틸 ────────────────────────────────────────────────────────────
 
 function formatErng(v: number | null): string {
@@ -114,14 +132,48 @@ function ordColor(ord: number | null): string {
   return 'var(--color-text-disabled)';
 }
 
+interface TimeStats {
+  bestTime: number;
+  bestDate: number;
+  bestBurdWgt: number | null;
+  bestPthrNo: number;
+  avgTime: number;
+  count: number;
+  formStr: string;
+}
+
+function computeTimeStats(history: RaceEntry[]): TimeStats | null {
+  const valid = history.filter((h) => h.rc_time != null && h.rc_time > 0);
+  if (valid.length === 0) return null;
+  const sorted = [...valid].sort((a, b) => a.rc_time! - b.rc_time!);
+  const best = sorted[0]!;
+  const avg = valid.reduce((s, h) => s + h.rc_time!, 0) / valid.length;
+  const form = history
+    .slice(0, 5)
+    .reverse()
+    .map((h) => (h.ord != null ? String(h.ord) : 'X'))
+    .join('');
+  return {
+    bestTime: best.rc_time!,
+    bestDate: best.race_date,
+    bestBurdWgt: best.burd_wgt,
+    bestPthrNo: best.pthr_no,
+    avgTime: avg,
+    count: valid.length,
+    formStr: form,
+  };
+}
+
 // ─── 공통 서브 컴포넌트 ──────────────────────────────────────────────
 
 function ScoreBar({ score, maxScore, color }: { score: number; maxScore: number; color?: string }) {
   const pct = maxScore > 0 ? Math.min((score / maxScore) * 100, 100) : 0;
   return (
     <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
-      <div className="h-full rounded-full transition-all duration-500"
-        style={{ width: `${pct}%`, background: color ?? 'var(--color-accent-cyan)' }} />
+      <div
+        className="h-full rounded-full transition-all duration-500"
+        style={{ width: `${pct}%`, background: color ?? 'var(--color-accent-cyan)' }}
+      />
     </div>
   );
 }
@@ -138,23 +190,34 @@ function StyleBadge({ style }: { style: RunningStyle }) {
 
 // ─── Top3 포디엄 (상단 고정) ─────────────────────────────────────────
 
-function PodiumCards({ top3, maxScore }: { top3: Prediction[]; maxScore: number }) {
+function PodiumCards({
+  top3,
+  pthrNoByName,
+}: {
+  top3: Prediction[];
+  pthrNoByName: Map<string, number>;
+}) {
   if (top3.length === 0) return null;
   return (
     <div className="grid grid-cols-3 gap-3">
       {top3.map((p, i) => {
-        const s = PODIUM_STYLES[i];
+        const s = PODIUM_STYLES[i]!;
+        const pthrNo = pthrNoByName.get(p.hr_name);
         return (
-          <div key={p.hr_name}
+          <div
+            key={p.hr_name}
             className={`rounded-xl border ${s.border} p-4 flex flex-col gap-2`}
-            style={{ boxShadow: s.glow, background: 'var(--color-bg-surface)' }}>
+            style={{ boxShadow: s.glow, background: 'var(--color-bg-surface)' }}
+          >
             <div className={`text-xs font-semibold font-mono-num ${s.labelColor}`}>{s.label}</div>
             <div>
-              <div className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>{p.predicted_rank}번</div>
+              <div className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+                {pthrNo != null ? `${pthrNo}번` : '-'}
+              </div>
               <div className="text-base font-bold leading-tight truncate">{p.hr_name}</div>
             </div>
             <div className="space-y-1">
-              <ScoreBar score={p.total_score} maxScore={maxScore} color={s.accent} />
+              <ScoreBar score={p.total_score} maxScore={100} color={s.accent} />
               <div className="text-right text-xs font-mono-num font-semibold" style={{ color: s.accent }}>
                 {p.total_score.toFixed(1)}
               </div>
@@ -166,35 +229,49 @@ function PodiumCards({ top3, maxScore }: { top3: Prediction[]; maxScore: number 
   );
 }
 
-// ─── 열 1: 마정보 ────────────────────────────────────────────────────
+// ─── 열 1: 마정보 (레거시 출마표 형식) ──────────────────────────────
 
 function ColHorseInfo({
-  horse, prediction, maxScore, runningStyle, accentColor,
+  horse,
+  prediction,
+  runningStyle,
+  accentColor,
+  bloodline,
+  history,
 }: {
   horse: RaceEntry;
   prediction: Prediction | undefined;
-  maxScore: number;
   runningStyle: RunningStyle;
   accentColor: string;
+  bloodline: BloodlineInfo | undefined;
+  history: RaceEntry[];
 }) {
   const pRank = prediction?.predicted_rank ?? 999;
   const pScore = prediction?.total_score ?? 0;
+  const timeStats = useMemo(() => computeTimeStats(history), [history]);
 
-  const career = horse.sump_rcod_sum != null
-    ? `${horse.sump_rcod_sum}전 ${horse.sump_rcod_fplc ?? 0}-${horse.sump_rcod_splc ?? 0}-${horse.sump_rcod_tplc ?? 0}`
-    : null;
+  const career =
+    horse.sump_rcod_sum != null
+      ? `${horse.sump_rcod_sum}전 ${horse.sump_rcod_fplc ?? 0}-${horse.sump_rcod_splc ?? 0}-${horse.sump_rcod_tplc ?? 0}`
+      : null;
 
   return (
-    <div className="p-3 flex flex-col gap-1.5 min-w-0">
+    <div className="p-3 flex flex-col gap-1 min-w-0">
       {/* AI 배지 */}
       {pRank < 999 && (
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono-num shrink-0"
-            style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}40` }}>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono-num shrink-0"
+            style={{
+              background: `${accentColor}20`,
+              color: accentColor,
+              border: `1px solid ${accentColor}40`,
+            }}
+          >
             AI {pRank}위
           </span>
           <div className="flex-1 min-w-0">
-            <ScoreBar score={pScore} maxScore={maxScore} color={accentColor} />
+            <ScoreBar score={pScore} maxScore={100} color={accentColor} />
           </div>
           <span className="text-[10px] font-mono-num shrink-0" style={{ color: accentColor }}>
             {pScore.toFixed(1)}
@@ -202,72 +279,110 @@ function ColHorseInfo({
         </div>
       )}
 
-      {/* 번호 + 마명 */}
-      <div className="flex items-baseline gap-1.5 flex-wrap">
-        <span className="text-base font-bold font-mono-num" style={{ color: accentColor }}>
+      {/* 번호 + 마명 + 성향 */}
+      <div className="flex items-baseline gap-1 flex-wrap">
+        <span className="text-sm font-bold font-mono-num" style={{ color: accentColor }}>
           {horse.pthr_no}번
         </span>
-        <span className="text-base font-bold leading-tight">{horse.hr_name}</span>
+        <span className="text-sm font-bold leading-tight">{horse.hr_name}</span>
+        <StyleBadge style={runningStyle} />
       </div>
 
-      {/* 성향 + 나이/성별 */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <StyleBadge style={runningStyle} />
-        <span className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
-          {horse.ag ?? '?'}세 {horse.gndr ?? ''}
-          {horse.prds ? ` · ${horse.prds}` : ''}
-        </span>
+      {/* 나이 / 성별 / 산지 / 레이팅 */}
+      <div className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+        {horse.ag ?? '?'}세 {horse.gndr ?? ''}
+        {horse.prds ? ` · ${horse.prds}` : ''}
+        {horse.ratg && horse.ratg > 0 ? (
+          <span className="ml-1 font-mono-num" style={{ color: 'var(--color-text-primary)' }}>
+            R{horse.ratg}
+          </span>
+        ) : null}
       </div>
+
+      {/* 혈통: 모마 - 부마 */}
+      {(bloodline?.dam_hr_nm || bloodline?.sire_hr_nm) && (
+        <div className="text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+          {bloodline.dam_hr_nm ?? '?'}(모) - {bloodline.sire_hr_nm ?? '?'}(부)
+        </div>
+      )}
+
+      {/* 조교사 / 마주 */}
+      {(horse.trar_nm || horse.owner_nm) && (
+        <div className="text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+          {horse.trar_nm && <span>조교 {horse.trar_nm}</span>}
+          {horse.trar_nm && horse.owner_nm && <span className="mx-1">/</span>}
+          {horse.owner_nm && <span>마주 {horse.owner_nm}</span>}
+        </div>
+      )}
+
+      {/* 통산 성적 + 수득상금 */}
+      {(career || (horse.erng_sump != null && horse.erng_sump > 0)) && (
+        <div
+          className="font-mono-num text-[11px] flex items-center gap-1.5 flex-wrap"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          {career && <span>{career}</span>}
+          {horse.erng_sump != null && horse.erng_sump > 0 && (
+            <span style={{ color: 'var(--color-text-disabled)' }}>수득 {formatErng(horse.erng_sump)}</span>
+          )}
+        </div>
+      )}
 
       {/* 마체중 */}
       {horse.wg_hr != null && (
         <div className="flex items-baseline gap-1 font-mono-num">
-          <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {horse.wg_hr} kg
-          </span>
+          <span className="text-[11px] font-semibold">{horse.wg_hr}kg</span>
           {horse.wg_hr_diff != null && horse.wg_hr_diff !== 0 && (
-            <span className="text-[11px]"
-              style={{ color: horse.wg_hr_diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+            <span
+              className="text-[10px]"
+              style={{ color: horse.wg_hr_diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}
+            >
               ({horse.wg_hr_diff > 0 ? '+' : ''}{horse.wg_hr_diff})
             </span>
           )}
         </div>
       )}
 
-      {/* 통산 성적 */}
-      {career && (
-        <span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-          통산 {career}
-        </span>
+      {/* 최고 기록 */}
+      {timeStats && (
+        <div className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+          최 {formatRcTime(timeStats.bestTime)}
+          <span style={{ color: 'var(--color-text-disabled)' }}>
+            {' '}({formatDate(timeStats.bestDate)},{' '}
+            {timeStats.bestBurdWgt != null ? `${timeStats.bestBurdWgt}kg` : '-'},{' '}
+            {timeStats.bestPthrNo}번)
+          </span>
+        </div>
       )}
 
-      {/* 수득상금 */}
-      {horse.erng_sump != null && horse.erng_sump > 0 && (
-        <span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-          수득 {formatErng(horse.erng_sump)}
-        </span>
+      {/* 평균 기록 + 최근 형태 (구→신) */}
+      {timeStats && (
+        <div className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+          평 {formatRcTime(timeStats.avgTime)} {timeStats.count}전
+          {timeStats.formStr && (
+            <span className="ml-1 tracking-wider" style={{ color: 'var(--color-text-disabled)' }}>
+              [{timeStats.formStr}]
+            </span>
+          )}
+        </div>
       )}
-
-      {/* 조교사 / 마주 */}
-      <div className="flex flex-col gap-0.5 mt-0.5">
-        {horse.trar_nm && (
-          <span className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>
-            조교 {horse.trar_nm}
-          </span>
-        )}
-        {horse.owner_nm && (
-          <span className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>
-            마주 {horse.owner_nm}
-          </span>
-        )}
-      </div>
     </div>
   );
 }
 
 // ─── 열 2: 기수정보 ──────────────────────────────────────────────────
 
-function ColJockeyInfo({ horse }: { horse: RaceEntry }) {
+function ColJockeyInfo({
+  horse,
+  history,
+}: {
+  horse: RaceEntry;
+  history: RaceEntry[];
+}) {
+  const lastBurdWgt = history[0]?.burd_wgt ?? null;
+  const burdDiff =
+    horse.burd_wgt != null && lastBurdWgt != null ? horse.burd_wgt - lastBurdWgt : null;
+
   return (
     <div className="p-3 flex flex-col gap-2">
       {/* 기수명 */}
@@ -276,19 +391,29 @@ function ColJockeyInfo({ horse }: { horse: RaceEntry }) {
         <div className="text-sm font-semibold">{horse.jcky_nm ?? '-'}</div>
       </div>
 
+      {/* 부담중량 + 전경주 대비 변화 */}
+      <div>
+        <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>부담중량</div>
+        <div className="flex items-baseline gap-1 font-mono-num">
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            {horse.burd_wgt != null ? `${horse.burd_wgt}kg` : '-'}
+          </span>
+          {burdDiff != null && burdDiff !== 0 && (
+            <span
+              className="text-[11px]"
+              style={{ color: burdDiff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}
+            >
+              ({burdDiff > 0 ? '+' : ''}{burdDiff})
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* 레이팅 */}
       <div>
         <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>레이팅</div>
         <div className="text-sm font-mono-num font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           {horse.ratg && horse.ratg > 0 ? horse.ratg : '-'}
-        </div>
-      </div>
-
-      {/* 부담중량 */}
-      <div>
-        <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>부담중량</div>
-        <div className="text-sm font-mono-num font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          {horse.burd_wgt ?? '-'}
         </div>
       </div>
 
@@ -310,32 +435,47 @@ function ColJockeyInfo({ horse }: { horse: RaceEntry }) {
 function ColHistory({ history }: { history: RaceEntry[] }) {
   return (
     <div className="p-3">
-      <div className="text-[10px] mb-1.5 font-semibold"
-        style={{ color: 'var(--color-text-disabled)' }}>
+      <div className="text-[10px] mb-1.5 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
         직전 경주
       </div>
       {history.length === 0 ? (
         <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
       ) : (
-        <div className="space-y-1">
-          {/* 헤더 */}
-          <div className="grid text-[10px]" style={{ gridTemplateColumns: '3rem 5rem 2.5rem 3.5rem 2.5rem 2.5rem', color: 'var(--color-text-disabled)' }}>
-            <span>날짜</span><span>경마장·거리</span><span className="text-center">착순</span>
-            <span>기록</span><span>부담</span><span>주로</span>
-          </div>
+        <div className="space-y-1.5">
           {history.map((h, i) => (
-            <div key={i} className="grid font-mono-num text-[11px]"
-              style={{ gridTemplateColumns: '3rem 5rem 2.5rem 3.5rem 2.5rem 2.5rem' }}>
-              <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
-              <span style={{ color: 'var(--color-text-secondary)' }}>
-                {MEET_NAMES[h.meet] ?? '?'} {h.rc_dist ?? '-'}m
-              </span>
-              <span className="text-center font-semibold" style={{ color: ordColor(h.ord) }}>
-                {h.ord != null ? `${h.ord}위` : '-'}
-              </span>
-              <span style={{ color: 'var(--color-text-primary)' }}>{formatRcTime(h.rc_time)}</span>
-              <span style={{ color: 'var(--color-text-secondary)' }}>{h.burd_wgt ?? '-'}</span>
-              <span style={{ color: 'var(--color-text-disabled)' }}>{h.track_type ?? '-'}</span>
+            <div
+              key={i}
+              className="pb-1.5 border-b border-[var(--color-bg-elevated)] last:border-0 last:pb-0"
+            >
+              {/* 상단: 날짜·경마장거리·착순·기록 */}
+              <div className="flex items-center gap-1.5 font-mono-num text-[11px] flex-wrap">
+                <span className="shrink-0" style={{ color: 'var(--color-text-disabled)' }}>
+                  {formatDate(h.race_date)}
+                </span>
+                <span className="shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+                  {MEET_NAMES[h.meet] ?? '?'}{h.rc_dist ? ` ${h.rc_dist}m` : ''}
+                </span>
+                <span className="font-semibold shrink-0" style={{ color: ordColor(h.ord) }}>
+                  {h.ord != null ? `${h.ord}위` : '-'}
+                </span>
+                <span style={{ color: 'var(--color-text-primary)' }}>
+                  {formatRcTime(h.rc_time)}
+                </span>
+              </div>
+              {/* 하단: 출발번호·기수명(기수무게)·부담중량 */}
+              <div
+                className="flex items-center gap-2 text-[10px] mt-0.5 flex-wrap"
+                style={{ color: 'var(--color-text-disabled)' }}
+              >
+                <span>{h.pthr_no}번</span>
+                {h.jcky_nm && (
+                  <span>
+                    {h.jcky_nm}
+                    {h.wg_jk != null ? `(${h.wg_jk})` : ''}
+                  </span>
+                )}
+                {h.burd_wgt != null && <span>{h.burd_wgt}kg</span>}
+              </div>
             </div>
           ))}
         </div>
@@ -366,17 +506,19 @@ function Col5Items({
         <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
           5항목 점수
         </span>
-        <div className="flex items-center rounded overflow-hidden text-[10px] font-medium"
-          style={{ border: '1px solid var(--color-bg-elevated)' }}>
+        <div
+          className="flex items-center rounded overflow-hidden text-[10px] font-medium"
+          style={{ border: '1px solid var(--color-bg-elevated)' }}
+        >
           <button
             onClick={() => onViewModeChange('bar')}
             className="flex items-center gap-0.5 px-2 py-1 transition-all"
             style={{
               background: viewMode === 'bar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'bar' ? '#0a0e27' : 'var(--color-text-secondary)',
-            }}>
-            <LayoutList className="w-2.5 h-2.5" />
-            바
+            }}
+          >
+            <LayoutList className="w-2.5 h-2.5" />바
           </button>
           <button
             onClick={() => onViewModeChange('radar')}
@@ -384,19 +526,17 @@ function Col5Items({
             style={{
               background: viewMode === 'radar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'radar' ? '#0a0e27' : 'var(--color-text-secondary)',
-            }}>
-            <Activity className="w-2.5 h-2.5" />
-            레이더
+            }}
+          >
+            <Activity className="w-2.5 h-2.5" />레이더
           </button>
         </div>
       </div>
 
-      {/* 점수 없음 */}
       {!hasScores && (
         <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
 
-      {/* 바 리스트 */}
       {hasScores && viewMode === 'bar' && (
         <div className="space-y-1.5">
           {TOP5_ITEMS.map(({ id, label }) => {
@@ -404,15 +544,28 @@ function Col5Items({
             const pending = itemScores![id]?.status === 'expert_pending';
             return (
               <div key={id} className="flex items-center gap-1.5">
-                <span className="text-[11px] shrink-0 w-14 text-right"
-                  style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-                <div className="flex-1 h-1.5 rounded-full overflow-hidden"
-                  style={{ background: 'var(--color-bg-elevated)' }}>
-                  <div className="h-full rounded-full"
-                    style={{ width: `${score * 100}%`, background: pending ? 'var(--color-text-disabled)' : accentColor }} />
+                <span
+                  className="text-[11px] shrink-0 w-14 text-right"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  {label}
+                </span>
+                <div
+                  className="flex-1 h-1.5 rounded-full overflow-hidden"
+                  style={{ background: 'var(--color-bg-elevated)' }}
+                >
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${score * 100}%`,
+                      background: pending ? 'var(--color-text-disabled)' : accentColor,
+                    }}
+                  />
                 </div>
-                <span className="text-[10px] font-mono-num w-6 shrink-0"
-                  style={{ color: pending ? 'var(--color-text-disabled)' : 'var(--color-text-primary)' }}>
+                <span
+                  className="text-[10px] font-mono-num w-6 shrink-0"
+                  style={{ color: pending ? 'var(--color-text-disabled)' : 'var(--color-text-primary)' }}
+                >
                   {score.toFixed(2)}
                 </span>
               </div>
@@ -421,28 +574,32 @@ function Col5Items({
         </div>
       )}
 
-      {/* 레이더 */}
       {hasScores && viewMode === 'radar' && (
         <div className="flex justify-center">
           <div style={{ width: 160, height: 160 }}>
             <Radar
               data={{
                 labels: TOP5_ITEMS.map((i) => i.label),
-                datasets: [{
-                  data: TOP5_ITEMS.map(({ id }) => Math.round((itemScores![id]?.rawScore ?? 0) * 100)),
-                  borderColor: accentColor,
-                  backgroundColor: `${accentColor}20`,
-                  borderWidth: 1.5,
-                  pointBackgroundColor: accentColor,
-                  pointRadius: 2,
-                }],
+                datasets: [
+                  {
+                    data: TOP5_ITEMS.map(({ id }) =>
+                      Math.round((itemScores![id]?.rawScore ?? 0) * 100)
+                    ),
+                    borderColor: accentColor,
+                    backgroundColor: `${accentColor}20`,
+                    borderWidth: 1.5,
+                    pointBackgroundColor: accentColor,
+                    pointRadius: 2,
+                  },
+                ],
               }}
               options={{
                 responsive: true,
                 maintainAspectRatio: true,
                 scales: {
                   r: {
-                    min: 0, max: 100,
+                    min: 0,
+                    max: 100,
                     ticks: { display: false },
                     grid: { color: 'rgba(94,107,138,0.25)' },
                     angleLines: { color: 'rgba(94,107,138,0.2)' },
@@ -453,8 +610,10 @@ function Col5Items({
                   legend: { display: false },
                   tooltip: {
                     backgroundColor: 'rgba(19,27,58,0.95)',
-                    borderColor: 'rgba(94,107,138,0.4)', borderWidth: 1,
-                    titleColor: '#b0bec5', bodyColor: '#ffffff',
+                    borderColor: 'rgba(94,107,138,0.4)',
+                    borderWidth: 1,
+                    titleColor: '#b0bec5',
+                    bodyColor: '#ffffff',
                   },
                 },
               }}
@@ -469,47 +628,49 @@ function Col5Items({
 // ─── 말 카드 ─────────────────────────────────────────────────────────
 
 function HorseCard({
-  horse, prediction, maxScore, history, runningStyle, viewMode, onViewModeChange,
+  horse,
+  prediction,
+  history,
+  runningStyle,
+  bloodline,
+  viewMode,
+  onViewModeChange,
 }: {
   horse: RaceEntry;
   prediction: Prediction | undefined;
-  maxScore: number;
   history: RaceEntry[];
   runningStyle: RunningStyle;
+  bloodline: BloodlineInfo | undefined;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
   const pRank = prediction?.predicted_rank ?? 999;
   const pStyle = PODIUM_STYLES[pRank - 1];
   const accentColor = pStyle?.accent ?? 'var(--color-text-disabled)';
-
   const borderColor = pRank <= 3 ? `${accentColor}50` : 'var(--color-bg-elevated)';
 
   return (
-    <div className="rounded-xl overflow-hidden"
-      style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}>
-      {/* 모바일: 2+2 그리드 / 데스크탑: 4열 그리드 */}
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}
+    >
       <div className="grid grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]">
-
-        {/* 마정보: 모바일 1/2, 데스크탑 auto */}
         <div className="border-b border-r border-[var(--color-bg-elevated)] md:border-b-0">
           <ColHorseInfo
-            horse={horse} prediction={prediction}
-            maxScore={maxScore} runningStyle={runningStyle} accentColor={accentColor}
+            horse={horse}
+            prediction={prediction}
+            runningStyle={runningStyle}
+            accentColor={accentColor}
+            bloodline={bloodline}
+            history={history}
           />
         </div>
-
-        {/* 기수정보: 모바일 2/2, 데스크탑 auto */}
         <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
-          <ColJockeyInfo horse={horse} />
+          <ColJockeyInfo horse={horse} history={history} />
         </div>
-
-        {/* 직전경주: 모바일 전체 폭, 데스크탑 auto */}
         <div className="col-span-2 md:col-span-1 border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
           <ColHistory history={history} />
         </div>
-
-        {/* 5항목: 모바일 전체 폭, 데스크탑 auto */}
         <div className="col-span-2 md:col-span-1">
           <Col5Items
             itemScores={prediction?.item_scores}
@@ -540,6 +701,7 @@ export function PredictionSheet() {
   const hrNames = useMemo(() => (horses ?? []).map((h) => h.hr_name), [horses]);
   const historyQueries = useMultipleHorseHistories(hrNames, rcDate);
   const { data: abilities } = useHorseSectionalAbilityByNames(hrNames);
+  const { data: bloodlines } = useHorseBloodlinesByNames(hrNames);
 
   const predByName = useMemo(() => {
     const map = new Map<string, Prediction>();
@@ -563,22 +725,26 @@ export function PredictionSheet() {
     return map;
   }, [hrNames, historyQueries]);
 
+  const bloodlineByName = useMemo(() => {
+    const map = new Map<string, BloodlineInfo>();
+    (bloodlines ?? []).forEach((b) => map.set(b.hr_name, { sire_hr_nm: b.sire_hr_nm, dam_hr_nm: b.dam_hr_nm }));
+    return map;
+  }, [bloodlines]);
+
+  const pthrNoByName = useMemo(() => {
+    const map = new Map<string, number>();
+    (horses ?? []).forEach((h) => map.set(h.hr_name, h.pthr_no));
+    return map;
+  }, [horses]);
+
+  // Item 3: 마번순 정렬
   const sortedHorses = useMemo(() => {
     if (!horses) return [];
-    return [...horses].sort((a, b) => {
-      const ra = predByName.get(a.hr_name)?.predicted_rank ?? 999;
-      const rb = predByName.get(b.hr_name)?.predicted_rank ?? 999;
-      return ra !== rb ? ra - rb : a.pthr_no - b.pthr_no;
-    });
-  }, [horses, predByName]);
+    return [...horses].sort((a, b) => a.pthr_no - b.pthr_no);
+  }, [horses]);
 
   const top3 = useMemo(
     () => [...(predictions ?? [])].sort((a, b) => a.predicted_rank - b.predicted_rank).slice(0, 3),
-    [predictions]
-  );
-
-  const maxScore = useMemo(
-    () => Math.max(...(predictions ?? []).map((p) => p.total_score), 1),
     [predictions]
   );
 
@@ -587,48 +753,90 @@ export function PredictionSheet() {
   return (
     <div className="space-y-4 pb-8">
       {/* 경주 헤더 */}
-      <div className="flex items-center gap-2 text-sm flex-wrap"
-        style={{ color: 'var(--color-text-secondary)' }}>
-        <Link to={`/race/${meet}/${rcDate}/${rcNo}/entries`}
-          className="inline-flex items-center gap-1 hover:text-white transition-colors">
+      <div className="flex items-start gap-2 text-sm flex-wrap" style={{ color: 'var(--color-text-secondary)' }}>
+        <Link
+          to={`/race/${meet}/${rcDate}/${rcNo}/entries`}
+          className="inline-flex items-center gap-1 hover:text-white transition-colors shrink-0"
+        >
           <ChevronLeft className="w-4 h-4" />
           출마정보
         </Link>
         <span style={{ color: 'var(--color-text-disabled)' }}>|</span>
-        <span className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          {MEET_NAMES[meet] ?? '?'} {rcNo}R
-        </span>
-        {race?.rc_dist && <span className="font-mono-num" style={{ color: 'var(--color-text-primary)' }}>{race.rc_dist}m</span>}
-        {race?.rc_name && <span>{race.rc_name}</span>}
-        {race?.track && <span>{race.track}</span>}
-        {race?.weather && <span>{race.weather}</span>}
-        {isPostRace && (
-          <span className="text-xs px-1.5 py-0.5 rounded"
-            style={{ background: 'rgba(0,200,83,0.12)', color: 'var(--color-success)', border: '1px solid rgba(0,200,83,0.25)' }}>
-            사후
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
+            {MEET_NAMES[meet] ?? '?'} {rcNo}R
           </span>
-        )}
-        {horses && (
-          <span className="ml-auto text-xs font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-            {horses.length}마 출전
-          </span>
-        )}
+          {race?.rc_dist != null && (
+            <span className="font-mono-num" style={{ color: 'var(--color-text-primary)' }}>
+              {race.rc_dist}m
+            </span>
+          )}
+          {race?.rc_name && <span>{race.rc_name}</span>}
+          {race?.age_cond && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded"
+              style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}
+            >
+              {race.age_cond}
+            </span>
+          )}
+          {race?.prize_cond && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded"
+              style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}
+            >
+              {race.prize_cond}
+            </span>
+          )}
+          {race?.track && <span className="text-xs">{race.track}</span>}
+          {race?.weather && <span className="text-xs">{race.weather}</span>}
+          {race?.chaksun1 != null && race.chaksun1 > 0 && (
+            <span className="text-xs font-mono-num" style={{ color: 'var(--color-accent-gold)' }}>
+              1위 {formatErng(race.chaksun1)}
+            </span>
+          )}
+          {isPostRace && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded"
+              style={{
+                background: 'rgba(0,200,83,0.12)',
+                color: 'var(--color-success)',
+                border: '1px solid rgba(0,200,83,0.25)',
+              }}
+            >
+              사후
+            </span>
+          )}
+          {horses && (
+            <span className="text-xs font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+              {horses.length}마 출전
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Top 3 포디엄 */}
-      {top3.length > 0 && <PodiumCards top3={top3} maxScore={maxScore} />}
+      {top3.length > 0 && <PodiumCards top3={top3} pthrNoByName={pthrNoByName} />}
 
       {/* 로딩 / 에러 */}
       {isLoading && (
-        <div className="flex items-center justify-center py-16 gap-2 text-sm"
-          style={{ color: 'var(--color-text-secondary)' }}>
+        <div
+          className="flex items-center justify-center py-16 gap-2 text-sm"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
           <Loader2 className="w-4 h-4 animate-spin" />
           불러오는 중...
         </div>
       )}
       {error && (
-        <div className="rounded-xl p-4 text-sm"
-          style={{ background: 'rgba(255,23,68,0.08)', border: '1px solid rgba(255,23,68,0.25)', color: '#ff6b8a' }}>
+        <div
+          className="rounded-xl p-4 text-sm"
+          style={{
+            background: 'rgba(255,23,68,0.08)',
+            border: '1px solid rgba(255,23,68,0.25)',
+            color: '#ff6b8a',
+          }}
+        >
           {(error as Error).message}
         </div>
       )}
@@ -641,9 +849,9 @@ export function PredictionSheet() {
               key={horse.pthr_no}
               horse={horse}
               prediction={predByName.get(horse.hr_name)}
-              maxScore={maxScore}
               history={historyByName.get(horse.hr_name) ?? []}
               runningStyle={styleByName.get(horse.hr_name) ?? 'unknown'}
+              bloodline={bloodlineByName.get(horse.hr_name)}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
@@ -652,8 +860,10 @@ export function PredictionSheet() {
       )}
 
       {!isLoading && sortedHorses.length === 0 && !error && (
-        <div className="rounded-xl p-8 text-center text-sm"
-          style={{ background: 'var(--color-bg-surface)', color: 'var(--color-text-secondary)' }}>
+        <div
+          className="rounded-xl p-8 text-center text-sm"
+          style={{ background: 'var(--color-bg-surface)', color: 'var(--color-text-secondary)' }}
+        >
           출전마 데이터 없음
         </div>
       )}
