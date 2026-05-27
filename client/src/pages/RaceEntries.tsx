@@ -290,7 +290,7 @@ export function RaceEntries() {
         <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-bg-elevated)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm font-mono-num">
-              <thead className="bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] text-xs">
+              <thead className="bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] text-sm">
                 <tr>
                   <SortHeader label="번" k="pthr_no" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                   <SortHeader label="마명" k="hr_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" />
@@ -339,7 +339,7 @@ export function RaceEntries() {
                               const info = STYLE_INFO[style];
                               return (
                                 <span
-                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border ${info.className}`}
+                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[12px] font-medium border ${info.className}`}
                                   title={info.description}
                                 >
                                   <span>{info.emoji}</span>
@@ -487,7 +487,7 @@ function rankBadgeClass(rank: number): string {
 }
 
 function ordBadgeClass(ord: number | null): string {
-  if (ord == null) return 'text-[var(--color-accent-pink)] text-[10px]';
+  if (ord == null) return 'text-[var(--color-accent-pink)] text-[12px]';
   if (ord === 1) return 'text-[var(--color-accent-gold)] font-bold';
   if (ord <= 3) return 'text-[var(--color-success)] font-semibold';
   if (ord <= 7) return 'text-[var(--color-text-primary)]';
@@ -591,12 +591,12 @@ function ExpandedDetail({
               return (
                 <div className="mb-2 pb-2 border-b border-[var(--color-bg-elevated)]">
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${info.className}`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[13px] font-semibold border ${info.className}`}
                   >
                     <span>{info.emoji}</span>
                     {info.name}
                   </span>
-                  <span className="ml-2 text-[10px] text-[var(--color-text-secondary)]">
+                  <span className="ml-2 text-[12px] text-[var(--color-text-secondary)]">
                     {info.description}
                   </span>
                 </div>
@@ -628,7 +628,7 @@ function ExpandedDetail({
               value={describeFrontRunSuccess(ability.front_run_success_rate)}
             />
             <KV label="평균 착순" value={ability.avg_ord != null ? `${ability.avg_ord}위` : '-'} />
-            <div className="my-2 pt-2 border-t border-[var(--color-bg-elevated)] text-[10px] text-[var(--color-text-secondary)]">
+            <div className="my-2 pt-2 border-t border-[var(--color-bg-elevated)] text-[12px] text-[var(--color-text-secondary)]">
               구간 시간 (best · avg)
             </div>
             <KV
@@ -663,7 +663,7 @@ function ExpandedDetail({
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="text-[10px] text-[var(--color-text-secondary)]">
+              <tr className="text-[12px] text-[var(--color-text-secondary)]">
                 <th className="text-left py-0.5">날짜</th>
                 <th className="text-right py-0.5">거리</th>
                 <th className="text-right py-0.5">착순</th>
@@ -747,7 +747,7 @@ function ExpandedDetail({
       </DetailCard>
 
       {/* 푸터 안내 */}
-      <div className="md:col-span-2 text-center text-[10px] text-[var(--color-text-disabled)] pt-1">
+      <div className="md:col-span-2 text-center text-[12px] text-[var(--color-text-disabled)] pt-1">
         <Link
           to={`/race/${meet}/${rcDate}/${rcNo}/horse/${entry.pthr_no}`}
           className="hover:text-[var(--color-accent-cyan)] underline"
@@ -770,7 +770,7 @@ function DetailCard({
 }) {
   return (
     <div className="bg-[var(--color-bg-surface)] rounded-lg p-3 border border-[var(--color-bg-elevated)]">
-      <div className="flex items-center gap-1.5 text-[var(--color-accent-cyan)] text-[10px] uppercase tracking-wider font-semibold mb-2">
+      <div className="flex items-center gap-1.5 text-[var(--color-accent-cyan)] text-[12px] uppercase tracking-wider font-semibold mb-2">
         {icon}
         {title}
       </div>
@@ -828,11 +828,11 @@ function DistanceStyleCard({ hrName }: { hrName: string }) {
                   {DIST_LABEL[cat]}:
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="font-mono-num text-[10px] text-[var(--color-text-secondary)]">
+                  <span className="font-mono-num text-[12px] text-[var(--color-text-secondary)]">
                     {row.races}회 · ratio {row.avg_position_ratio?.toFixed(2) ?? '-'}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border ${info.className}`}
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[12px] font-medium border ${info.className}`}
                   >
                     <span>{info.emoji}</span>
                     {info.shortName}

@@ -243,7 +243,7 @@ function RaceCard({ race, predictions }: RaceCardProps) {
       {/* 예측 1-3위 (Score Engine 결과) */}
       {top3.length > 0 ? (
         <>
-          <div className="text-[10px] uppercase tracking-wider text-[var(--color-accent-gold)] mb-1.5 font-semibold">
+          <div className="text-[12px] uppercase tracking-wider text-[var(--color-accent-gold)] mb-1.5 font-semibold">
             ⭐ 예측 TOP 3
           </div>
           <div className="grid grid-cols-3 gap-2 font-mono-num text-sm">
@@ -321,7 +321,7 @@ function PredictionTile({ rank, hrName, totalScore, actualOrd }: PredictionTileP
         {totalScore.toFixed(1)}점
       </div>
       <div
-        className={`text-[10px] mt-0.5 ${
+        className={`text-[12px] mt-0.5 ${
           isCancelled(actualOrd)
             ? 'text-[var(--color-accent-pink)]'
             : isHit
