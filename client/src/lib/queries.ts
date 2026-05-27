@@ -546,6 +546,99 @@ function monthOf(rcDate: number): string {
 }
 
 // ============================================
+// 예상지 전용 배치 훅
+// ============================================
+
+/**
+ * 조교사 통산 성적 배치 조회 (race_entries 직접 집계, 최근 2년)
+ * trainer_stats 테이블 없음 — race_entries에서 on-demand 집계
+ */
+export function useTrainerStatsBatch(trainerNames: string[]) {
+  return useQuery({
+    queryKey: ['trainer-stats-batch', trainerNames.slice().sort().join(',')],
+    queryFn: async (): Promise<Map<string, { total: number; wins: number }>> => {
+      if (trainerNames.length === 0) return new Map();
+      const cutoff = getDateNDaysAgo(730);
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('trar_nm, ord')
+        .in('trar_nm', trainerNames)
+        .gte('race_date', cutoff)
+        .not('ord', 'is', null);
+      if (error) throw error;
+      const map = new Map<string, { total: number; wins: number }>();
+      for (const r of data ?? []) {
+        if (!r.trar_nm) continue;
+        const s = map.get(r.trar_nm) ?? { total: 0, wins: 0 };
+        s.total++;
+        if (r.ord === 1) s.wins++;
+        map.set(r.trar_nm, s);
+      }
+      return map;
+    },
+    enabled: trainerNames.length > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
+ * 기수 통산 성적 배치 조회 (jockey_stats 테이블, 59명 커버)
+ * 커버 외 기수는 Map에 없음 — UI에서 조건부 표시
+ */
+export function useJockeyStatsBatch(jckyNos: string[], meet: number) {
+  return useQuery({
+    queryKey: ['jockey-stats-batch', meet, jckyNos.slice().sort().join(',')],
+    queryFn: async (): Promise<Map<string, JockeyStat>> => {
+      if (jckyNos.length === 0) return new Map();
+      const { data, error } = await supabase
+        .from('jockey_stats')
+        .select('*')
+        .in('jcky_no', jckyNos)
+        .eq('meet', meet);
+      if (error) throw error;
+      const map = new Map<string, JockeyStat>();
+      (data ?? []).forEach((s) => map.set(s.jcky_no, s));
+      return map;
+    },
+    enabled: jckyNos.length > 0 && !!meet,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
+ * 해당 등급/거리 우승마 평균·최고 기록
+ * race_entries JOIN races (Supabase 관계 필터) — migration 불필요
+ * 3경주 미만이면 null 반환
+ */
+export function useGradeWinnerStats(prizeCond: string | null, rcDist: number | null) {
+  return useQuery({
+    queryKey: ['grade-winner-stats', prizeCond, rcDist],
+    queryFn: async (): Promise<{ avg: number; best: number; count: number } | null> => {
+      if (!prizeCond || !rcDist) return null;
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('rc_time, races!inner(prize_cond, rc_dist)')
+        .eq('ord', 1)
+        .not('rc_time', 'is', null)
+        .filter('races.prize_cond', 'eq', prizeCond)
+        .filter('races.rc_dist', 'eq', rcDist);
+      if (error) throw error;
+      const times = (data ?? [])
+        .map((r: any) => r.rc_time as number)
+        .filter((t) => t > 0);
+      if (times.length < 3) return null;
+      return {
+        avg: times.reduce((a, b) => a + b, 0) / times.length,
+        best: Math.min(...times),
+        count: times.length,
+      };
+    },
+    enabled: !!prizeCond && !!rcDist,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+// ============================================
 // 통계 (race_entries 기반)
 // ============================================
 

@@ -80,6 +80,7 @@ export interface RaceEntry {
   win_odds: number | null;
   popularity: number | null;
   result_at: string | null;
+  latst_trea1_txt: string | null; // 최근 치료 텍스트 (raceCardSync 때 채워짐)
   // 구간기록 — 부경 (부경 경주만 채워짐)
   bu_g1f_acc_time?: number | null;
   bu_g2f_acc_time?: number | null;

@@ -21,8 +21,22 @@ import {
   Tooltip,
 } from 'chart.js';
 import { Radar } from 'react-chartjs-2';
-import { useHorsesByRace, usePredictionsByRace, useHorseSectionalAbilityByNames } from '../lib/queries';
-import { supabase, type RaceEntry, type Race, type Prediction, type ItemScore } from '../lib/supabase';
+import {
+  useHorsesByRace,
+  usePredictionsByRace,
+  useHorseSectionalAbilityByNames,
+  useTrainerStatsBatch,
+  useJockeyStatsBatch,
+  useGradeWinnerStats,
+} from '../lib/queries';
+import {
+  supabase,
+  type RaceEntry,
+  type Race,
+  type Prediction,
+  type ItemScore,
+  type JockeyStat,
+} from '../lib/supabase';
 import { classifyRunningStyle, STYLE_INFO, type RunningStyle } from '../lib/runningStyle';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
@@ -139,7 +153,7 @@ interface TimeStats {
   bestPthrNo: number;
   avgTime: number;
   count: number;
-  formStr: string;
+  formStr: string; // "1-2-5-3-1" 구→신
 }
 
 function computeTimeStats(history: RaceEntry[]): TimeStats | null {
@@ -152,7 +166,7 @@ function computeTimeStats(history: RaceEntry[]): TimeStats | null {
     .slice(0, 5)
     .reverse()
     .map((h) => (h.ord != null ? String(h.ord) : 'X'))
-    .join('');
+    .join('-');
   return {
     bestTime: best.rc_time!,
     bestDate: best.race_date,
@@ -211,7 +225,7 @@ function PodiumCards({
           >
             <div className={`text-xs font-semibold font-mono-num ${s.labelColor}`}>{s.label}</div>
             <div>
-              <div className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+              <div className="text-[12px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
                 {pthrNo != null ? `${pthrNo}번` : '-'}
               </div>
               <div className="text-base font-bold leading-tight truncate">{p.hr_name}</div>
@@ -219,7 +233,7 @@ function PodiumCards({
             <div className="space-y-1">
               <ScoreBar score={p.total_score} maxScore={100} color={s.accent} />
               <div className="text-right text-xs font-mono-num font-semibold" style={{ color: s.accent }}>
-                {p.total_score.toFixed(1)}
+                {p.total_score.toFixed(1)}점
               </div>
             </div>
           </div>
@@ -238,6 +252,7 @@ function ColHorseInfo({
   accentColor,
   bloodline,
   history,
+  trainerStat,
 }: {
   horse: RaceEntry;
   prediction: Prediction | undefined;
@@ -245,14 +260,22 @@ function ColHorseInfo({
   accentColor: string;
   bloodline: BloodlineInfo | undefined;
   history: RaceEntry[];
+  trainerStat: { total: number; wins: number } | undefined;
 }) {
   const pRank = prediction?.predicted_rank ?? 999;
   const pScore = prediction?.total_score ?? 0;
   const timeStats = useMemo(() => computeTimeStats(history), [history]);
 
-  const career =
-    horse.sump_rcod_sum != null
-      ? `${horse.sump_rcod_sum}전 ${horse.sump_rcod_fplc ?? 0}-${horse.sump_rcod_splc ?? 0}-${horse.sump_rcod_tplc ?? 0}`
+  const total = horse.sump_rcod_sum ?? 0;
+  const fplc = horse.sump_rcod_fplc ?? 0;
+  const splc = horse.sump_rcod_splc ?? 0;
+  const tplc = horse.sump_rcod_tplc ?? 0;
+  const rest = Math.max(total - fplc - splc - tplc, 0);
+  const careerStr = total > 0 ? `${total}전 (${fplc}-${splc}-${tplc}-${rest})` : null;
+
+  const trainerWinRate =
+    trainerStat && trainerStat.total > 0
+      ? ((trainerStat.wins / trainerStat.total) * 100).toFixed(1)
       : null;
 
   return (
@@ -261,7 +284,7 @@ function ColHorseInfo({
       {pRank < 999 && (
         <div className="flex items-center gap-1.5 mb-0.5">
           <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono-num shrink-0"
+            className="text-[11px] font-bold px-1.5 py-0.5 rounded font-mono-num shrink-0"
             style={{
               background: `${accentColor}20`,
               color: accentColor,
@@ -273,7 +296,7 @@ function ColHorseInfo({
           <div className="flex-1 min-w-0">
             <ScoreBar score={pScore} maxScore={100} color={accentColor} />
           </div>
-          <span className="text-[10px] font-mono-num shrink-0" style={{ color: accentColor }}>
+          <span className="text-[11px] font-mono-num shrink-0" style={{ color: accentColor }}>
             {pScore.toFixed(1)}
           </span>
         </div>
@@ -289,11 +312,11 @@ function ColHorseInfo({
       </div>
 
       {/* 나이 / 성별 / 산지 / 레이팅 */}
-      <div className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+      <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
         {horse.ag ?? '?'}세 {horse.gndr ?? ''}
         {horse.prds ? ` · ${horse.prds}` : ''}
         {horse.ratg && horse.ratg > 0 ? (
-          <span className="ml-1 font-mono-num" style={{ color: 'var(--color-text-primary)' }}>
+          <span className="ml-1.5 font-mono-num font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             R{horse.ratg}
           </span>
         ) : null}
@@ -301,29 +324,38 @@ function ColHorseInfo({
 
       {/* 혈통: 모마 - 부마 */}
       {(bloodline?.dam_hr_nm || bloodline?.sire_hr_nm) && (
-        <div className="text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+        <div className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>
           {bloodline.dam_hr_nm ?? '?'}(모) - {bloodline.sire_hr_nm ?? '?'}(부)
         </div>
       )}
 
-      {/* 조교사 / 마주 */}
+      {/* 조교사 (+ 최근 2년 승수) / 마주 */}
       {(horse.trar_nm || horse.owner_nm) && (
-        <div className="text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
-          {horse.trar_nm && <span>조교 {horse.trar_nm}</span>}
+        <div className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>
+          {horse.trar_nm && (
+            <span>
+              조교 {horse.trar_nm}
+              {trainerWinRate != null && (
+                <span className="ml-1 font-mono-num">
+                  ({trainerStat!.wins}승/{trainerStat!.total}전 {trainerWinRate}%)
+                </span>
+              )}
+            </span>
+          )}
           {horse.trar_nm && horse.owner_nm && <span className="mx-1">/</span>}
           {horse.owner_nm && <span>마주 {horse.owner_nm}</span>}
         </div>
       )}
 
-      {/* 통산 성적 + 수득상금 */}
-      {(career || (horse.erng_sump != null && horse.erng_sump > 0)) && (
+      {/* 통산 성적 (N전 W-P-S-R) + 수득상금 */}
+      {(careerStr || (horse.erng_sump != null && horse.erng_sump > 0)) && (
         <div
-          className="font-mono-num text-[11px] flex items-center gap-1.5 flex-wrap"
+          className="font-mono-num text-[12px] flex items-center gap-1.5 flex-wrap"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          {career && <span>{career}</span>}
+          {careerStr && <span>{careerStr}</span>}
           {horse.erng_sump != null && horse.erng_sump > 0 && (
-            <span style={{ color: 'var(--color-text-disabled)' }}>수득 {formatErng(horse.erng_sump)}</span>
+            <span style={{ color: 'var(--color-text-disabled)' }}>{formatErng(horse.erng_sump)}</span>
           )}
         </div>
       )}
@@ -331,10 +363,10 @@ function ColHorseInfo({
       {/* 마체중 */}
       {horse.wg_hr != null && (
         <div className="flex items-baseline gap-1 font-mono-num">
-          <span className="text-[11px] font-semibold">{horse.wg_hr}kg</span>
+          <span className="text-[12px] font-semibold">{horse.wg_hr}kg</span>
           {horse.wg_hr_diff != null && horse.wg_hr_diff !== 0 && (
             <span
-              className="text-[10px]"
+              className="text-[11px]"
               style={{ color: horse.wg_hr_diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}
             >
               ({horse.wg_hr_diff > 0 ? '+' : ''}{horse.wg_hr_diff})
@@ -345,7 +377,7 @@ function ColHorseInfo({
 
       {/* 최고 기록 */}
       {timeStats && (
-        <div className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
           최 {formatRcTime(timeStats.bestTime)}
           <span style={{ color: 'var(--color-text-disabled)' }}>
             {' '}({formatDate(timeStats.bestDate)},{' '}
@@ -355,15 +387,22 @@ function ColHorseInfo({
         </div>
       )}
 
-      {/* 평균 기록 + 최근 형태 (구→신) */}
+      {/* 평균 기록 + 형태 (구→신, 대시 구분) */}
       {timeStats && (
-        <div className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
           평 {formatRcTime(timeStats.avgTime)} {timeStats.count}전
           {timeStats.formStr && (
-            <span className="ml-1 tracking-wider" style={{ color: 'var(--color-text-disabled)' }}>
-              [{timeStats.formStr}]
+            <span className="ml-1" style={{ color: 'var(--color-text-disabled)' }}>
+              ({timeStats.formStr})
             </span>
           )}
+        </div>
+      )}
+
+      {/* 건강정보 */}
+      {horse.latst_trea1_txt && (
+        <div className="text-[11px]" style={{ color: 'var(--color-accent-pink)' }}>
+          부상이력: {horse.latst_trea1_txt}
         </div>
       )}
     </div>
@@ -375,9 +414,11 @@ function ColHorseInfo({
 function ColJockeyInfo({
   horse,
   history,
+  jockeyStat,
 }: {
   horse: RaceEntry;
   history: RaceEntry[];
+  jockeyStat: JockeyStat | undefined;
 }) {
   const lastBurdWgt = history[0]?.burd_wgt ?? null;
   const burdDiff =
@@ -387,20 +428,20 @@ function ColJockeyInfo({
     <div className="p-3 flex flex-col gap-2">
       {/* 기수명 */}
       <div>
-        <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>기수</div>
+        <div className="text-[11px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>기수</div>
         <div className="text-sm font-semibold">{horse.jcky_nm ?? '-'}</div>
       </div>
 
       {/* 부담중량 + 전경주 대비 변화 */}
       <div>
-        <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>부담중량</div>
+        <div className="text-[11px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>부담중량</div>
         <div className="flex items-baseline gap-1 font-mono-num">
           <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             {horse.burd_wgt != null ? `${horse.burd_wgt}kg` : '-'}
           </span>
           {burdDiff != null && burdDiff !== 0 && (
             <span
-              className="text-[11px]"
+              className="text-[12px]"
               style={{ color: burdDiff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}
             >
               ({burdDiff > 0 ? '+' : ''}{burdDiff})
@@ -409,18 +450,28 @@ function ColJockeyInfo({
         </div>
       </div>
 
-      {/* 레이팅 */}
-      <div>
-        <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>레이팅</div>
-        <div className="text-sm font-mono-num font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          {horse.ratg && horse.ratg > 0 ? horse.ratg : '-'}
+      {/* 기수 통산 성적 (jockey_stats 커버 시) */}
+      {jockeyStat && (
+        <div>
+          <div className="text-[11px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>통산 성적</div>
+          <div className="text-[12px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+            {jockeyStat.race_cnt_t != null ? `${jockeyStat.race_cnt_t}전` : '-'}
+            {jockeyStat.first_cnt != null && (
+              <span> ({jockeyStat.first_cnt}승)</span>
+            )}
+          </div>
+          {jockeyStat.win_rate_t != null && (
+            <div className="text-[12px] font-mono-num" style={{ color: 'var(--color-accent-cyan)' }}>
+              승률 {jockeyStat.win_rate_t}%
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* 사후: 실제 착순 */}
       {horse.ord != null && (
         <div>
-          <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>실제 착순</div>
+          <div className="text-[11px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>실제 착순</div>
           <div className="text-sm font-mono-num font-bold" style={{ color: ordColor(horse.ord) }}>
             {horse.ord}위
           </div>
@@ -435,11 +486,11 @@ function ColJockeyInfo({
 function ColHistory({ history }: { history: RaceEntry[] }) {
   return (
     <div className="p-3">
-      <div className="text-[10px] mb-1.5 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
+      <div className="text-[11px] mb-1.5 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
         직전 경주
       </div>
       {history.length === 0 ? (
-        <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
+        <p className="text-[12px]" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
       ) : (
         <div className="space-y-1.5">
           {history.map((h, i) => (
@@ -448,7 +499,7 @@ function ColHistory({ history }: { history: RaceEntry[] }) {
               className="pb-1.5 border-b border-[var(--color-bg-elevated)] last:border-0 last:pb-0"
             >
               {/* 상단: 날짜·경마장거리·착순·기록 */}
-              <div className="flex items-center gap-1.5 font-mono-num text-[11px] flex-wrap">
+              <div className="flex items-center gap-1.5 font-mono-num text-[12px] flex-wrap">
                 <span className="shrink-0" style={{ color: 'var(--color-text-disabled)' }}>
                   {formatDate(h.race_date)}
                 </span>
@@ -464,7 +515,7 @@ function ColHistory({ history }: { history: RaceEntry[] }) {
               </div>
               {/* 하단: 출발번호·기수명(기수무게)·부담중량 */}
               <div
-                className="flex items-center gap-2 text-[10px] mt-0.5 flex-wrap"
+                className="flex items-center gap-2 text-[11px] mt-0.5 flex-wrap"
                 style={{ color: 'var(--color-text-disabled)' }}
               >
                 <span>{h.pthr_no}번</span>
@@ -503,7 +554,7 @@ function Col5Items({
     <div className="p-3 flex flex-col gap-2">
       {/* A/B 토글 */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
+        <span className="text-[11px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
           5항목 점수
         </span>
         <div
@@ -534,7 +585,7 @@ function Col5Items({
       </div>
 
       {!hasScores && (
-        <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
+        <p className="text-[12px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
 
       {hasScores && viewMode === 'bar' && (
@@ -545,7 +596,7 @@ function Col5Items({
             return (
               <div key={id} className="flex items-center gap-1.5">
                 <span
-                  className="text-[11px] shrink-0 w-14 text-right"
+                  className="text-[12px] shrink-0 w-14 text-right"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
                   {label}
@@ -563,7 +614,7 @@ function Col5Items({
                   />
                 </div>
                 <span
-                  className="text-[10px] font-mono-num w-6 shrink-0"
+                  className="text-[11px] font-mono-num w-6 shrink-0"
                   style={{ color: pending ? 'var(--color-text-disabled)' : 'var(--color-text-primary)' }}
                 >
                   {score.toFixed(2)}
@@ -598,8 +649,7 @@ function Col5Items({
                 maintainAspectRatio: true,
                 scales: {
                   r: {
-                    min: 0,
-                    max: 100,
+                    min: 0, max: 100,
                     ticks: { display: false },
                     grid: { color: 'rgba(94,107,138,0.25)' },
                     angleLines: { color: 'rgba(94,107,138,0.2)' },
@@ -610,10 +660,8 @@ function Col5Items({
                   legend: { display: false },
                   tooltip: {
                     backgroundColor: 'rgba(19,27,58,0.95)',
-                    borderColor: 'rgba(94,107,138,0.4)',
-                    borderWidth: 1,
-                    titleColor: '#b0bec5',
-                    bodyColor: '#ffffff',
+                    borderColor: 'rgba(94,107,138,0.4)', borderWidth: 1,
+                    titleColor: '#b0bec5', bodyColor: '#ffffff',
                   },
                 },
               }}
@@ -633,6 +681,8 @@ function HorseCard({
   history,
   runningStyle,
   bloodline,
+  trainerStat,
+  jockeyStat,
   viewMode,
   onViewModeChange,
 }: {
@@ -641,6 +691,8 @@ function HorseCard({
   history: RaceEntry[];
   runningStyle: RunningStyle;
   bloodline: BloodlineInfo | undefined;
+  trainerStat: { total: number; wins: number } | undefined;
+  jockeyStat: JockeyStat | undefined;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
@@ -663,10 +715,11 @@ function HorseCard({
             accentColor={accentColor}
             bloodline={bloodline}
             history={history}
+            trainerStat={trainerStat}
           />
         </div>
         <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
-          <ColJockeyInfo horse={horse} history={history} />
+          <ColJockeyInfo horse={horse} history={history} jockeyStat={jockeyStat} />
         </div>
         <div className="col-span-2 md:col-span-1 border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
           <ColHistory history={history} />
@@ -703,6 +756,23 @@ export function PredictionSheet() {
   const { data: abilities } = useHorseSectionalAbilityByNames(hrNames);
   const { data: bloodlines } = useHorseBloodlinesByNames(hrNames);
 
+  // 조교사 승수 (최근 2년 집계)
+  const trainerNames = useMemo(
+    () => [...new Set((horses ?? []).map((h) => h.trar_nm).filter(Boolean) as string[])],
+    [horses]
+  );
+  const { data: trainerStatsMap } = useTrainerStatsBatch(trainerNames);
+
+  // 기수 통산 성적 (jockey_stats 배치)
+  const jckyNos = useMemo(
+    () => [...new Set((horses ?? []).map((h) => h.jcky_no).filter(Boolean) as string[])],
+    [horses]
+  );
+  const { data: jockeyStatsMap } = useJockeyStatsBatch(jckyNos, meet);
+
+  // 해당 등급/거리 우승마 평균기록
+  const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
+
   const predByName = useMemo(() => {
     const map = new Map<string, Prediction>();
     (predictions ?? []).forEach((p) => map.set(p.hr_name, p));
@@ -727,7 +797,9 @@ export function PredictionSheet() {
 
   const bloodlineByName = useMemo(() => {
     const map = new Map<string, BloodlineInfo>();
-    (bloodlines ?? []).forEach((b) => map.set(b.hr_name, { sire_hr_nm: b.sire_hr_nm, dam_hr_nm: b.dam_hr_nm }));
+    (bloodlines ?? []).forEach((b) =>
+      map.set(b.hr_name, { sire_hr_nm: b.sire_hr_nm, dam_hr_nm: b.dam_hr_nm })
+    );
     return map;
   }, [bloodlines]);
 
@@ -737,7 +809,6 @@ export function PredictionSheet() {
     return map;
   }, [horses]);
 
-  // Item 3: 마번순 정렬
   const sortedHorses = useMemo(() => {
     if (!horses) return [];
     return [...horses].sort((a, b) => a.pthr_no - b.pthr_no);
@@ -753,7 +824,10 @@ export function PredictionSheet() {
   return (
     <div className="space-y-4 pb-8">
       {/* 경주 헤더 */}
-      <div className="flex items-start gap-2 text-sm flex-wrap" style={{ color: 'var(--color-text-secondary)' }}>
+      <div
+        className="flex items-start gap-2 text-sm flex-wrap"
+        style={{ color: 'var(--color-text-secondary)' }}
+      >
         <Link
           to={`/race/${meet}/${rcDate}/${rcNo}/entries`}
           className="inline-flex items-center gap-1 hover:text-white transition-colors shrink-0"
@@ -786,6 +860,13 @@ export function PredictionSheet() {
               style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}
             >
               {race.prize_cond}
+            </span>
+          )}
+          {/* 해당등급 우승마 평균/최고기록 */}
+          {gradeStats && (
+            <span className="text-xs font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+              등급평균 {formatRcTime(gradeStats.avg)} / 최고 {formatRcTime(gradeStats.best)}
+              <span className="ml-1">({gradeStats.count}경주)</span>
             </span>
           )}
           {race?.track && <span className="text-xs">{race.track}</span>}
@@ -852,6 +933,8 @@ export function PredictionSheet() {
               history={historyByName.get(horse.hr_name) ?? []}
               runningStyle={styleByName.get(horse.hr_name) ?? 'unknown'}
               bloodline={bloodlineByName.get(horse.hr_name)}
+              trainerStat={trainerStatsMap?.get(horse.trar_nm ?? '')}
+              jockeyStat={jockeyStatsMap?.get(horse.jcky_no ?? '')}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
