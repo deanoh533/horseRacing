@@ -141,6 +141,10 @@ npm run test:run     # vitest 단위 테스트
 - [docs/troubleshooting.md](docs/troubleshooting.md) — 현재 발견된 의문·수정점
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — 배포 메모
 
+### 세션 인계 (새 세션 정독 추천)
+- [docs/working_style.md](docs/working_style.md) — **시니어 개발자 + 설계자 관점, 협업 패턴**
+- [docs/running_style_insight.md](docs/running_style_insight.md) — 주행 성향 분류 큰그림·현재 위치·다음 단계 (⑥⑫⑲)
+
 ### 할일
 - [TODO.md](TODO.md) — 우선순위별 할일
 
