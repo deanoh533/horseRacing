@@ -56,7 +56,7 @@
 ### DB에 이미 있는데 화면에 없는 것 (빠른 추가)
 
 - [ ] **D-001 배당 인기순위 표시** — `popularity` 컬럼 사전 예측화면에 표시 (경기 전 popularity 값은 없지만 사후 기록에는 있음 — 결과 화면에 인기 대비 예측 비교)
-- [ ] **D-002 조교 시간 표시** — `training_logs.st_time / sp_time` → 말 상세(HorseDetail) 또는 예상지 조교 이력란에 추가
+- [x] **D-002 조교 시간 표시** — 2026-05-28 완료. `tr_term`(소요초)+chul_gubun+pr_gubun. 예상지 최신 1건, HorseDetail 30일 테이블.
 - [ ] **D-003 장구 변경 표시** — `race_entries.asis_equip1~5` → 이전 경주 대비 장구 변경 시 강조 표시
 
 ### 파생 가능한 전문가 필수 지표
