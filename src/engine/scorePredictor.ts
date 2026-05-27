@@ -180,13 +180,23 @@ async function buildEngineInput(
     })
     .filter((p) => p.startOrd > 0 && p.fieldSize >= 2);
 
-  // 통산 선행 성공률 (horse_sectional_ability view)
-  const { data: abilityRow } = await sb
-    .from('horse_sectional_ability')
-    .select('front_run_success_rate')
-    .eq('hr_name', e.hr_name)
-    .maybeSingle();
-  const frontRunSuccessRate = abilityRow?.front_run_success_rate ?? undefined;
+  // 통산 선행 성공률 + 거리별 결승 비율 (horse_sectional_ability / horse_running_style_by_distance)
+  const distCategory = rcDistToCategory(e.rc_dist);
+  const [abilityResult, distStyleResult] = await Promise.all([
+    sb.from('horse_sectional_ability')
+      .select('front_run_success_rate')
+      .eq('hr_name', e.hr_name)
+      .maybeSingle(),
+    distCategory
+      ? sb.from('horse_running_style_by_distance')
+          .select('avg_finish_ratio')
+          .eq('hr_name', e.hr_name)
+          .eq('dist_category', distCategory)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const frontRunSuccessRate = abilityResult.data?.front_run_success_rate ?? undefined;
+  const distFinishRatio: number | null = (distStyleResult.data as { avg_finish_ratio?: number | null } | null)?.avg_finish_ratio ?? null;
 
   const overallOrds = hist5.filter((r) => r.ord != null).map((r) => r.ord as number);
   const sameTrackOrds = hist5
@@ -262,6 +272,7 @@ async function buildEngineInput(
     positions,
     frontRunSuccessRate,
     sameDistOrds,
+    distFinishRatio,
     overallOrds,
     sameTrackOrds,
     burdenHistory,
@@ -310,6 +321,13 @@ async function buildBurdenHistory(
     results.push({ ord: h.ord as number, myBudam: h.burd_wgt as number, raceAvgBudam });
   }
   return results;
+}
+
+function rcDistToCategory(dist: number | null): 'short' | 'middle' | 'long' | null {
+  if (dist == null) return null;
+  if (dist < 1400) return 'short';
+  if (dist <= 1800) return 'middle';
+  return 'long';
 }
 
 function monthToSeason(month: number): 'spring' | 'summer' | 'autumn' | 'winter' {

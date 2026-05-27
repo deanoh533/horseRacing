@@ -67,6 +67,8 @@ export interface ScoreEngineInput {
 
   // ⑥ 거리 적성
   sameDistOrds?: number[];
+  /** horse_running_style_by_distance.avg_finish_ratio (primary, 있으면 우선) */
+  distFinishRatio?: number | null;
 
   // ⑦ 주로 적응
   overallOrds?: number[];
@@ -191,7 +193,10 @@ export class ScoreEngine {
     // ⑥ 거리 적성
     items['06_distance_fitness'] = this.make(
       '06_distance_fitness',
-      calculateDistanceFitnessScore({ sameDistOrds: input.sameDistOrds ?? [] })
+      calculateDistanceFitnessScore({
+        sameDistOrds: input.sameDistOrds ?? [],
+        distFinishRatio: input.distFinishRatio,
+      })
     );
 
     // ⑦ 주로 적응
