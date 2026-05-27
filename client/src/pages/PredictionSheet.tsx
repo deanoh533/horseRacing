@@ -488,26 +488,29 @@ function HorseCard({
   return (
     <div className="rounded-xl overflow-hidden"
       style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}>
-      {/* 모바일: 1열 세로 스택 / 데스크탑: 4열 그리드 */}
-      <div className="flex flex-col md:grid"
-        style={{ gridTemplateColumns: '2fr 1.2fr 3fr 2fr' }}>
+      {/* 모바일: 2+2 그리드 / 데스크탑: 4열 그리드 */}
+      <div className="grid grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]">
 
-        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r md:border-[var(--color-bg-elevated)]">
+        {/* 마정보: 모바일 1/2, 데스크탑 auto */}
+        <div className="border-b border-r border-[var(--color-bg-elevated)] md:border-b-0">
           <ColHorseInfo
             horse={horse} prediction={prediction}
             maxScore={maxScore} runningStyle={runningStyle} accentColor={accentColor}
           />
         </div>
 
-        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r md:border-[var(--color-bg-elevated)]">
+        {/* 기수정보: 모바일 2/2, 데스크탑 auto */}
+        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
           <ColJockeyInfo horse={horse} />
         </div>
 
-        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r md:border-[var(--color-bg-elevated)]">
+        {/* 직전경주: 모바일 전체 폭, 데스크탑 auto */}
+        <div className="col-span-2 md:col-span-1 border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
           <ColHistory history={history} />
         </div>
 
-        <div>
+        {/* 5항목: 모바일 전체 폭, 데스크탑 auto */}
+        <div className="col-span-2 md:col-span-1">
           <Col5Items
             itemScores={prediction?.item_scores}
             accentColor={accentColor}
