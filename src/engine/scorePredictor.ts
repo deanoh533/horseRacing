@@ -14,6 +14,7 @@ interface EntryRow {
   rc_no: number;
   pthr_no: number;
   hr_name: string;
+  hr_no: string | null;
   ag: number | null;
   gndr: string | null;
   ratg: number | null;
@@ -49,7 +50,7 @@ export async function predictRace(
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, pthr_no, hr_name, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, jcky_no, trar_no, popularity, erng_sump')
+    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, jcky_no, trar_no, popularity, erng_sump')
     .eq('race_date', rcDate)
     .eq('meet', meet)
     .eq('rc_no', rcNo)
@@ -181,8 +182,9 @@ async function buildEngineInput(
     .filter((p) => p.startOrd > 0 && p.fieldSize >= 2);
 
   // 통산 선행 성공률 + 거리별 결승 비율 (horse_sectional_ability / horse_running_style_by_distance)
+  // + 혈통 DSA 지수 (horses 테이블)
   const distCategory = rcDistToCategory(e.rc_dist);
-  const [abilityResult, distStyleResult] = await Promise.all([
+  const [abilityResult, distStyleResult, pedigreeResult] = await Promise.all([
     sb.from('horse_sectional_ability')
       .select('front_run_success_rate, avg_position_ratio, stddev_position_ratio')
       .eq('hr_name', e.hr_name)
@@ -194,11 +196,33 @@ async function buildEngineInput(
           .eq('dist_category', distCategory)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    e.hr_no
+      ? sb.from('horses')
+          .select('dsa_bri_vl, dsa_clc_vl, dsa_ier_vl, dsa_prf_vl, dsidx_vl')
+          .eq('hr_no', e.hr_no)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const frontRunSuccessRate = abilityResult.data?.front_run_success_rate ?? undefined;
   const distFinishRatio: number | null = (distStyleResult.data as { avg_finish_ratio?: number | null } | null)?.avg_finish_ratio ?? null;
   const avgPositionRatio: number | null = (abilityResult.data as { avg_position_ratio?: number | null } | null)?.avg_position_ratio ?? null;
   const stddevPositionRatio: number | null = (abilityResult.data as { stddev_position_ratio?: number | null } | null)?.stddev_position_ratio ?? null;
+  const pedigreeRow = pedigreeResult.data as {
+    dsa_bri_vl?: number | null;
+    dsa_clc_vl?: number | null;
+    dsa_ier_vl?: number | null;
+    dsa_prf_vl?: number | null;
+    dsidx_vl?: number | null;
+  } | null;
+  const pedigree: ScoreEngineInput['pedigree'] = pedigreeRow
+    ? {
+        dsaBriVl: pedigreeRow.dsa_bri_vl ?? undefined,
+        dsaClcVl: pedigreeRow.dsa_clc_vl ?? undefined,
+        dsaIerVl: pedigreeRow.dsa_ier_vl ?? undefined,
+        dsaPrfVl: pedigreeRow.dsa_prf_vl ?? undefined,
+        dsidxVl: pedigreeRow.dsidx_vl ?? undefined,
+      }
+    : undefined;
 
   const overallOrds = hist5.filter((r) => r.ord != null).map((r) => r.ord as number);
   const sameTrackOrds = hist5
@@ -288,7 +312,7 @@ async function buildEngineInput(
     avgPositionRatio,
     stddevPositionRatio,
     age: e.ag ?? 0,
-    pedigree: {},
+    pedigree,
     sameSeasonOrds,
     horseAllOrds,
     combinationOrds,

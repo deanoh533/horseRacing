@@ -69,6 +69,7 @@ async function main() {
         const { error: updErr } = await sb
           .from('race_entries')
           .update({
+            ratg: row.ratg,
             // 부경 (이미 있을 수도 있지만 일관성 위해 UPSERT)
             bu_g1f_acc_time: row.bu_g1f_acc_time,
             bu_g2f_acc_time: row.bu_g2f_acc_time,

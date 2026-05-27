@@ -255,6 +255,7 @@ export interface RaceEntryResultRow {
   wg_jk: number | null;
   win_odds: number | null;
   plc_odds: number | null;
+  ratg: number | null;
   popularity: number | null;
   bu_g1f_acc_time: number | null;
   bu_g2f_acc_time: number | null;
@@ -352,6 +353,7 @@ export function toRaceEntryResultRow(horse: KRARaceResult): RaceEntryResultRow {
     wg_jk: horse.wgJk ?? null,
     win_odds: horse.winOdds ?? null,
     plc_odds: horse.plcOdds ?? null,
+    ratg: horse.rating && horse.rating > 0 ? horse.rating : null,
     popularity: null,
     // KRA가 미측정 값을 0으로 보내는 경우 있음 → zeroToNull로 일관 처리
     bu_g1f_acc_time: zeroToNull(horse.buG1fAccTime),

@@ -197,26 +197,26 @@ export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
 /** 별칭 (간결한 이름) */
 export type ItemId = ScoreItemId;
 
-/** 17개 항목 비중 (총 100점) */
+/** 18개 항목 비중 (총 100점) — 2026-05-28 Spearman ρ 기반 재조정 */
 export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
-  '01_rating': 17.54,
-  '02_weight_change': 4.21,
-  '03_recent_form': 4.21,
-  '04_sectional_time': 2.37,
-  '05_late_position': 2.37,
-  '06_distance_fitness': 8.77,
-  '07_track_adaptation': 8.77,
-  '08_burden_weight': 4.39,
-  '09_jockey_form': 10.53,
-  '10_trainer_form': 7.02,
-  '11_race_interval': 3.51,
-  '12_starting_position': 2.63,
-  '13_age_distance_gender': 0,  // ρ=-0.017 (역방향). 예측 방해 확인 → 비활성화
-  '14_pedigree': 4.39,
-  '15_seasonal_pattern': 4.39,
-  '16_jockey_horse_chemistry': 3.51,
-  '17_market_odds': 8.77,
-  '18_earnings': 8.77,
+  '01_rating': 6.00,           // ratg 17.8% 공백 → 데이터 복구 후 재측정 예정
+  '02_weight_change': 1.00,    // ρ=-0.098, 신호 미미
+  '03_recent_form': 10.00,     // ρ=0.241 ✅
+  '04_sectional_time': 1.00,   // ρ=-0.225 (피크아웃 효과 의심), 최소 유지
+  '05_late_position': 12.50,   // ρ=0.296 ✅
+  '06_distance_fitness': 24.00, // ρ=0.572 ✅ 압도적 1위
+  '07_track_adaptation': 1.00, // ρ=-0.304, 최소 유지
+  '08_burden_weight': 11.00,   // ρ=0.263 ✅
+  '09_jockey_form': 7.50,      // ρ=0.181 ✅
+  '10_trainer_form': 4.50,     // ρ=0.107 ✅
+  '11_race_interval': 4.00,    // 이전 ρ=0.142, 임시 보류
+  '12_starting_position': 4.50, // ρ=0.104 ✅
+  '13_age_distance_gender': 0,  // ρ=-0.017 (역방향) → 비활성화
+  '14_pedigree': 3.00,          // 미조회 버그 수정 후 재측정 예정
+  '15_seasonal_pattern': 2.00,  // ρ=-0.020, 약함
+  '16_jockey_horse_chemistry': 2.00, // ρ=-0.092, 약함
+  '17_market_odds': 3.00,       // ρ=0.109, 순환참조 이슈
+  '18_earnings': 3.00,          // erng_sump 공백 → 데이터 복구 후 재측정 예정
 };
 
 /** 17개 항목 한국어 이름 */
