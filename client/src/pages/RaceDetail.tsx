@@ -1,11 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronDown, Sparkles, Bot, Loader2 } from 'lucide-react';
-import { useHorsesByRace, usePredictionsByRace } from '../lib/queries';
+import { useHorsesByRace, usePredictionsByRace, useGradeWinnerStats } from '../lib/queries';
+import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import { supabase, type RaceEntry, type Race, type Prediction, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-
-const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부산경남' };
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
@@ -37,6 +36,7 @@ export function RaceDetail() {
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
   const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
+  const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
 
   // hr_name → Prediction 맵
   const predictionMap = useMemo(() => {
@@ -62,41 +62,26 @@ export function RaceDetail() {
 
   return (
     <div className="space-y-4">
-      {/* 헤더 */}
-      <div className="flex items-center gap-2 text-sm flex-wrap">
+      {/* 내비게이션 */}
+      <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
         <Link
           to="/dashboard"
-          className="inline-flex items-center gap-1 text-[var(--color-text-secondary)] hover:text-white"
+          className="inline-flex items-center gap-1 hover:text-white"
         >
           <ChevronLeft className="w-4 h-4" />
           뒤로
         </Link>
-        <span className="text-[var(--color-text-disabled)]">|</span>
-        <span className="font-semibold">
-          {MEET_NAMES[meet] ?? '?'} {rcNo}R
-        </span>
-        {race?.rc_dist && <span className="font-mono-num">{race.rc_dist}m</span>}
-        {race?.rc_name && (
-          <span className="text-[var(--color-text-secondary)]">{race.rc_name}</span>
-        )}
-        {race?.track && (
-          <>
-            <span>|</span>
-            <span>{race.track}</span>
-          </>
-        )}
-        {race?.weather && (
-          <>
-            <span>|</span>
-            <span>{race.weather}</span>
-          </>
-        )}
-        {horses && (
-          <span className="text-xs text-[var(--color-text-disabled)]">
-            {horses.length}마
-          </span>
-        )}
       </div>
+
+      {/* 경주 정보 카드 */}
+      <RaceInfoBlock
+        rcDate={rcDate}
+        meet={meet}
+        rcNo={rcNo}
+        race={race}
+        horses={horses}
+        gradeStats={gradeStats}
+      />
 
       {/* AI 요약 (placeholder - Phase 2) */}
       <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] flex items-start gap-3">

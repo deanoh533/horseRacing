@@ -12,6 +12,7 @@ import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { ChevronLeft, Loader2, LayoutList, Activity } from 'lucide-react';
+import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -139,12 +140,6 @@ function formatDate(d: number): string {
   return `${m}/${String(day).padStart(2, '0')}`;
 }
 
-function formatRcDate(d: number): string {
-  const y = Math.floor(d / 10000);
-  const m = Math.floor((d % 10000) / 100);
-  const day = d % 100;
-  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
 
 function ordColor(ord: number | null): string {
   if (ord === 1) return 'var(--color-accent-gold)';
@@ -562,7 +557,7 @@ function Col5Items({
       {/* A/B 토글 */}
       <div className="flex items-center justify-between">
         <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
-          5항목 점수
+          주요 항목 점수
         </span>
         <div
           className="flex items-center rounded overflow-hidden text-sm font-medium"
@@ -833,81 +828,38 @@ export function PredictionSheet() {
 
   return (
     <div className="space-y-4 pb-8">
-      {/* 경주 헤더 */}
-      <div
-        className="flex items-start gap-2 text-sm flex-wrap"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
+      {/* 내비게이션 */}
+      <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
         <Link
           to={`/race/${meet}/${rcDate}/${rcNo}/entries`}
-          className="inline-flex items-center gap-1 hover:text-white transition-colors shrink-0"
+          className="inline-flex items-center gap-1 hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           출마정보
         </Link>
-        <span style={{ color: 'var(--color-text-disabled)' }}>|</span>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-mono-num text-xs" style={{ color: 'var(--color-text-disabled)' }}>
-            {formatRcDate(rcDate)}
+        {isPostRace && (
+          <span
+            className="text-xs px-1.5 py-0.5 rounded"
+            style={{
+              background: 'rgba(0,200,83,0.12)',
+              color: 'var(--color-success)',
+              border: '1px solid rgba(0,200,83,0.25)',
+            }}
+          >
+            사후
           </span>
-          <span className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
-            {MEET_NAMES[meet] ?? '?'} {rcNo}R
-          </span>
-          {race?.rc_dist != null && (
-            <span className="font-mono-num" style={{ color: 'var(--color-text-primary)' }}>
-              {race.rc_dist}m
-            </span>
-          )}
-          {race?.rc_name && <span>{race.rc_name}</span>}
-          {race?.age_cond && (
-            <span
-              className="text-xs px-1.5 py-0.5 rounded"
-              style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}
-            >
-              {race.age_cond}
-            </span>
-          )}
-          {race?.prize_cond && (
-            <span
-              className="text-xs px-1.5 py-0.5 rounded"
-              style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}
-            >
-              {race.prize_cond}
-            </span>
-          )}
-          {/* 해당등급 우승마 평균/최고기록 */}
-          {gradeStats && (
-            <span className="text-xs font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-              등급평균 {formatRcTime(gradeStats.avg)} / 최고 {formatRcTime(gradeStats.best)}
-              <span className="ml-1">({gradeStats.count}경주)</span>
-            </span>
-          )}
-          {race?.track && <span className="text-xs">{race.track}</span>}
-          {race?.weather && <span className="text-xs">{race.weather}</span>}
-          {race?.chaksun1 != null && race.chaksun1 > 0 && (
-            <span className="text-xs font-mono-num" style={{ color: 'var(--color-accent-gold)' }}>
-              1위 {formatErng(race.chaksun1)}
-            </span>
-          )}
-          {isPostRace && (
-            <span
-              className="text-xs px-1.5 py-0.5 rounded"
-              style={{
-                background: 'rgba(0,200,83,0.12)',
-                color: 'var(--color-success)',
-                border: '1px solid rgba(0,200,83,0.25)',
-              }}
-            >
-              사후
-            </span>
-          )}
-          {horses && (
-            <span className="text-xs font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-              {horses.length}마 출전
-            </span>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* 경주 정보 카드 */}
+      <RaceInfoBlock
+        rcDate={rcDate}
+        meet={meet}
+        rcNo={rcNo}
+        race={race}
+        horses={horses}
+        gradeStats={gradeStats}
+      />
 
       {/* Top 3 포디엄 */}
       {top3.length > 0 && <PodiumCards top3={top3} pthrNoByName={pthrNoByName} />}

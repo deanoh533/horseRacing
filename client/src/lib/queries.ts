@@ -613,24 +613,27 @@ export function useJockeyStatsBatch(jckyNos: string[], meet: number) {
 export function useGradeWinnerStats(prizeCond: string | null, rcDist: number | null) {
   return useQuery({
     queryKey: ['grade-winner-stats', prizeCond, rcDist],
-    queryFn: async (): Promise<{ avg: number; best: number; count: number } | null> => {
+    queryFn: async (): Promise<{ avg: number; best: number; count: number; avgBurdWgt: number | null } | null> => {
       if (!prizeCond || !rcDist) return null;
       const { data, error } = await supabase
         .from('race_entries')
-        .select('rc_time, races!inner(prize_cond, rc_dist)')
+        .select('rc_time, burd_wgt, races!inner(prize_cond, rc_dist)')
         .eq('ord', 1)
         .not('rc_time', 'is', null)
         .filter('races.prize_cond', 'eq', prizeCond)
         .filter('races.rc_dist', 'eq', rcDist);
       if (error) throw error;
-      const times = (data ?? [])
-        .map((r: any) => r.rc_time as number)
-        .filter((t) => t > 0);
-      if (times.length < 3) return null;
+      const items = (data ?? []).filter((r: any) => (r.rc_time as number) > 0);
+      if (items.length < 3) return null;
+      const times = items.map((r: any) => r.rc_time as number);
+      const wgts = items
+        .map((r: any) => r.burd_wgt as number | null)
+        .filter((w): w is number => w != null && w > 0);
       return {
         avg: times.reduce((a, b) => a + b, 0) / times.length,
         best: Math.min(...times),
-        count: times.length,
+        count: items.length,
+        avgBurdWgt: wgts.length > 0 ? wgts.reduce((a, b) => a + b, 0) / wgts.length : null,
       };
     },
     enabled: !!prizeCond && !!rcDist,

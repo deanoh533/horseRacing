@@ -42,6 +42,8 @@ export interface Race {
   age_cond: string | null;
   prize_cond: string | null;
   chaksun1: number | null;
+  chaksun2: number | null;
+  chaksun3: number | null;
 }
 
 /** race_entries 통합 테이블 (사전 + 사후) */

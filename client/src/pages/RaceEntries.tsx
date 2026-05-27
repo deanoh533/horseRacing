@@ -9,6 +9,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target, History, Dumbbell, Dna } from 'lucide-react';
+import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import {
   useHorsesByRace,
   usePredictionsByRace,
@@ -19,12 +20,11 @@ import {
   useHorseTraining,
   useJockeyStats,
   useHorseInfo,
+  useGradeWinnerStats,
 } from '../lib/queries';
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { classifyRunningStyle, STYLE_INFO, describeFrontRunSuccess, type RunningStyle } from '../lib/runningStyle';
-
-const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부산경남' };
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
@@ -102,6 +102,7 @@ export function RaceEntries() {
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
   const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
+  const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
 
   const hrNames = useMemo(() => (horses ?? []).map((h) => h.hr_name), [horses]);
   const historyQueries = useMultipleHorseHistories(hrNames, rcDate);
@@ -171,73 +172,26 @@ export function RaceEntries() {
 
   return (
     <div className="space-y-4">
-      {/* 헤더 */}
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-2 text-sm flex-wrap">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1 text-[var(--color-text-secondary)] hover:text-white"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            뒤로
-          </Link>
-          <span className="text-[var(--color-text-disabled)]">|</span>
-          <span className="font-mono-num text-xs text-[var(--color-text-disabled)]">
-            {formatFullDate(rcDate)}
-          </span>
-          <span className="font-semibold">
-            {MEET_NAMES[meet] ?? '?'} {rcNo}R
-          </span>
-          {race?.rc_dist != null && (
-            <span className="font-mono-num">{race.rc_dist}m</span>
-          )}
-          {race?.rc_name && (
-            <span className="text-[var(--color-text-secondary)]">{race.rc_name}</span>
-          )}
-          {horses && (
-            <span className="text-xs text-[var(--color-text-disabled)] ml-auto">
-              {horses.length}마
-            </span>
-          )}
-        </div>
-        {/* 경주 조건 배지 (데이터 로드 후 표시) */}
-        {race && (
-          <div className="flex items-center gap-1.5 flex-wrap text-xs">
-            {race.age_cond && (
-              <span className="px-2 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]">
-                {race.age_cond}
-              </span>
-            )}
-            {race.prize_cond && (
-              <span
-                className="px-2 py-0.5 rounded border font-medium"
-                style={{
-                  background: 'rgba(0,229,255,0.08)',
-                  border: '1px solid rgba(0,229,255,0.3)',
-                  color: 'var(--color-accent-cyan)',
-                }}
-              >
-                {race.prize_cond}
-              </span>
-            )}
-            {race.track && (
-              <span className="px-2 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]">
-                {race.track}
-              </span>
-            )}
-            {race.weather && (
-              <span className="px-2 py-0.5 rounded bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]">
-                {race.weather}
-              </span>
-            )}
-            {race.chaksun1 != null && race.chaksun1 > 0 && (
-              <span className="font-mono-num font-semibold" style={{ color: 'var(--color-accent-gold)' }}>
-                1위 {formatErng(race.chaksun1)}
-              </span>
-            )}
-          </div>
-        )}
+      {/* 내비게이션 */}
+      <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-1 hover:text-white"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          뒤로
+        </Link>
       </div>
+
+      {/* 경주 정보 카드 */}
+      <RaceInfoBlock
+        rcDate={rcDate}
+        meet={meet}
+        rcNo={rcNo}
+        race={race}
+        horses={horses}
+        gradeStats={gradeStats}
+      />
 
       {/* AI 예측 요약 박스 (가볍게, 별도 강조) */}
       {top3.length > 0 && (
@@ -500,12 +454,6 @@ function formatShortDate(rcDate: number): string {
   return `${m}/${String(d).padStart(2, '0')}`;
 }
 
-function formatFullDate(d: number): string {
-  const y = Math.floor(d / 10000);
-  const m = Math.floor((d % 10000) / 100);
-  const day = d % 100;
-  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
 
 // ============================================================
 // Fragment wrapper for two-row entry (main + expand)
