@@ -56,8 +56,14 @@ export interface ScoreEngineInput {
   sameDistTrackTimes?: Array<{ rcTime: number; lastFurlong: number }>;
   sameDistOnlyTimes?: Array<{ rcTime: number; lastFurlong: number }>;
 
-  // ⑤ 후반 구간 순위
-  positions?: Array<{ startOrd: number; finishOrd: number }>;
+  // ⑤ 후반 구간 순위 (Step 2 확장: fieldSize·g1fOrd 추가, frontRunSuccessRate multiplier)
+  positions?: Array<{
+    startOrd: number;
+    finishOrd: number;
+    fieldSize: number;
+    g1fOrd?: number;
+  }>;
+  frontRunSuccessRate?: number;
 
   // ⑥ 거리 적성
   sameDistOrds?: number[];
@@ -176,7 +182,10 @@ export class ScoreEngine {
     // ⑤ 후반 구간 순위
     items['05_late_position'] = this.make(
       '05_late_position',
-      calculateLatePositionScore({ positions: input.positions ?? [] })
+      calculateLatePositionScore({
+        positions: input.positions ?? [],
+        frontRunSuccessRate: input.frontRunSuccessRate,
+      })
     );
 
     // ⑥ 거리 적성

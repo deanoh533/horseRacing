@@ -1,51 +1,112 @@
 /**
- * 항목 ⑤ 후반 구간 순위 (지구력 + 선두형 가점)
+ * 항목 ⑤ 후반 구간 순위 (Step 2 — 확장판)
  * 비중: 2.37점 / 100
  *
- * 알고리즘:
- *   - 마지막 펄롱 순위 점수: 80%
- *   - 변화 보너스 (스타일): 20%
- *   - 선두형 유지 (1→1)도 가점 (사용자 피드백)
- *   - 최근 가중치 적용
+ * 알고리즘 (옵션 C 보강):
+ *   - position_ratio 사용: 출전두수 정규화 (5마 1등 vs 14마 1등 공평 비교)
+ *   - 3시점 분석: s1f → g1f → ord (가능 시), 아니면 s1f → ord
+ *   - front_run_success_rate를 선행 후보 말에 multiplier로 적용
+ *     (선행 잘하는 말은 + 보너스, 선행 후 후퇴하는 말은 - 페널티)
+ *   - 최근 가중치
+ *
+ * ChatGPT 도메인 인사이트 + 우리 데이터(3,551마) 검증 반영.
  */
 
-export interface LatePositionInput {
-  /** 최근 5경주의 (1펄롱 순위, 마지막 펄롱 순위) */
-  positions: Array<{ startOrd: number; finishOrd: number }>;
+export interface PositionData {
+  /** 초반 200m 순위 (s1f_ord) */
+  startOrd: number;
+  /** 결승선 순위 (ord) */
+  finishOrd: number;
+  /** 그 경주 출전두수 (ratio 정규화용). 2 이상이어야 의미 있음. */
+  fieldSize: number;
+  /** 종반 200m 순위 (g1f_ord). 없으면 2시점만 분석 */
+  g1fOrd?: number;
 }
 
-const ORD_MAP: Record<number, number> = { 1: 100, 2: 80, 3: 60, 4: 40, 5: 20 };
+export interface LatePositionInput {
+  /** 최근 5경주의 위치 데이터 (첫 번째가 최근) */
+  positions: PositionData[];
+  /** 통산 선행 성공률 (출발 상위 30% → 결승 상위 30% 비율). 0~1 */
+  frontRunSuccessRate?: number;
+}
+
 const WEIGHTS = [0.4, 0.25, 0.15, 0.1, 0.1]; // 최근 우선
 
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x));
+}
+
+function positionRatio(ord: number, fieldSize: number): number | null {
+  if (fieldSize < 2 || ord < 1) return null;
+  return (ord - 1) / (fieldSize - 1);
+}
+
+/**
+ * 한 경주의 점수 (0~1)
+ */
+function scoreOneRace(p: PositionData): number | null {
+  const startR = positionRatio(p.startOrd, p.fieldSize);
+  const finishR = positionRatio(p.finishOrd, p.fieldSize);
+  if (startR === null || finishR === null) return null;
+
+  // 1. finishScore: 결승 ratio 낮을수록 (앞일수록) 점수 ↑
+  const finishScore = 1 - finishR; // 0 (꼴등) ~ 1 (1등)
+
+  // 2. gainScore: 위치 변화
+  let gainScore: number;
+  if (p.g1fOrd != null && p.g1fOrd >= 1) {
+    const midR = positionRatio(p.g1fOrd, p.fieldSize);
+    if (midR === null) {
+      // 2시점만
+      gainScore = clamp01((startR - finishR) * 0.5 + 0.5);
+    } else {
+      // 3시점: 중반 추격 + 막판 가속
+      const midGain = clamp01((startR - midR) * 0.5 + 0.5);
+      const lateGain = clamp01((midR - finishR) * 0.5 + 0.5);
+      gainScore = midGain * 0.6 + lateGain * 0.4;
+    }
+  } else {
+    // 2시점만
+    gainScore = clamp01((startR - finishR) * 0.5 + 0.5);
+  }
+
+  // 3. 결합 (finish 60% + gain 40%)
+  return finishScore * 0.6 + gainScore * 0.4;
+}
+
 export function calculateLatePositionScore(input: LatePositionInput): number {
-  const { positions } = input;
+  const { positions, frontRunSuccessRate } = input;
   if (!positions || positions.length === 0) return 0.5;
 
-  const scores = positions.map((p) => {
-    if (!p.startOrd || !p.finishOrd) return 50;
+  // 각 경주 점수
+  const perRace: number[] = [];
+  const startRatios: number[] = [];
+  for (const p of positions) {
+    const s = scoreOneRace(p);
+    if (s === null) continue;
+    perRace.push(s);
+    const sr = positionRatio(p.startOrd, p.fieldSize);
+    if (sr !== null) startRatios.push(sr);
+  }
+  if (perRace.length === 0) return 0.5;
 
-    // 마지막 펄롱 순위 점수 (80%)
-    const finishScore = ORD_MAP[p.finishOrd] ?? 0;
-
-    // 변화 보너스 (20%)
-    const change = p.startOrd - p.finishOrd; // 양수 = 추월
-    let changeBonus: number;
-    if (change >= 3) changeBonus = 100; // 강한 추월
-    else if (change >= 1) changeBonus = 50; // 보통 추월
-    else if (change === 0) changeBonus = 30; // 위치 유지 (선두형 가점)
-    else if (change >= -1) changeBonus = -30;
-    else if (change >= -3) changeBonus = -70;
-    else changeBonus = -100;
-
-    return Math.max(0, Math.min(100, finishScore * 0.8 + changeBonus * 0.2));
-  });
-
-  // 가중 평균
-  const usedWeights = WEIGHTS.slice(0, scores.length);
+  // 최근 가중 평균
+  const usedWeights = WEIGHTS.slice(0, perRace.length);
   const weightSum = usedWeights.reduce((s, w) => s + w, 0);
-  const weightedAvg =
-    scores.reduce((sum, s, i) => sum + s * (usedWeights[i] ?? 0), 0) /
-    weightSum;
+  let weightedAvg =
+    perRace.reduce((sum, s, i) => sum + s * (usedWeights[i] ?? 0), 0) / weightSum;
 
-  return weightedAvg / 100;
+  // front_run_success_rate multiplier (선행 성향 말만)
+  // 출발 평균 ratio ≤ 0.3 = 선행 후보
+  if (frontRunSuccessRate != null && startRatios.length > 0) {
+    const avgStartRatio =
+      startRatios.reduce((s, v) => s + v, 0) / startRatios.length;
+    if (avgStartRatio <= 0.3) {
+      // success 0 → ×0.7, success 1 → ×1.3, 가운데 0.5 → ×1.0
+      const multiplier = 0.7 + clamp01(frontRunSuccessRate) * 0.6;
+      weightedAvg = clamp01(weightedAvg * multiplier);
+    }
+  }
+
+  return weightedAvg;
 }

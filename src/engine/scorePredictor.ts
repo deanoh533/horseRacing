@@ -117,7 +117,7 @@ async function buildEngineInput(
   // 구간기록 컬럼 포함: ④ lastFurlong 계산, ⑤ positions 계산용
   const { data: hist5raw } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord')
+    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord')
     .eq('hr_name', e.hr_name)
     .lt('race_date', rcDate)
     .not('ord', 'is', null)
@@ -146,14 +146,47 @@ async function buildEngineInput(
     .filter((r) => r.rc_dist === e.rc_dist && r.rc_time != null)
     .map((r) => ({ rcTime: r.rc_time as number, lastFurlong: calcLastFurlong(r) }));
 
-  // ⑤ 후반 구간 순위 — startOrd = s1f_ord(초반 200m, 에이스경마 21번 시점)
+  // ⑤ 후반 구간 순위 (Step 2 확장):
+  //   - startOrd = s1f_ord (초반 200m, 에이스경마 21번 시점)
+  //   - g1fOrd = g1f_ord (종반 200m, 3시점 분석)
+  //   - fieldSize = 그 경주 출전두수 (ratio 정규화용)
+  //
+  // hist5의 각 race에 대해 field_size 병렬 조회 (5 queries Promise.all)
+  const fieldSizesMap = new Map<string, number>();
+  await Promise.all(
+    hist5.map(async (r) => {
+      const { count } = await sb
+        .from('race_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('race_date', r.race_date)
+        .eq('meet', r.meet)
+        .eq('rc_no', r.rc_no);
+      fieldSizesMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, count ?? 0);
+    })
+  );
+
   const positions = hist5
     .filter((r) => r.ord != null)
     .map((r) => {
       const startOrd = r.meet === 1 ? r.sj_s1f_ord : r.bu_s1f_ord;
-      return { startOrd: (startOrd as number) ?? 0, finishOrd: r.ord as number };
+      const g1fOrd = r.meet === 1 ? r.sj_g1f_ord : r.bu_g1f_ord;
+      const fieldSize = fieldSizesMap.get(`${r.race_date}-${r.meet}-${r.rc_no}`) ?? 0;
+      return {
+        startOrd: (startOrd as number) ?? 0,
+        finishOrd: r.ord as number,
+        fieldSize,
+        g1fOrd: (g1fOrd as number) ?? undefined,
+      };
     })
-    .filter((p) => p.startOrd > 0);
+    .filter((p) => p.startOrd > 0 && p.fieldSize >= 2);
+
+  // 통산 선행 성공률 (horse_sectional_ability view)
+  const { data: abilityRow } = await sb
+    .from('horse_sectional_ability')
+    .select('front_run_success_rate')
+    .eq('hr_name', e.hr_name)
+    .maybeSingle();
+  const frontRunSuccessRate = abilityRow?.front_run_success_rate ?? undefined;
 
   const overallOrds = hist5.filter((r) => r.ord != null).map((r) => r.ord as number);
   const sameTrackOrds = hist5
@@ -227,6 +260,7 @@ async function buildEngineInput(
     sameDistTrackTimes,
     sameDistOnlyTimes,
     positions,
+    frontRunSuccessRate,
     sameDistOrds,
     overallOrds,
     sameTrackOrds,
