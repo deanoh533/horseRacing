@@ -11,7 +11,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronDown, Loader2, LayoutList, Activity } from 'lucide-react';
+import { ChevronLeft, Loader2, LayoutList, Activity } from 'lucide-react';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import {
   Chart as ChartJS,
@@ -949,29 +949,17 @@ function HorseCard({
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   const pRank = prediction?.predicted_rank ?? 999;
   const pStyle = PODIUM_STYLES[pRank - 1];
   const accentColor = pStyle?.accent ?? 'var(--color-text-disabled)';
   const borderColor = pRank <= 3 ? `${accentColor}50` : 'var(--color-bg-elevated)';
-
-  // 모바일 확장에서 쓸 파생값
-  const currentGateStat = gateStats?.get(horse.pthr_no) ?? null;
-  const lastRaceDate = history[0]?.race_date ?? null;
-  const racingGap = lastRaceDate != null ? daysBetween(horse.race_date, lastRaceDate) : null;
-  const trainerWinRate =
-    trainerStat && trainerStat.total > 0
-      ? ((trainerStat.wins / trainerStat.total) * 100).toFixed(1)
-      : null;
 
   return (
     <div
       className="rounded-xl overflow-hidden"
       style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}
     >
-      {/* ── 데스크탑: 4열 그리드 ── */}
-      <div className="hidden md:grid md:[grid-template-columns:2fr_1.2fr_3fr_2fr]">
+      <div className="grid [grid-template-columns:2fr_1.2fr_3fr_2fr]">
         <div className="border-r border-[var(--color-bg-elevated)]">
           <ColHorseInfo
             horse={horse}
@@ -999,215 +987,6 @@ function HorseCard({
             onViewModeChange={onViewModeChange}
           />
         </div>
-      </div>
-
-      {/* ── 모바일: 아코디언 ── */}
-      <div className="md:hidden">
-        {/* 요약 행 */}
-        <button
-          className="w-full px-3 py-2.5 flex items-center gap-2 text-left"
-          onClick={() => setMobileOpen((o) => !o)}
-        >
-          {/* 마번 */}
-          <span
-            className="text-base font-bold font-mono-num shrink-0 w-7 text-center"
-            style={{ color: accentColor }}
-          >
-            {horse.pthr_no}
-          </span>
-          {/* 마명 + 성향 */}
-          <span className="flex-1 min-w-0 flex items-center gap-1.5">
-            <span className="text-sm font-bold truncate">{horse.hr_name}</span>
-            <StyleBadge style={runningStyle} />
-          </span>
-          {/* AI 순위·점수 */}
-          {pRank <= 3 && (
-            <span
-              className="text-xs font-bold px-1.5 py-0.5 rounded font-mono-num shrink-0"
-              style={{
-                background: `${accentColor}20`,
-                color: accentColor,
-                border: `1px solid ${accentColor}40`,
-              }}
-            >
-              AI {pRank}위
-            </span>
-          )}
-          {prediction && (
-            <span className="text-sm font-mono-num font-semibold shrink-0" style={{ color: accentColor }}>
-              {prediction.total_score.toFixed(1)}
-            </span>
-          )}
-          {/* 사후: 실제 착순 */}
-          {horse.ord != null && (
-            <span
-              className="text-sm font-mono-num font-bold shrink-0"
-              style={{ color: ordColor(horse.ord) }}
-            >
-              {horse.ord}위
-              {horse.popularity != null && (
-                <span className="text-[11px] font-normal ml-0.5" style={{ color: 'var(--color-text-disabled)' }}>
-                  /인기{horse.popularity}
-                </span>
-              )}
-            </span>
-          )}
-          <ChevronDown
-            className="w-4 h-4 shrink-0 transition-transform duration-200"
-            style={{
-              color: 'var(--color-text-disabled)',
-              transform: mobileOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            }}
-          />
-        </button>
-
-        {/* 확장 영역 */}
-        {mobileOpen && (
-          <div
-            className="px-3 pb-3 space-y-3"
-            style={{ borderTop: '1px solid var(--color-bg-elevated)' }}
-          >
-            {/* 섹션1: 기수·마정보 */}
-            <div className="pt-3 space-y-1.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-disabled)' }}>
-                기수 · 마정보
-              </div>
-              {/* 기수명 + 부담중량 */}
-              <div className="flex items-center gap-2 text-sm">
-                <span style={{ color: 'var(--color-text-primary)' }}>{horse.jcky_nm ?? '-'}</span>
-                {horse.burd_wgt != null && (
-                  <span className="font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-                    {horse.burd_wgt}kg
-                  </span>
-                )}
-              </div>
-              {/* 기수 통산 성적 */}
-              {jockeyStat && (
-                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-                  {jockeyStat.race_cnt_t != null ? `${jockeyStat.race_cnt_t}전` : ''}
-                  {jockeyStat.win_rate_t != null && ` 승률 ${jockeyStat.win_rate_t}%`}
-                </div>
-              )}
-              {/* 기수-말 조합 */}
-              {jockeyHorseCombo != null && jockeyHorseCombo.total > 0 && (
-                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-                  조합 {jockeyHorseCombo.total}전{' '}
-                  <span style={{ color: jockeyHorseCombo.wins > 0 ? 'var(--color-success)' : undefined }}>
-                    {jockeyHorseCombo.wins}승
-                  </span>
-                  {' '}연{jockeyHorseCombo.places} 복{jockeyHorseCombo.shows}
-                </div>
-              )}
-              {/* 조교사 */}
-              {horse.trar_nm && (
-                <div className="text-[13px]" style={{ color: 'var(--color-text-disabled)' }}>
-                  조교 {horse.trar_nm}
-                  {trainerWinRate != null && (
-                    <span className="ml-1 font-mono-num">({trainerWinRate}%)</span>
-                  )}
-                </div>
-              )}
-              {/* 레이팅 + 마체중 + 수득상금 */}
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[13px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-                {horse.ratg != null && horse.ratg > 0 && <span>R{horse.ratg}</span>}
-                {horse.wg_hr != null && (
-                  <span>
-                    {horse.wg_hr}kg
-                    {horse.wg_hr_diff != null && horse.wg_hr_diff !== 0 && (
-                      <span style={{ color: horse.wg_hr_diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                        ({horse.wg_hr_diff > 0 ? '+' : ''}{horse.wg_hr_diff})
-                      </span>
-                    )}
-                  </span>
-                )}
-                {horse.erng_sump != null && horse.erng_sump > 0 && (
-                  <span style={{ color: 'var(--color-text-disabled)' }}>{formatErng(horse.erng_sump)}</span>
-                )}
-              </div>
-              {/* 공백기 */}
-              {racingGap != null && (
-                <div
-                  className="text-[13px] font-mono-num"
-                  style={{ color: racingGap >= 30 ? 'var(--color-accent-gold)' : 'var(--color-text-disabled)' }}
-                >
-                  공백 {racingGap}일{racingGap >= 30 ? ' [장기]' : ''}
-                </div>
-              )}
-              {/* 게이트 성적 */}
-              {currentGateStat != null && currentGateStat.total >= 3 && (
-                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-                  {horse.pthr_no}번 게이트 {currentGateStat.total}전{' '}
-                  <span style={{ color: currentGateStat.wins > 0 ? 'var(--color-success)' : undefined }}>
-                    {currentGateStat.wins}승({Math.round((currentGateStat.wins / currentGateStat.total) * 100)}%)
-                  </span>
-                </div>
-              )}
-              {/* 최근 조교 */}
-              {latestTraining && (
-                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-                  조교 {formatDate(latestTraining.train_date)}
-                  {latestTraining.tr_term != null && latestTraining.tr_term > 0 && (
-                    <span className="ml-1">{formatTrTerm(latestTraining.tr_term)}</span>
-                  )}
-                  {latestTraining.pr_gubun && <span className="ml-1">{latestTraining.pr_gubun}</span>}
-                </div>
-              )}
-            </div>
-
-            {/* 섹션2: 직전 경주 (최근 2건) */}
-            {history.length > 0 && (
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-disabled)' }}>
-                  직전 경주
-                </div>
-                <div className="space-y-1">
-                  {history.slice(0, 2).map((h, i) => (
-                    <div key={i} className="flex items-center gap-2 text-[13px] font-mono-num flex-wrap">
-                      <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>
-                        {MEET_NAMES[h.meet] ?? '?'}{h.rc_dist ? ` ${h.rc_dist}m` : ''}
-                      </span>
-                      <span className="font-semibold" style={{ color: ordColor(h.ord) }}>
-                        {h.ord != null ? `${h.ord}위` : '-'}
-                      </span>
-                      <span style={{ color: 'var(--color-text-primary)' }}>{formatRcTime(h.rc_time)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 섹션3: 주요 항목 점수 (5개 바) */}
-            {prediction?.item_scores && (
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-disabled)' }}>
-                  항목 점수
-                </div>
-                <div className="space-y-1.5">
-                  {TOP5_ITEMS.map(({ id, label }) => {
-                    const score = prediction.item_scores[id]?.rawScore ?? 0;
-                    return (
-                      <div key={id} className="flex items-center gap-1.5">
-                        <span className="text-[13px] w-14 text-right shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
-                          {label}
-                        </span>
-                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${score * 100}%`, background: accentColor }}
-                          />
-                        </div>
-                        <span className="text-[13px] font-mono-num w-6 shrink-0" style={{ color: 'var(--color-text-primary)' }}>
-                          {score.toFixed(2)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
