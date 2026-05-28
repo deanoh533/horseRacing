@@ -2,7 +2,7 @@
  * 출전표 sync (API26_2/entrySheet_2)
  *
  * 운영 사용:
- *   - 매주 수~목요일: 다음 주말 (금/토/일) 경주 출전표 fetch
+ *   - 매주 수요일 오후 2시30분경 서울+부경 전체 출전표 동시 발표
  *   - meet + rc_date 단위로 전체 경주 일괄 반환 → rcNo 루프 불필요
  *   - race_entries + races 동시 채움 (거리·등급·상금조건 포함)
  *
@@ -56,6 +56,9 @@ async function syncOneMeet(
   const sb = getSupabaseAdmin();
   console.log(`  [meet=${meet}] API26_2 출전표 fetch...`);
 
+  // rcNo별 그룹핑 (보조 싱크에서도 사용)
+  const byRcNo = new Map<number, Awaited<ReturnType<typeof kra.getAllEntrySheet>>>();
+
   try {
     const items = await kra.getAllEntrySheet({ meet, rcDate });
     if (items.length === 0) {
@@ -63,8 +66,6 @@ async function syncOneMeet(
       return result;
     }
 
-    // rcNo별 그룹핑
-    const byRcNo = new Map<number, typeof items>();
     for (const item of items) {
       if (!byRcNo.has(item.rcNo)) byRcNo.set(item.rcNo, []);
       byRcNo.get(item.rcNo)!.push(item);
@@ -107,10 +108,60 @@ async function syncOneMeet(
     console.error(`  [meet=${meet}] ❌ ${msg}`);
   }
 
+  // 보조 싱크: API314/316에서 asisEquip·latstBledg·latstTrea만 추가 수집
+  if (byRcNo.size > 0) {
+    await syncEquipAndMedical(kra, sb, meet, rcDate, [...byRcNo.keys()], result.errors);
+  }
+
   console.log(
     `  [meet=${meet}] 완료: ${result.racesSynced} 경주 / ${result.horsesSynced} 마 / 에러 ${result.errors.length}`
   );
   return result;
+}
+
+/**
+ * API314(서울)/API316(부경): asisEquip·latstBledg·latstTrea 보조 수집
+ * API26_2에 없는 3개 필드 그룹만 race_entries에 UPDATE
+ */
+async function syncEquipAndMedical(
+  kra: ReturnType<typeof getKRAClient>,
+  sb: ReturnType<typeof getSupabaseAdmin>,
+  meet: MeetCode,
+  rcDate: number,
+  rcNos: number[],
+  errors: string[]
+): Promise<void> {
+  console.log(`  [meet=${meet}] 보조싱크(장구·진료): rc_no ${rcNos.join(',')}...`);
+  const nullIfDash = (v: string): string | null => (!v || v === '-' ? null : v);
+
+  for (const rcNo of rcNos) {
+    try {
+      const cards = await kra.getRaceCard({ meet, rcDate, rcNo });
+      for (const c of cards) {
+        await sb
+          .from('race_entries')
+          .update({
+            asis_equip1: nullIfDash(c.asisEquip1),
+            asis_equip2: nullIfDash(c.asisEquip2),
+            asis_equip3: nullIfDash(c.asisEquip3),
+            asis_equip4: nullIfDash(c.asisEquip4),
+            asis_equip5: nullIfDash(c.asisEquip5),
+            latst_bledg1: nullIfDash(c.latstBledg1),
+            latst_bledg2: nullIfDash(c.latstBledg2),
+            latst_trea1_txt: nullIfDash(c.latstTrea1Txt),
+            latst_trea2_txt: nullIfDash(c.latstTrea2Txt),
+          })
+          .eq('race_date', rcDate)
+          .eq('meet', meet)
+          .eq('rc_no', rcNo)
+          .eq('pthr_no', c.pthrNo);
+      }
+    } catch (e) {
+      const msg = (e as Error).message;
+      errors.push(`equip rcNo=${rcNo}: ${msg.slice(0, 80)}`);
+      console.warn(`    보조싱크 rc_no=${rcNo} ⚠️ ${msg}`);
+    }
+  }
 }
 
 // ============================================
