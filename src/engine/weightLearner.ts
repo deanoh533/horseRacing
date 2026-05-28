@@ -28,6 +28,7 @@ const SEALED_ITEMS = new Set<ScoreItemId>([
   '13_age_distance_gender',  // ρ=-0.017 역방향, 영구 비활성화
   '07_track_adaptation',     // ρ=-0.304, 역상관
   '04_sectional_time',       // ρ=-0.225, 역상관
+  '19_running_style_pace',   // ρ=-0.010 ≈ 0, 스코어맵 재설계 전까지 봉인
 ]);
 
 /**

@@ -91,9 +91,9 @@ async function main() {
   }
   const pct = (n: number) => ((n / valid) * 100).toFixed(1);
   console.log(`\n=== 새 가중치 적중률 (${valid} 경주) ===`);
-  console.log(`  단승  : ${win}/${valid} = ${pct(win)}%   (이전 26.2%)`);
-  console.log(`  연승  : ${place}/${valid} = ${pct(place)}%   (이전 44.3%)`);
-  console.log(`  복승  : ${show}/${valid} = ${pct(show)}%   (이전 57.7%)`);
+  console.log(`  단승  : ${win}/${valid} = ${pct(win)}%   (이전 32.0%)`);
+  console.log(`  연승  : ${place}/${valid} = ${pct(place)}%   (이전 52.0%)`);
+  console.log(`  복승  : ${show}/${valid} = ${pct(show)}%   (이전 65.0%)`);
 }
 main().catch((e) => {
   console.error('💥', e);
