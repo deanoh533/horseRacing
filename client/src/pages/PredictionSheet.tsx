@@ -807,14 +807,18 @@ function Col5Items({
         </div>
       </div>
 
-      {/* 높이 고정 220px — bar/radar 전환 시 카드 높이 변동 방지 */}
-      <div className="flex flex-col justify-center overflow-hidden" style={{ height: 220 }}>
-      {!hasScores && (
-        <p className="text-sm" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
-      )}
+      {/* 고정 높이 컨테이너 — bar/radar 모두 항상 DOM에 존재, display로만 전환 → reflow 없음 */}
+      <div className="relative overflow-hidden" style={{ height: 220 }}>
+        {!hasScores && (
+          <p className="text-sm absolute inset-0 flex items-center px-1"
+            style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
+        )}
 
-      {hasScores && viewMode === 'bar' && (
-        <div className="space-y-3.5">
+        {/* 바 차트 — 항상 마운트, 숨김만 토글 */}
+        <div
+          className="absolute inset-0 flex flex-col justify-center gap-3.5 px-1"
+          style={{ display: hasScores && viewMode === 'bar' ? 'flex' : 'none' }}
+        >
           {top5Items.map((item) => {
             const pending = item.status === 'expert_pending';
             return (
@@ -834,46 +838,49 @@ function Col5Items({
             );
           })}
         </div>
-      )}
 
-      {hasScores && viewMode === 'radar' && (
-        <div className="w-full" style={{ height: 220 }}>
-          <Radar
-            data={{
-              labels: top5Items.map((i) => i.itemName),
-              datasets: [{
-                data: top5Items.map((i) => Math.round(i.rawScore * 100)),
-                borderColor: accentColor,
-                backgroundColor: `${accentColor}20`,
-                borderWidth: 2,
-                pointBackgroundColor: accentColor,
-                pointRadius: 3,
-              }],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                r: {
-                  min: 0, max: 100,
-                  ticks: { display: false },
-                  grid: { color: 'rgba(94,107,138,0.25)' },
-                  angleLines: { color: 'rgba(94,107,138,0.2)' },
-                  pointLabels: { color: 'rgba(176,190,197,0.9)', font: { size: 11 } },
+        {/* 레이더 차트 — 항상 마운트, 숨김만 토글 → Chart.js remount reflow 없음 */}
+        <div
+          className="absolute inset-0"
+          style={{ display: hasScores && viewMode === 'radar' ? 'block' : 'none' }}
+        >
+          {hasScores && (
+            <Radar
+              data={{
+                labels: top5Items.map((i) => i.itemName),
+                datasets: [{
+                  data: top5Items.map((i) => Math.round(i.rawScore * 100)),
+                  borderColor: accentColor,
+                  backgroundColor: `${accentColor}20`,
+                  borderWidth: 2,
+                  pointBackgroundColor: accentColor,
+                  pointRadius: 3,
+                }],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  r: {
+                    min: 0, max: 100,
+                    ticks: { display: false },
+                    grid: { color: 'rgba(94,107,138,0.25)' },
+                    angleLines: { color: 'rgba(94,107,138,0.2)' },
+                    pointLabels: { color: 'rgba(176,190,197,0.9)', font: { size: 11 } },
+                  },
                 },
-              },
-              plugins: {
-                legend: { display: false },
-                tooltip: {
-                  backgroundColor: 'rgba(19,27,58,0.95)',
-                  borderColor: 'rgba(94,107,138,0.4)', borderWidth: 1,
-                  titleColor: '#b0bec5', bodyColor: '#ffffff',
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: 'rgba(19,27,58,0.95)',
+                    borderColor: 'rgba(94,107,138,0.4)', borderWidth: 1,
+                    titleColor: '#b0bec5', bodyColor: '#ffffff',
+                  },
                 },
-              },
-            }}
-          />
+              }}
+            />
+          )}
         </div>
-      )}
       </div>
     </div>
   );
