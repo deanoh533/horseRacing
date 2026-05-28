@@ -63,6 +63,7 @@ export async function predictRace(
   const totalHorses = entryList.length;
   const currentMonth = Math.floor((rcDate % 10000) / 100);
   const currentSeason = monthToSeason(currentMonth);
+  const allRaceRatings = entryList.map(e => e.ratg ?? 0);
 
   // 경주 거리/주로: race_entries에 없으면 races 테이블에서 fallback
   let rcDist = entryList[0]?.rc_dist ?? null;
@@ -84,6 +85,7 @@ export async function predictRace(
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
       const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason);
       input.erngSump = e.erng_sump ?? undefined;
+      input.allRaceRatings = allRaceRatings;
       const score = engine.calculateScores(input);
       return { entry: e, score };
     })

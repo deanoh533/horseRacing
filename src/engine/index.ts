@@ -43,6 +43,7 @@ import { calculateEarningsScore } from './scoreItems/18_earnings.js';
 export interface ScoreEngineInput {
   // ① 레이팅
   rating: number;
+  allRaceRatings?: number[];  // 경주 내 전 출전마 레이팅 (T-015 상대 순위용)
 
   // ② 마체중 변화
   weightDiffs?: number[];
@@ -156,7 +157,7 @@ export class ScoreEngine {
     // ① 레이팅
     items['01_rating'] = this.make(
       '01_rating',
-      calculateRatingScore({ rating: input.rating })
+      calculateRatingScore({ rating: input.rating, allRaceRatings: input.allRaceRatings })
     );
 
     // ② 마체중 변화

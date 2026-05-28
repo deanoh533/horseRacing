@@ -33,7 +33,7 @@ async function main() {
 
   // 2. weight_history 저장
   console.log('[2/4] weight_history 저장...');
-  await saveWeightHistory(sb, 20240524, 20260523, raceCount, blended, correlations, optimal);
+  await saveWeightHistory(sb, 20240524, 20260528, raceCount, blended, correlations, optimal);
 
   // 3. predictions 재계산 (race-batch)
   console.log('[3/4] predictions 재계산 (race 단위 batch)...');

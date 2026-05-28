@@ -24,7 +24,9 @@ const ALL_ITEMS = Object.keys(ITEM_WEIGHTS) as ScoreItemId[];
  * 봉인된 항목 (가중치 0 강제)
  * - (봉인 해제) 12_starting_position: 이제 chul_no(= 진짜 게이트 번호)로 계산
  */
-const SEALED_ITEMS = new Set<ScoreItemId>([]);
+const SEALED_ITEMS = new Set<ScoreItemId>([
+  '13_age_distance_gender',  // ρ=-0.017 역방향, 영구 비활성화
+]);
 
 /**
  * 항목별 Spearman ρ
