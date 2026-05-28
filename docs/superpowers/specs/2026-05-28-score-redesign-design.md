@@ -79,28 +79,64 @@ fallback: 0.5
 
 **D. 주행성향 × 페이스 `19_running_style_pace.ts`**
 
+**DB 스키마 (migration 008):**
+- `horse_running_style_by_distance` 뷰: `hr_name`, `dist_category`(short/middle/long), `avg_position_ratio`, `stddev_position_ratio`, `avg_finish_ratio`
+- **분류 label은 뷰에 없음** — avg/stddev raw값만 저장. 분류는 코드에서.
+- 기존 분류 함수: `client/src/lib/runningStyle.ts::classifyRunningStyle()` (client 전용)
+- 엔진 scoreItem에서는 **동일 로직을 인라인으로 재구현** (client/src는 별도 패키지)
+
+**분류 임계값 (우리 데이터 검증값):**
 ```
-STEP 1: 경주 페이스 유형
-  front_count = 이 경주 출전마 중 도주/선행 성향 마릿수
-  front_count >= 3 → "HOT"   (선두 경쟁 치열)
-  front_count == 2 → "NORMAL"
-  front_count <= 1 → "SLOW"  (단독 도주 가능)
+자유마: stddev_position_ratio >= 0.35  (우선 판정)
+도주마: avg_position_ratio <= 0.15
+선행마: avg_position_ratio <= 0.35
+선입마: avg_position_ratio <= 0.65
+추입마: 나머지
+unknown: avg_position_ratio null (신마 등)
+```
 
-STEP 2: 이 말의 성향 조회
-  horse_running_style_by_distance 뷰에서 거리 카테고리별 성향
-  미분류(신마) → "MID" fallback
+**STEP 1: 경주 페이스 유형 결정**
+```
+front_count = 경주 내 도주+선행 마릿수 (unknown 제외)
+front_count >= 3 → "HOT"   (선두 경쟁 치열, 추입마 유리)
+front_count == 2 → "NORMAL"
+front_count <= 1 → "SLOW"  (단독 도주 가능, 도주마 유리)
+```
 
-STEP 3: 매핑 테이블
+**STEP 2: 이 말의 성향 조회**
+```
+horse_running_style_by_distance에서 (hr_name, dist_category) 조회
+dist_category = rcDist < 1400 → 'short' / ≤ 1800 → 'middle' / > 1800 → 'long'
+데이터 없거나 unknown → 중립(0.55) 반환
+```
+
+**STEP 3: 매핑 테이블**
+
+```
          HOT    NORMAL   SLOW
-  도주   0.30    0.65    1.00
-  선행   0.50    0.70    0.85
-  선입   0.65    0.60    0.45
-  추입   0.90    0.55    0.25
-  자유   0.60    0.60    0.60  ← 중립
+도주     0.30    0.65    1.00
+선행     0.50    0.70    0.85
+선입     0.65    0.60    0.45
+추입     0.90    0.55    0.25
+자유     0.60    0.60    0.60  ← 불안정, 중립
+unknown  0.55    0.55    0.55  ← fallback
 ```
 
-> 이 수치는 도메인 기반 초기값. 가중치 학습 후 ρ 측정으로 효과 검증.  
-> scorePredictor에서 `allHorses` 페이스 집계 선행 처리 필요.
+> 초기값은 도메인 기반. 가중치 학습 후 ρ 측정으로 효과 검증하고 조정.
+
+**scorePredictor.ts 변경:**
+```ts
+// predictRace() 내에서 ⑲ 계산 전 선행 처리
+const styleMap = buildStyleMap(allHorses, rcDist, runningStyleData)
+// → { hr_name → RunningStyle } 맵
+const paceType = computePaceType(styleMap)
+// → 'HOT' | 'NORMAL' | 'SLOW'
+
+// 각 말 점수 계산 시
+const score19 = calculate19(styleMap.get(horse.hrName), paceType)
+```
+
+`runningStyleData` = scorePredictor 호출 전 Supabase에서 fetch한 `horse_running_style_by_distance` 배열 (이미 ⑤⑥에서 같은 데이터 사용 중 — 중복 fetch 최소화 가능)
 
 ### 유지 항목 (로직 변경 없음, 가중치만 갱신)
 
