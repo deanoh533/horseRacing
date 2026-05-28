@@ -31,7 +31,7 @@ KRA(한국마사회) 출마정보를 한 화면에 비교하고, 18개 항목 �
 ## 🛠 기술 스택
 
 - **프론트엔드:** React + Vite + Tailwind ([client/](client/))
-- **백엔드/스크립트:** Node.js + TypeScript ([src/](src/), [scripts/](scripts/))
+- **백엔드/스크립트:** Node.js + TypeScript ([src/](src/), [scripts/](scripts/)) — **로컬 수동 실행 전용** (상시 서버 X). Vercel에는 `client/`만 배포.
 - **DB:** Supabase (PostgreSQL)
 - **배포:** Vercel — main push 시 자동 배포 (`horse-racing-xi-one.vercel.app`)
 
@@ -138,7 +138,7 @@ npm run test:run     # vitest 단위 테스트
 - [docs/PRD_v6.1_entries_view.md](docs/PRD_v6.1_entries_view.md) — 출마정보 화면 PRD
 - [docs/PRD_v6.1_race_info_legend.md](docs/PRD_v6.1_race_info_legend.md) — 에이스경마 1-34번 매핑
 
-> **UI 현황 (2026-05-28):** 예상지 = 4열 그리드(마정보·기수·직전경주·항목점수), RaceInfoBlock 공통 헤더(3개 화면 공유), 조교 이력 추가 완료. 대시보드 개발 용어 제거·모바일 버튼 개선 완료.
+> **UI 현황 (2026-05-28):** 예상지 = 모바일 2+2 그리드 / 데스크탑 4열(`grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]`). 아코디언 레이아웃 미사용(사용자 확인). Col5Items = 가중치 상위 5개 동적 표시. RaceInfoBlock 공통 헤더(3개 화면 공유), 조교 이력 추가 완료. 대시보드 개발 용어 제거·모바일 버튼 개선 완료.
 >
 > **training_logs 주의:** `st_time`/`sp_time`은 YYYYMMDDHHmmss 타임스탬프 (훈련 시작/종료 시각). 실제 소요시간은 `tr_term`(초). `pr_gubun` 범례: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더.
 
@@ -149,7 +149,8 @@ npm run test:run     # vitest 단위 테스트
 
 ### 세션 인계 (새 세션 정독 추천)
 - [docs/working_style.md](docs/working_style.md) — **시니어 개발자 + 설계자 관점, 협업 패턴**
-- [docs/running_style_insight.md](docs/running_style_insight.md) — 주행 성향 분류 큰그림·현재 위치·다음 단계 (⑥⑫⑲)
+- [docs/running_style_insight.md](docs/running_style_insight.md) — 주행 성향 분류 큰그림·현재 위치·다음 단계 (⑤⑥⑫ 완료 / ⑲ 대기)
+- [docs/superpowers/specs/2026-05-28-score-redesign-design.md](docs/superpowers/specs/2026-05-28-score-redesign-design.md) — **점수 알고리즘 재설계 스펙** (3단계 계획·세션 handoff 체크리스트)
 
 ### 할일
 - [TODO.md](TODO.md) — 우선순위별 할일
@@ -158,9 +159,14 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
-1. **[T-015] ① 레이팅 재설계 필요** — Spearman ρ=0.078 (가중치 1위인데 실측 13위). Range restriction 문제. 클래스 내 상대값 전환 필요.
-2. **[T-016] ⑥⑤ 가중치 재학습 대기** — ⑬ 비활성화 완료 후 Spearman 재실행 필요. 이상 비중: ⑥~24, ⑤~12.5.
-3. **⑧ 부담중량 산식** — ρ=0.263으로 강하나 핸디캡=능력proxy 메커니즘 이해 후 개선 여지 있음. 전문가 자문 대기.
+> **2026-05-28 재설계 계획 확정** → [스펙 문서](docs/superpowers/specs/2026-05-28-score-redesign-design.md) 참고
+
+1. **[1단계 — 즉시] 가중치 수정** — ⑦④ SEALED + Spearman ρ alpha=1.0 직접 매핑 (`weightLearner.ts`).
+2. **[2단계 — 1주] 항목 재설계** — ① 레이팅 경주 내 min-max (T-015) + E/G 기수·조교사 최근 3개월형 신규 추가.
+3. **[3단계 — 2~3주] ⑲ 주행성향 × 페이스** — 경주 페이스 유형 × 말 성향 매핑 (한국경마 최대 미반영 신호).
+4. **⑧ 부담중량 산식** — ρ=0.321로 강하나 핸디캡=능력proxy 메커니즘 이해 후 개선 여지. 전문가 자문 대기.
+
+> ⑥ 거리적성 ratio + ⑫ 출발번호 성향별 multiplier는 이전 세션에서 완료됨.
 
 → 자세한 건 [TODO.md](TODO.md) P0 섹션 / [docs/troubleshooting.md](docs/troubleshooting.md)
 
