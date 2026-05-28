@@ -13,6 +13,7 @@ import {
   useRacesByDate,
   useAvailableDates,
   usePredictionsByDate,
+  useLatestWeights,
   type PredictionPreview,
 } from '../lib/queries';
 import { isCancelled } from '../lib/supabase';
@@ -22,15 +23,29 @@ const MEET_NAMES: Record<number, string> = {
   3: '부산경남',
 };
 
-const TOP4_WEIGHTS = [
-  { id: '06_distance_fitness', name: '거리 적성', value: 24.0 },
-  { id: '05_late_position', name: '후반 구간 순위', value: 12.5 },
-  { id: '08_burden_weight', name: '부담중량', value: 11.0 },
-  { id: '03_recent_form', name: '착순 추세', value: 10.0 },
-];
+const ITEM_LABELS: Record<string, string> = {
+  '01_rating': '레이팅',
+  '02_weight_change': '마체중 변화',
+  '03_recent_form': '착순 추세',
+  '05_late_position': '후반 구간 순위',
+  '06_distance_fitness': '거리 적성',
+  '08_burden_weight': '부담중량',
+  '09_jockey_form': '기수 폼',
+  '09b_jockey_recent': '기수 최근폼',
+  '10_trainer_form': '조교사 폼',
+  '10b_trainer_recent': '조교사 최근폼',
+  '11_race_interval': '경주 간격',
+  '12_starting_position': '출발번호',
+  '14_pedigree': '혈통',
+  '15_seasonal_pattern': '계절 패턴',
+  '16_jockey_horse_chemistry': '기수-말 궁합',
+  '17_market_odds': '배당률',
+  '18_earnings': '수득상금',
+};
 
 export function Dashboard() {
   const { data: availableDates } = useAvailableDates();
+  const { data: latestWeights } = useLatestWeights();
   // 사용자가 ◀▶ 또는 "최근 동기화" 클릭하면 override 저장
   // 그 외엔 availableDates 가장 최근 → 그것도 없으면 오늘 (derived state, useEffect 불필요)
   const [manualDate, setManualDate] = useState<number | null>(null);
@@ -69,6 +84,16 @@ export function Dashboard() {
     });
     return groups;
   }, [races]);
+
+  const top4Weights = useMemo(() => {
+    const weights = latestWeights?.weights as Record<string, number> | undefined;
+    if (!weights) return null;
+    return Object.entries(weights)
+      .filter(([, v]) => v > 0)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 4)
+      .map(([id, value]) => ({ id, name: ITEM_LABELS[id] ?? id, value }));
+  }, [latestWeights]);
 
   return (
     <div className="space-y-6">
@@ -111,9 +136,14 @@ export function Dashboard() {
             <span className="text-[var(--color-accent-gold)]">⭐</span>
             예측 핵심 지표 (가중치 상위 4)
           </h2>
+          {latestWeights && (
+            <span className="text-[10px] text-[var(--color-text-disabled)]">
+              학습일 {latestWeights.period_end}
+            </span>
+          )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {TOP4_WEIGHTS.map((w) => (
+          {(top4Weights ?? []).map((w) => (
             <div
               key={w.id}
               className="bg-[var(--color-bg-elevated)] rounded-lg p-3"
@@ -122,10 +152,15 @@ export function Dashboard() {
                 {w.name}
               </div>
               <div className="text-2xl font-bold font-mono-num text-[var(--color-accent-cyan)] mt-1">
-                {w.value}
+                {w.value.toFixed(1)}
               </div>
             </div>
           ))}
+          {!top4Weights && (
+            <div className="col-span-4 text-xs text-[var(--color-text-disabled)] py-2">
+              가중치 로딩 중...
+            </div>
+          )}
         </div>
       </section>
 
