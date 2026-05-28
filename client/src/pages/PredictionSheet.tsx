@@ -9,7 +9,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { ChevronLeft, Loader2, LayoutList, Activity } from 'lucide-react';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';

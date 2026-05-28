@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronDown, Sparkles, Bot, Loader2 } from 'lucide-react';
 import { useHorsesByRace, usePredictionsByRace, useGradeWinnerStats } from '../lib/queries';
