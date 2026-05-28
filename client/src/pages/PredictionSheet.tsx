@@ -807,8 +807,8 @@ function Col5Items({
         </div>
       </div>
 
-      {/* 높이 고정: 바(5항목×36px≈180) vs 레이더(220px) → 220으로 통일 */}
-      <div className="flex-1 flex flex-col justify-center" style={{ minHeight: 220 }}>
+      {/* 높이 고정 220px — bar/radar 전환 시 카드 높이 변동 방지 */}
+      <div className="flex flex-col justify-center overflow-hidden" style={{ height: 220 }}>
       {!hasScores && (
         <p className="text-sm" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
