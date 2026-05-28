@@ -26,6 +26,8 @@ const ALL_ITEMS = Object.keys(ITEM_WEIGHTS) as ScoreItemId[];
  */
 const SEALED_ITEMS = new Set<ScoreItemId>([
   '13_age_distance_gender',  // ρ=-0.017 역방향, 영구 비활성화
+  '07_track_adaptation',     // ρ=-0.304, 역상관
+  '04_sectional_time',       // ρ=-0.225, 역상관
 ]);
 
 /**
@@ -170,23 +172,31 @@ export function computeOptimalWeights(correlations: Correlations): Weights {
 }
 
 /**
- * 점진 수렴: (현재 + 적정) / 2
+ * 점진 수렴: alpha=0.5 → (현재 + 적정) / 2, alpha=1.0 → 직접 매핑
  */
-export function blendWeights(current: Weights, optimal: Weights): Weights {
+export function blendWeights(
+  current: Weights,
+  optimal: Weights,
+  alpha = 0.5
+): Weights {
   const blended = {} as Weights;
   for (const itemId of ALL_ITEMS) {
     if (SEALED_ITEMS.has(itemId)) {
       blended[itemId] = 0;
       continue;
     }
-    blended[itemId] = Math.round(((current[itemId] + optimal[itemId]) / 2) * 100) / 100;
+    blended[itemId] =
+      Math.round(
+        (current[itemId] * (1 - alpha) + optimal[itemId] * alpha) * 100
+      ) / 100;
   }
-  // 합이 100이 되도록 미세 정규화 (봉인 제외)
+  // 합이 100이 되도록 정규화 (봉인 제외)
   const s = Object.values(blended).reduce((a, b) => a + b, 0);
   if (s > 0) {
     for (const itemId of ALL_ITEMS) {
       if (SEALED_ITEMS.has(itemId)) continue;
-      blended[itemId] = Math.round(((blended[itemId] / s) * 100) * 100) / 100;
+      blended[itemId] =
+        Math.round(((blended[itemId] / s) * 100) * 100) / 100;
     }
   }
   return blended;

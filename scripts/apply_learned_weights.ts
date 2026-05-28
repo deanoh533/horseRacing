@@ -17,6 +17,10 @@ import {
   saveWeightHistory,
 } from '../src/engine/weightLearner.js';
 
+const args = process.argv.slice(2);
+const alphaFlag = args.find(a => a.startsWith('--alpha='));
+const alpha = alphaFlag ? parseFloat(alphaFlag.replace('--alpha=', '')) : 0.5;
+
 async function main() {
   const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -28,8 +32,9 @@ async function main() {
   const current = await getCurrentWeights(sb);
   const { correlations, raceCount } = await computeCorrelations(sb, 20240101, 20991231);
   const optimal = computeOptimalWeights(correlations);
-  const blended = blendWeights(current, optimal);
+  const blended = blendWeights(current, optimal, alpha);
   console.log(`  학습 경주: ${raceCount}`);
+  console.log(`  alpha: ${alpha} (${alpha === 1.0 ? 'ρ 직접 매핑' : '점진 수렴'})`);
 
   // 2. weight_history 저장
   console.log('[2/4] weight_history 저장...');

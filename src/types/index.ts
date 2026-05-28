@@ -202,10 +202,10 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '01_rating': 6.00,           // ratg 17.8% 공백 → 데이터 복구 후 재측정 예정
   '02_weight_change': 1.00,    // ρ=-0.098, 신호 미미
   '03_recent_form': 10.00,     // ρ=0.241 ✅
-  '04_sectional_time': 1.00,   // ρ=-0.225 (피크아웃 효과 의심), 최소 유지
+  '04_sectional_time': 0,      // ρ=-0.225 (역상관), SEALED
   '05_late_position': 12.50,   // ρ=0.296 ✅
   '06_distance_fitness': 24.00, // ρ=0.572 ✅ 압도적 1위
-  '07_track_adaptation': 1.00, // ρ=-0.304, 최소 유지
+  '07_track_adaptation': 0,    // ρ=-0.304 (역상관), SEALED
   '08_burden_weight': 11.00,   // ρ=0.263 ✅
   '09_jockey_form': 7.50,      // ρ=0.181 ✅
   '10_trainer_form': 4.50,     // ρ=0.107 ✅
