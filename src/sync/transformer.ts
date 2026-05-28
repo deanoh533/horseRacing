@@ -2,7 +2,7 @@
  * KRA API 응답 → Supabase DB 행 변환
  */
 import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@app-types/index.js';
-import type { KRARaceCard, KRASectionalRecord, KRATrainingRecord, KRAJockeyStat } from '@kra/client.js';
+import type { KRARaceCard, KRAEntrySheetItem, KRASectionalRecord, KRATrainingRecord, KRAJockeyStat } from '@kra/client.js';
 import { parseWgHr, extractTrackType } from '@utils/parsers.js';
 
 /**
@@ -206,13 +206,16 @@ export interface RaceEntryRow {
   rc_no: number;
   pthr_no: number;
   hr_name: string;
+  hr_no: string | null;
   ag: number | null;
   gndr: string | null;
   prds: string | null;
   burd_wgt: number | null;
   ratg: number | null;
   jcky_nm: string | null;
+  jcky_no: string | null;
   trar_nm: string | null;
+  trar_no: string | null;
   owner_nm: string | null;
   erng_sump: number | null;
   erng_loy: number | null;
@@ -294,6 +297,7 @@ function dashToNull(v: string | undefined | null): string | null {
 /**
  * KRARaceCard → race_entries 사전 정보 행
  */
+/** @deprecated toRaceEntryRowFromEntrySheet() 사용 권장 */
 export function toRaceEntryRow(c: KRARaceCard, meet: number, rcDate: number, rcNo: number): RaceEntryRow {
   return {
     race_date: rcDate,
@@ -301,13 +305,16 @@ export function toRaceEntryRow(c: KRARaceCard, meet: number, rcDate: number, rcN
     rc_no: rcNo,
     pthr_no: c.pthrNo,
     hr_name: c.hrnm,
+    hr_no: null,
     ag: c.ag ?? null,
     gndr: c.gndr ?? null,
     prds: c.prds ?? null,
     burd_wgt: c.burdWgt ?? null,
     ratg: c.ratg && c.ratg > 0 ? c.ratg : null,
     jcky_nm: c.jckyNm ?? null,
+    jcky_no: null,
     trar_nm: c.trarNm ?? null,
+    trar_no: null,
     owner_nm: c.ownerNm ?? null,
     erng_sump: c.erngSump ?? null,
     erng_loy: c.erngLoy ?? null,
@@ -329,6 +336,85 @@ export function toRaceEntryRow(c: KRARaceCard, meet: number, rcDate: number, rcN
     latst_bledg2: dashToNull(c.latstBledg2),
     latst_trea1_txt: dashToNull(c.latstTrea1Txt),
     latst_trea2_txt: dashToNull(c.latstTrea2Txt),
+  };
+}
+
+/**
+ * KRAEntrySheetItem → race_entries 사전 정보 행 (API26_2 신규)
+ *
+ * 구 toRaceEntryRow() 대비 개선:
+ *   - hrNo, jkNo, trNo 카드에서 직접 제공
+ *   - rating: "-"(미등급) → null, 0 → null, 양수 → 그대로
+ */
+export function toRaceEntryRowFromEntrySheet(item: KRAEntrySheetItem): RaceEntryRow {
+  const meetCode = meetNameToCode(item.meet);
+  const ratg = typeof item.rating === 'number' && item.rating > 0
+    ? item.rating
+    : null;
+
+  return {
+    race_date: item.rcDate,
+    meet: meetCode,
+    rc_no: item.rcNo,
+    pthr_no: item.chulNo,
+    hr_name: item.hrName,
+    hr_no: item.hrNo || null,
+    ag: item.age ?? null,
+    gndr: item.sex ?? null,
+    prds: item.prd ?? null,
+    burd_wgt: item.wgBudam ?? null,
+    ratg,
+    jcky_nm: item.jkName ?? null,
+    jcky_no: item.jkNo || null,
+    trar_nm: item.trName ?? null,
+    trar_no: item.trNo || null,
+    owner_nm: item.owName ?? null,
+    erng_sump: item.chaksunT ?? null,
+    erng_loy: item.chaksunY ?? null,
+    erng_lsm: item.chaksun_6m ?? null,
+    sump_rcod_fplc: item.ord1CntT ?? null,
+    sump_rcod_splc: item.ord2CntT ?? null,
+    sump_rcod_tplc: item.ord3CntT ?? null,
+    sump_rcod_sum: item.rcCntT ?? null,
+    loy_rcod_fplc: item.ord1CntY ?? null,
+    loy_rcod_splc: item.ord2CntY ?? null,
+    loy_rcod_tplc: item.ord3CntY ?? null,
+    loy_rcod_sum: item.rcCntY ?? null,
+    asis_equip1: null,
+    asis_equip2: null,
+    asis_equip3: null,
+    asis_equip4: null,
+    asis_equip5: null,
+    latst_bledg1: null,
+    latst_bledg2: null,
+    latst_trea1_txt: null,
+    latst_trea2_txt: null,
+  };
+}
+
+/**
+ * KRAEntrySheetItem → races 행 (경주 메타, 카드에서 채움)
+ *
+ * 카드 시점에 rcDist, rcName, ageCond, prizeCond, chaksun1~3 미리 채움.
+ * track/weather는 경기 후 결과 싱크에서 채워짐.
+ */
+export function toRaceRowFromEntrySheet(item: KRAEntrySheetItem): RaceRow {
+  const meetCode = meetNameToCode(item.meet);
+  return {
+    race_date: item.rcDate,
+    meet: meetCode,
+    rc_no: item.rcNo,
+    rc_dist: item.rcDist ?? null,
+    rc_name: item.rcName ?? null,
+    rc_day: item.rcDay ?? null,
+    track: null,
+    track_type: null,
+    weather: null,
+    age_cond: item.ageCond ?? null,
+    prize_cond: item.prizeCond ?? null,
+    chaksun1: item.chaksun1 ?? null,
+    chaksun2: item.chaksun2 ?? null,
+    chaksun3: item.chaksun3 ?? null,
   };
 }
 

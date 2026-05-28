@@ -11,7 +11,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ChevronLeft, Loader2, LayoutList, Activity } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Loader2, LayoutList, Activity } from 'lucide-react';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import {
   Chart as ChartJS,
@@ -30,6 +30,9 @@ import {
   useJockeyStatsBatch,
   useGradeWinnerStats,
   useTrainingBatchByNames,
+  useJockeyHorseComboBatch,
+  useHorseGateStatsBatch,
+  type JockeyHorseComboStat,
 } from '../lib/queries';
 import {
   supabase,
@@ -143,6 +146,12 @@ function formatDate(d: number): string {
 }
 
 
+function daysBetween(a: number, b: number): number {
+  const toDate = (d: number) =>
+    new Date(Math.floor(d / 10000), Math.floor((d % 10000) / 100) - 1, d % 100);
+  return Math.round(Math.abs(toDate(a).getTime() - toDate(b).getTime()) / 86_400_000);
+}
+
 function formatTrTerm(trTerm: number): string {
   if (trTerm < 60) return `${trTerm}초`;
   const min = Math.floor(trTerm / 60);
@@ -254,6 +263,100 @@ function PodiumCards({
   );
 }
 
+// ─── 베팅 조합 추천 ──────────────────────────────────────────────────
+
+type BetHorse = { name: string; no: number | undefined };
+
+function BetCell({
+  label,
+  accentColor,
+  lines,
+}: {
+  label: string;
+  accentColor: string;
+  lines: string[];
+}) {
+  return (
+    <div
+      className="rounded-lg p-3 flex flex-col gap-1"
+      style={{ background: 'var(--color-bg-elevated)', border: `1px solid ${accentColor}25` }}
+    >
+      <span
+        className="text-[11px] font-bold uppercase tracking-wide"
+        style={{ color: accentColor }}
+      >
+        {label}
+      </span>
+      {lines.map((l, i) => (
+        <span key={i} className="text-sm font-mono-num font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+          {l}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ComboBetBox({
+  top3,
+  pthrNoByName,
+}: {
+  top3: Prediction[];
+  pthrNoByName: Map<string, number>;
+}) {
+  if (top3.length < 2) return null;
+
+  const h = top3.slice(0, 3).map<BetHorse>((p) => ({
+    name: p.hr_name,
+    no: pthrNoByName.get(p.hr_name),
+  }));
+  const [h1, h2, h3] = h as [BetHorse, BetHorse, BetHorse | undefined];
+
+  const fmt = (horse: BetHorse) =>
+    horse.no != null ? `${horse.no}번(${horse.name})` : horse.name;
+  const no = (horse: BetHorse) => (horse.no != null ? `${horse.no}번` : horse.name);
+
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-bg-elevated)' }}
+    >
+      <div className="text-[13px] font-semibold mb-3" style={{ color: 'var(--color-text-disabled)' }}>
+        베팅 조합 추천
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <BetCell
+          label="단승"
+          accentColor="#ffd700"
+          lines={[fmt(h1)]}
+        />
+        <BetCell
+          label="쌍승식"
+          accentColor="#a8a8b3"
+          lines={[`${no(h1)} → ${no(h2)}`]}
+        />
+        {h3 && (
+          <BetCell
+            label="복연승"
+            accentColor="#cd7f32"
+            lines={[
+              `${no(h1)}-${no(h2)}`,
+              `${no(h1)}-${no(h3)}`,
+              `${no(h2)}-${no(h3)}`,
+            ]}
+          />
+        )}
+        {h3 && (
+          <BetCell
+            label="삼복승식"
+            accentColor="var(--color-accent-cyan)"
+            lines={[`${no(h1)}-${no(h2)}-${no(h3)}`]}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── 열 1: 마정보 (레거시 출마표 형식) ──────────────────────────────
 
 function ColHorseInfo({
@@ -265,6 +368,7 @@ function ColHorseInfo({
   history,
   trainerStat,
   latestTraining,
+  gateStats,
 }: {
   horse: RaceEntry;
   prediction: Prediction | undefined;
@@ -274,10 +378,32 @@ function ColHorseInfo({
   history: RaceEntry[];
   trainerStat: { total: number; wins: number } | undefined;
   latestTraining: TrainingLog | undefined;
+  gateStats: Map<number, { total: number; wins: number }> | undefined;
 }) {
   const pRank = prediction?.predicted_rank ?? 999;
   const pScore = prediction?.total_score ?? 0;
   const timeStats = useMemo(() => computeTimeStats(history), [history]);
+
+  // E-001: 출전 공백기
+  const lastRaceDate = history[0]?.race_date ?? null;
+  const racingGap = lastRaceDate != null ? daysBetween(horse.race_date, lastRaceDate) : null;
+
+  // E-003: 현재 게이트 통산 성적
+  const currentGateStat = gateStats?.get(horse.pthr_no) ?? null;
+
+  const currentEquip = [
+    horse.asis_equip1, horse.asis_equip2, horse.asis_equip3,
+    horse.asis_equip4, horse.asis_equip5,
+  ].filter((e): e is string => !!e);
+  const prevEquip = history[0]
+    ? [
+        history[0].asis_equip1, history[0].asis_equip2, history[0].asis_equip3,
+        history[0].asis_equip4, history[0].asis_equip5,
+      ].filter((e): e is string => !!e)
+    : null;
+  const equipAdded = prevEquip != null ? currentEquip.filter((e) => !prevEquip.includes(e)) : [];
+  const equipRemoved = prevEquip != null ? prevEquip.filter((e) => !currentEquip.includes(e)) : [];
+  const hasEquipChange = equipAdded.length > 0 || equipRemoved.length > 0;
 
   const total = horse.sump_rcod_sum ?? 0;
   const fplc = horse.sump_rcod_fplc ?? 0;
@@ -412,6 +538,27 @@ function ColHorseInfo({
         </div>
       )}
 
+      {/* E-001: 출전 공백기 */}
+      {racingGap != null && (
+        <div
+          className="text-[13px] font-mono-num"
+          style={{ color: racingGap >= 30 ? 'var(--color-accent-gold)' : 'var(--color-text-disabled)' }}
+        >
+          공백 {racingGap}일{racingGap >= 30 ? ' [장기]' : ''}
+        </div>
+      )}
+
+      {/* E-003: 현재 게이트 통산 성적 */}
+      {currentGateStat != null && currentGateStat.total >= 3 && (
+        <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+          {horse.pthr_no}번 게이트 {currentGateStat.total}전{' '}
+          <span style={{ color: currentGateStat.wins > 0 ? 'var(--color-success)' : undefined }}>
+            {currentGateStat.wins}승
+            ({Math.round((currentGateStat.wins / currentGateStat.total) * 100)}%)
+          </span>
+        </div>
+      )}
+
       {/* 최근 조교 */}
       {latestTraining && (
         <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
@@ -427,6 +574,43 @@ function ColHorseInfo({
           {latestTraining.chul_gubun && (
             <span className="ml-1">[{latestTraining.chul_gubun}]</span>
           )}
+        </div>
+      )}
+
+      {/* 장구 */}
+      {(currentEquip.length > 0 || equipRemoved.length > 0) && (
+        <div className="text-[13px]">
+          <span style={{ color: 'var(--color-text-disabled)' }}>장구 </span>
+          {hasEquipChange && (
+            <span
+              className="text-[11px] font-bold mr-1 px-1 rounded"
+              style={{
+                background: 'rgba(255,215,0,0.12)',
+                color: 'var(--color-accent-gold)',
+                border: '1px solid rgba(255,215,0,0.3)',
+              }}
+            >
+              변경
+            </span>
+          )}
+          {currentEquip.map((e) => (
+            <span
+              key={e}
+              className="mr-1"
+              style={{ color: equipAdded.includes(e) ? 'var(--color-success)' : 'var(--color-text-secondary)' }}
+            >
+              {e}
+            </span>
+          ))}
+          {equipRemoved.map((e) => (
+            <span
+              key={`rm-${e}`}
+              className="mr-1 line-through"
+              style={{ color: 'var(--color-danger)' }}
+            >
+              {e}
+            </span>
+          ))}
         </div>
       )}
 
@@ -449,10 +633,12 @@ function ColJockeyInfo({
   horse,
   history,
   jockeyStat,
+  jockeyHorseCombo,
 }: {
   horse: RaceEntry;
   history: RaceEntry[];
   jockeyStat: JockeyStat | undefined;
+  jockeyHorseCombo: JockeyHorseComboStat | undefined;
 }) {
   const lastBurdWgt = history[0]?.burd_wgt ?? null;
   const burdDiff =
@@ -502,12 +688,36 @@ function ColJockeyInfo({
         </div>
       )}
 
-      {/* 사후: 실제 착순 */}
+      {/* E-002: 기수-말 조합 이력 */}
+      {jockeyHorseCombo != null && jockeyHorseCombo.total > 0 && (
+        <div>
+          <div className="text-[13px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>조합 이력</div>
+          <div className="text-sm font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+            {jockeyHorseCombo.total}전{' '}
+            <span style={{ color: jockeyHorseCombo.wins > 0 ? 'var(--color-success)' : undefined }}>
+              {jockeyHorseCombo.wins}승
+            </span>
+            {' / '}
+            <span style={{ color: 'var(--color-text-disabled)' }}>
+              연{jockeyHorseCombo.places} 복{jockeyHorseCombo.shows}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 사후: 실제 착순 + 인기순위 */}
       {horse.ord != null && (
         <div>
           <div className="text-[13px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>실제 착순</div>
-          <div className="text-base font-mono-num font-bold" style={{ color: ordColor(horse.ord) }}>
-            {horse.ord}위
+          <div className="flex items-center gap-1.5">
+            <span className="text-base font-mono-num font-bold" style={{ color: ordColor(horse.ord) }}>
+              {horse.ord}위
+            </span>
+            {horse.popularity != null && (
+              <span className="text-sm font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+                인기 {horse.popularity}위
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -721,6 +931,8 @@ function HorseCard({
   trainerStat,
   jockeyStat,
   latestTraining,
+  jockeyHorseCombo,
+  gateStats,
   viewMode,
   onViewModeChange,
 }: {
@@ -732,21 +944,35 @@ function HorseCard({
   trainerStat: { total: number; wins: number } | undefined;
   jockeyStat: JockeyStat | undefined;
   latestTraining: TrainingLog | undefined;
+  jockeyHorseCombo: JockeyHorseComboStat | undefined;
+  gateStats: Map<number, { total: number; wins: number }> | undefined;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const pRank = prediction?.predicted_rank ?? 999;
   const pStyle = PODIUM_STYLES[pRank - 1];
   const accentColor = pStyle?.accent ?? 'var(--color-text-disabled)';
   const borderColor = pRank <= 3 ? `${accentColor}50` : 'var(--color-bg-elevated)';
+
+  // 모바일 확장에서 쓸 파생값
+  const currentGateStat = gateStats?.get(horse.pthr_no) ?? null;
+  const lastRaceDate = history[0]?.race_date ?? null;
+  const racingGap = lastRaceDate != null ? daysBetween(horse.race_date, lastRaceDate) : null;
+  const trainerWinRate =
+    trainerStat && trainerStat.total > 0
+      ? ((trainerStat.wins / trainerStat.total) * 100).toFixed(1)
+      : null;
 
   return (
     <div
       className="rounded-xl overflow-hidden"
       style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}
     >
-      <div className="grid grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]">
-        <div className="border-b border-r border-[var(--color-bg-elevated)] md:border-b-0">
+      {/* ── 데스크탑: 4열 그리드 ── */}
+      <div className="hidden md:grid md:[grid-template-columns:2fr_1.2fr_3fr_2fr]">
+        <div className="border-r border-[var(--color-bg-elevated)]">
           <ColHorseInfo
             horse={horse}
             prediction={prediction}
@@ -756,15 +982,16 @@ function HorseCard({
             history={history}
             trainerStat={trainerStat}
             latestTraining={latestTraining}
+            gateStats={gateStats}
           />
         </div>
-        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
-          <ColJockeyInfo horse={horse} history={history} jockeyStat={jockeyStat} />
+        <div className="border-r border-[var(--color-bg-elevated)]">
+          <ColJockeyInfo horse={horse} history={history} jockeyStat={jockeyStat} jockeyHorseCombo={jockeyHorseCombo} />
         </div>
-        <div className="col-span-2 md:col-span-1 border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
+        <div className="border-r border-[var(--color-bg-elevated)]">
           <ColHistory history={history} />
         </div>
-        <div className="col-span-2 md:col-span-1">
+        <div>
           <Col5Items
             itemScores={prediction?.item_scores}
             accentColor={accentColor}
@@ -772,6 +999,215 @@ function HorseCard({
             onViewModeChange={onViewModeChange}
           />
         </div>
+      </div>
+
+      {/* ── 모바일: 아코디언 ── */}
+      <div className="md:hidden">
+        {/* 요약 행 */}
+        <button
+          className="w-full px-3 py-2.5 flex items-center gap-2 text-left"
+          onClick={() => setMobileOpen((o) => !o)}
+        >
+          {/* 마번 */}
+          <span
+            className="text-base font-bold font-mono-num shrink-0 w-7 text-center"
+            style={{ color: accentColor }}
+          >
+            {horse.pthr_no}
+          </span>
+          {/* 마명 + 성향 */}
+          <span className="flex-1 min-w-0 flex items-center gap-1.5">
+            <span className="text-sm font-bold truncate">{horse.hr_name}</span>
+            <StyleBadge style={runningStyle} />
+          </span>
+          {/* AI 순위·점수 */}
+          {pRank <= 3 && (
+            <span
+              className="text-xs font-bold px-1.5 py-0.5 rounded font-mono-num shrink-0"
+              style={{
+                background: `${accentColor}20`,
+                color: accentColor,
+                border: `1px solid ${accentColor}40`,
+              }}
+            >
+              AI {pRank}위
+            </span>
+          )}
+          {prediction && (
+            <span className="text-sm font-mono-num font-semibold shrink-0" style={{ color: accentColor }}>
+              {prediction.total_score.toFixed(1)}
+            </span>
+          )}
+          {/* 사후: 실제 착순 */}
+          {horse.ord != null && (
+            <span
+              className="text-sm font-mono-num font-bold shrink-0"
+              style={{ color: ordColor(horse.ord) }}
+            >
+              {horse.ord}위
+              {horse.popularity != null && (
+                <span className="text-[11px] font-normal ml-0.5" style={{ color: 'var(--color-text-disabled)' }}>
+                  /인기{horse.popularity}
+                </span>
+              )}
+            </span>
+          )}
+          <ChevronDown
+            className="w-4 h-4 shrink-0 transition-transform duration-200"
+            style={{
+              color: 'var(--color-text-disabled)',
+              transform: mobileOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+          />
+        </button>
+
+        {/* 확장 영역 */}
+        {mobileOpen && (
+          <div
+            className="px-3 pb-3 space-y-3"
+            style={{ borderTop: '1px solid var(--color-bg-elevated)' }}
+          >
+            {/* 섹션1: 기수·마정보 */}
+            <div className="pt-3 space-y-1.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-disabled)' }}>
+                기수 · 마정보
+              </div>
+              {/* 기수명 + 부담중량 */}
+              <div className="flex items-center gap-2 text-sm">
+                <span style={{ color: 'var(--color-text-primary)' }}>{horse.jcky_nm ?? '-'}</span>
+                {horse.burd_wgt != null && (
+                  <span className="font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+                    {horse.burd_wgt}kg
+                  </span>
+                )}
+              </div>
+              {/* 기수 통산 성적 */}
+              {jockeyStat && (
+                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+                  {jockeyStat.race_cnt_t != null ? `${jockeyStat.race_cnt_t}전` : ''}
+                  {jockeyStat.win_rate_t != null && ` 승률 ${jockeyStat.win_rate_t}%`}
+                </div>
+              )}
+              {/* 기수-말 조합 */}
+              {jockeyHorseCombo != null && jockeyHorseCombo.total > 0 && (
+                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+                  조합 {jockeyHorseCombo.total}전{' '}
+                  <span style={{ color: jockeyHorseCombo.wins > 0 ? 'var(--color-success)' : undefined }}>
+                    {jockeyHorseCombo.wins}승
+                  </span>
+                  {' '}연{jockeyHorseCombo.places} 복{jockeyHorseCombo.shows}
+                </div>
+              )}
+              {/* 조교사 */}
+              {horse.trar_nm && (
+                <div className="text-[13px]" style={{ color: 'var(--color-text-disabled)' }}>
+                  조교 {horse.trar_nm}
+                  {trainerWinRate != null && (
+                    <span className="ml-1 font-mono-num">({trainerWinRate}%)</span>
+                  )}
+                </div>
+              )}
+              {/* 레이팅 + 마체중 + 수득상금 */}
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[13px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+                {horse.ratg != null && horse.ratg > 0 && <span>R{horse.ratg}</span>}
+                {horse.wg_hr != null && (
+                  <span>
+                    {horse.wg_hr}kg
+                    {horse.wg_hr_diff != null && horse.wg_hr_diff !== 0 && (
+                      <span style={{ color: horse.wg_hr_diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                        ({horse.wg_hr_diff > 0 ? '+' : ''}{horse.wg_hr_diff})
+                      </span>
+                    )}
+                  </span>
+                )}
+                {horse.erng_sump != null && horse.erng_sump > 0 && (
+                  <span style={{ color: 'var(--color-text-disabled)' }}>{formatErng(horse.erng_sump)}</span>
+                )}
+              </div>
+              {/* 공백기 */}
+              {racingGap != null && (
+                <div
+                  className="text-[13px] font-mono-num"
+                  style={{ color: racingGap >= 30 ? 'var(--color-accent-gold)' : 'var(--color-text-disabled)' }}
+                >
+                  공백 {racingGap}일{racingGap >= 30 ? ' [장기]' : ''}
+                </div>
+              )}
+              {/* 게이트 성적 */}
+              {currentGateStat != null && currentGateStat.total >= 3 && (
+                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+                  {horse.pthr_no}번 게이트 {currentGateStat.total}전{' '}
+                  <span style={{ color: currentGateStat.wins > 0 ? 'var(--color-success)' : undefined }}>
+                    {currentGateStat.wins}승({Math.round((currentGateStat.wins / currentGateStat.total) * 100)}%)
+                  </span>
+                </div>
+              )}
+              {/* 최근 조교 */}
+              {latestTraining && (
+                <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+                  조교 {formatDate(latestTraining.train_date)}
+                  {latestTraining.tr_term != null && latestTraining.tr_term > 0 && (
+                    <span className="ml-1">{formatTrTerm(latestTraining.tr_term)}</span>
+                  )}
+                  {latestTraining.pr_gubun && <span className="ml-1">{latestTraining.pr_gubun}</span>}
+                </div>
+              )}
+            </div>
+
+            {/* 섹션2: 직전 경주 (최근 2건) */}
+            {history.length > 0 && (
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-disabled)' }}>
+                  직전 경주
+                </div>
+                <div className="space-y-1">
+                  {history.slice(0, 2).map((h, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[13px] font-mono-num flex-wrap">
+                      <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>
+                        {MEET_NAMES[h.meet] ?? '?'}{h.rc_dist ? ` ${h.rc_dist}m` : ''}
+                      </span>
+                      <span className="font-semibold" style={{ color: ordColor(h.ord) }}>
+                        {h.ord != null ? `${h.ord}위` : '-'}
+                      </span>
+                      <span style={{ color: 'var(--color-text-primary)' }}>{formatRcTime(h.rc_time)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 섹션3: 주요 항목 점수 (5개 바) */}
+            {prediction?.item_scores && (
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-disabled)' }}>
+                  항목 점수
+                </div>
+                <div className="space-y-1.5">
+                  {TOP5_ITEMS.map(({ id, label }) => {
+                    const score = prediction.item_scores[id]?.rawScore ?? 0;
+                    return (
+                      <div key={id} className="flex items-center gap-1.5">
+                        <span className="text-[13px] w-14 text-right shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+                          {label}
+                        </span>
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${score * 100}%`, background: accentColor }}
+                          />
+                        </div>
+                        <span className="text-[13px] font-mono-num w-6 shrink-0" style={{ color: 'var(--color-text-primary)' }}>
+                          {score.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -815,6 +1251,19 @@ export function PredictionSheet() {
 
   // 조교 기록 (최근 30일, 말 이름 기준 배치 조회)
   const { data: trainingMap } = useTrainingBatchByNames(hrNames, meet, 30);
+
+  // E-002: 기수-말 조합 이력
+  const jockeyHorseCombos = useMemo(
+    () =>
+      (horses ?? [])
+        .filter((h) => h.jcky_nm)
+        .map((h) => ({ hrName: h.hr_name, jckyNm: h.jcky_nm! })),
+    [horses]
+  );
+  const { data: jockeyHorseComboMap } = useJockeyHorseComboBatch(jockeyHorseCombos);
+
+  // E-003: 게이트별 통산 성적
+  const { data: gateStatsMap } = useHorseGateStatsBatch(hrNames);
 
   const predByName = useMemo(() => {
     const map = new Map<string, Prediction>();
@@ -902,6 +1351,9 @@ export function PredictionSheet() {
       {/* Top 3 포디엄 */}
       {top3.length > 0 && <PodiumCards top3={top3} pthrNoByName={pthrNoByName} />}
 
+      {/* F-002: 베팅 조합 추천 */}
+      {top3.length >= 2 && <ComboBetBox top3={top3} pthrNoByName={pthrNoByName} />}
+
       {/* 로딩 / 에러 */}
       {isLoading && (
         <div
@@ -939,6 +1391,8 @@ export function PredictionSheet() {
               trainerStat={trainerStatsMap?.get(horse.trar_nm ?? '')}
               jockeyStat={jockeyStatsMap?.get(horse.jcky_no ?? '')}
               latestTraining={trainingMap?.get(horse.hr_name)?.[0]}
+              jockeyHorseCombo={jockeyHorseComboMap?.get(`${horse.hr_name}:${horse.jcky_nm ?? ''}`)}
+              gateStats={gateStatsMap?.get(horse.hr_name)}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />

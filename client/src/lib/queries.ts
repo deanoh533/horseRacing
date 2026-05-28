@@ -805,6 +805,112 @@ export function useRaceCardsCoverage() {
 }
 
 /**
+ * 조교사 단건 성적 조회 (최근 2년, race_entries 집계)
+ */
+export function useTrainerStats(trainerName: string) {
+  return useQuery({
+    queryKey: ['trainer-stats', trainerName],
+    queryFn: async (): Promise<{ total: number; wins: number; places: number; shows: number } | null> => {
+      if (!trainerName) return null;
+      const cutoff = getDateNDaysAgo(730);
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('ord')
+        .eq('trar_nm', trainerName)
+        .gte('race_date', cutoff)
+        .not('ord', 'is', null);
+      if (error) throw error;
+      const items = data ?? [];
+      return {
+        total: items.length,
+        wins: items.filter((r) => r.ord === 1).length,
+        places: items.filter((r) => r.ord != null && r.ord <= 2).length,
+        shows: items.filter((r) => r.ord != null && r.ord <= 3).length,
+      };
+    },
+    enabled: !!trainerName,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
+ * E-002: 기수-말 조합 이력 배치 조회
+ * - 여러 (hrName, jckyNm) 쌍의 역대 성적 (승·연·복 포함)
+ * - key: "${hrName}:${jckyNm}"
+ */
+export type JockeyHorseComboStat = { total: number; wins: number; places: number; shows: number };
+
+export function useJockeyHorseComboBatch(
+  combos: Array<{ hrName: string; jckyNm: string }>
+) {
+  const hrNames = [...new Set(combos.map((c) => c.hrName))];
+  const jckyNms = [...new Set(combos.map((c) => c.jckyNm))];
+  const key = combos.map((c) => `${c.hrName}:${c.jckyNm}`).sort().join(',');
+  return useQuery({
+    queryKey: ['jockey-horse-combo-batch', key],
+    queryFn: async (): Promise<Map<string, JockeyHorseComboStat>> => {
+      if (combos.length === 0) return new Map();
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('hr_name, jcky_nm, ord')
+        .in('hr_name', hrNames)
+        .in('jcky_nm', jckyNms)
+        .not('ord', 'is', null);
+      if (error) throw error;
+      const validKeys = new Set(combos.map((c) => `${c.hrName}:${c.jckyNm}`));
+      const map = new Map<string, JockeyHorseComboStat>();
+      for (const r of data ?? []) {
+        if (!r.hr_name || !r.jcky_nm) continue;
+        const k = `${r.hr_name}:${r.jcky_nm}`;
+        if (!validKeys.has(k)) continue;
+        const s = map.get(k) ?? { total: 0, wins: 0, places: 0, shows: 0 };
+        s.total++;
+        if (r.ord === 1) s.wins++;
+        if (r.ord != null && r.ord <= 2) s.places++;
+        if (r.ord != null && r.ord <= 3) s.shows++;
+        map.set(k, s);
+      }
+      return map;
+    },
+    enabled: combos.length > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
+ * E-003: 게이트(pthr_no)별 통산 성적 배치 조회
+ * - 여러 말의 게이트별 역대 성적
+ * - key: hrName → Map<pthr_no, { total, wins }>
+ */
+export function useHorseGateStatsBatch(hrNames: string[]) {
+  return useQuery({
+    queryKey: ['horse-gate-stats-batch', hrNames.slice().sort().join(',')],
+    queryFn: async (): Promise<Map<string, Map<number, { total: number; wins: number }>>> => {
+      if (hrNames.length === 0) return new Map();
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('hr_name, pthr_no, ord')
+        .in('hr_name', hrNames)
+        .not('ord', 'is', null);
+      if (error) throw error;
+      const map = new Map<string, Map<number, { total: number; wins: number }>>();
+      for (const r of data ?? []) {
+        if (!r.hr_name || r.pthr_no == null) continue;
+        if (!map.has(r.hr_name)) map.set(r.hr_name, new Map());
+        const gm = map.get(r.hr_name)!;
+        const s = gm.get(r.pthr_no) ?? { total: 0, wins: 0 };
+        s.total++;
+        if (r.ord === 1) s.wins++;
+        gm.set(r.pthr_no, s);
+      }
+      return map;
+    },
+    enabled: hrNames.length > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
  * DB에 데이터 있는 날짜 목록 (대시보드 날짜 선택용)
  */
 export function useAvailableDates() {

@@ -82,6 +82,12 @@ export interface RaceEntry {
   win_odds: number | null;
   popularity: number | null;
   result_at: string | null;
+  // 장구 (이번 경주 — race card에서 수집)
+  asis_equip1: string | null;
+  asis_equip2: string | null;
+  asis_equip3: string | null;
+  asis_equip4: string | null;
+  asis_equip5: string | null;
   latst_bledg1: string | null;
   latst_bledg2: string | null;
   latst_trea1_txt: string | null;

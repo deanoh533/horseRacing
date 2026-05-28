@@ -1,10 +1,10 @@
 /**
- * 출주표 sync (API314 서울 / API316 부산경남)
+ * 출전표 sync (API26_2/entrySheet_2)
  *
  * 운영 사용:
- *   - 매주 수~목요일: 다음 주말 (금/토/일) 경주 출주표 fetch
- *   - 각 경주마다 rcNo 1~12 시도 (없으면 skip)
- *   - race_entries + races 동시 채움 → 웹에서 사전 표시 가능
+ *   - 매주 수~목요일: 다음 주말 (금/토/일) 경주 출전표 fetch
+ *   - meet + rc_date 단위로 전체 경주 일괄 반환 → rcNo 루프 불필요
+ *   - race_entries + races 동시 채움 (거리·등급·상금조건 포함)
  *
  * CLI:
  *   tsx src/sync/raceCardSync.ts --date 20260530
@@ -12,10 +12,8 @@
  */
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
-import { toRaceEntryRow } from './transformer.js';
+import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
 import type { MeetCode } from '@app-types/index.js';
-
-const MAX_RC_NO = 13;
 
 export interface RaceCardSyncResult {
   meet: MeetCode;
@@ -56,47 +54,57 @@ async function syncOneMeet(
 
   const kra = getKRAClient();
   const sb = getSupabaseAdmin();
-  console.log(`  [meet=${meet}] 경주별 fetch 시도 (rc_no 1~${MAX_RC_NO})...`);
+  console.log(`  [meet=${meet}] API26_2 출전표 fetch...`);
 
-  for (let rcNo = 1; rcNo <= MAX_RC_NO; rcNo++) {
-    try {
-      const cards = await kra.getRaceCard({ meet, rcDate, rcNo });
-      if (cards.length === 0) continue;
-
-      // race_entries rows 변환
-      const rows = cards.map((c) => toRaceEntryRow(c, meet, rcDate, rcNo));
-
-      // race_entries upsert
-      const { error: entryError } = await sb.from('race_entries').upsert(rows, {
-        onConflict: 'race_date,meet,rc_no,pthr_no',
-      });
-      if (entryError) {
-        result.errors.push(`rcNo=${rcNo}: ${entryError.message}`);
-        console.error(`    rc_no=${rcNo} ❌ race_entries: ${entryError.message}`);
-        continue;
-      }
-
-      // races 테이블에 경주 번호 먼저 insert (거리/주로는 경기 후 채워짐)
-      const { error: raceError } = await sb.from('races').upsert(
-        { race_date: rcDate, meet, rc_no: rcNo },
-        { onConflict: 'race_date,meet,rc_no' }
-      );
-      if (raceError) {
-        console.warn(`    rc_no=${rcNo} ⚠️ races insert 실패 (계속): ${raceError.message}`);
-      }
-
-      result.racesSynced++;
-      result.horsesSynced += rows.length;
-      console.log(`    rc_no=${rcNo} ✓ ${rows.length}마`);
-    } catch (e) {
-      const msg = (e as Error).message;
-      if (msg.includes('429') || msg.includes('LIMITED_NUMBER')) {
-        result.errors.push(`rcNo=${rcNo}: rate limit (중단)`);
-        console.error(`    ❌ KRA rate limit (rc_no=${rcNo})`);
-        break;
-      }
-      result.errors.push(`rcNo=${rcNo}: ${msg.slice(0, 80)}`);
+  try {
+    const items = await kra.getAllEntrySheet({ meet, rcDate });
+    if (items.length === 0) {
+      console.log(`  [meet=${meet}] 데이터 없음`);
+      return result;
     }
+
+    // rcNo별 그룹핑
+    const byRcNo = new Map<number, typeof items>();
+    for (const item of items) {
+      if (!byRcNo.has(item.rcNo)) byRcNo.set(item.rcNo, []);
+      byRcNo.get(item.rcNo)!.push(item);
+    }
+
+    for (const [rcNo, raceItems] of byRcNo) {
+      try {
+        // race_entries upsert
+        const entryRows = raceItems.map(toRaceEntryRowFromEntrySheet);
+        const { error: entryError } = await sb.from('race_entries').upsert(entryRows, {
+          onConflict: 'race_date,meet,rc_no,pthr_no',
+        });
+        if (entryError) {
+          result.errors.push(`rcNo=${rcNo}: ${entryError.message}`);
+          console.error(`    rc_no=${rcNo} ❌ race_entries: ${entryError.message}`);
+          continue;
+        }
+
+        // races upsert (거리·등급·상금조건 포함, 주로/날씨는 결과 싱크에서 채움)
+        const raceRow = toRaceRowFromEntrySheet(raceItems[0]!);
+        const { error: raceError } = await sb.from('races').upsert(raceRow, {
+          onConflict: 'race_date,meet,rc_no',
+        });
+        if (raceError) {
+          console.warn(`    rc_no=${rcNo} ⚠️ races upsert 실패 (계속): ${raceError.message}`);
+        }
+
+        result.racesSynced++;
+        result.horsesSynced += raceItems.length;
+        console.log(`    rc_no=${rcNo} ✓ ${raceItems.length}마`);
+      } catch (e) {
+        const msg = (e as Error).message;
+        result.errors.push(`rcNo=${rcNo}: ${msg.slice(0, 80)}`);
+        console.error(`    rc_no=${rcNo} ❌ ${msg}`);
+      }
+    }
+  } catch (e) {
+    const msg = (e as Error).message;
+    result.errors.push(`전체 실패: ${msg}`);
+    console.error(`  [meet=${meet}] ❌ ${msg}`);
   }
 
   console.log(

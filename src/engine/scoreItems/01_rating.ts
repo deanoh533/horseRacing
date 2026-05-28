@@ -13,6 +13,6 @@ export interface RatingInput {
 
 export function calculateRatingScore(input: RatingInput): number {
   const { rating } = input;
-  if (!rating || rating <= 0) return 0;
+  if (!rating || rating <= 0) return 0.5;
   return Math.min(1.0, rating / 140);
 }

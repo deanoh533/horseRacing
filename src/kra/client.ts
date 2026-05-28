@@ -216,10 +216,56 @@ export class KRAClient {
   }
 
   /**
-   * 출주표 (race card) — 경기 약 2일 전 발표
-   *   서울: API314/textDataHoldSePtinInfo
-   *   부산경남: API316/textDataHoldBuPtinInfo
-   * param: race_dt, race_no (snake_case 필수)
+   * API26_2/entrySheet_2: 출전표 상세정보 (날짜 단위, 전 경주 일괄)
+   * 구 API314/316(경주별)을 대체. meet + rc_date만으로 해당일 전체 반환.
+   */
+  async getEntrySheet(params: {
+    meet: MeetCode;
+    rcDate: number;
+    pageNo?: number;
+    numOfRows?: number;
+  }): Promise<KRAEntrySheetItem[]> {
+    return limit(async () => {
+      const { data } = await this.client.get<KRAResponse<KRAEntrySheetItem>>(
+        '/API26_2/entrySheet_2',
+        {
+          params: {
+            serviceKey: this.apiKey,
+            meet: params.meet,
+            rc_date: params.rcDate,
+            pageNo: params.pageNo ?? 1,
+            numOfRows: params.numOfRows ?? 100,
+            _type: 'json',
+          },
+        }
+      );
+      return this.parseResponse(data);
+    });
+  }
+
+  /** API26_2 전체 페이지 자동 수집 */
+  async getAllEntrySheet(params: {
+    meet: MeetCode;
+    rcDate: number;
+  }): Promise<KRAEntrySheetItem[]> {
+    const all: KRAEntrySheetItem[] = [];
+    let pageNo = 1;
+    const numOfRows = 100;
+
+    while (true) {
+      const page = await this.getEntrySheet({ ...params, pageNo, numOfRows });
+      if (page.length === 0) break;
+      all.push(...page);
+      if (page.length < numOfRows) break;
+      pageNo++;
+      if (pageNo > 20) break;
+    }
+
+    return all;
+  }
+
+  /**
+   * @deprecated API314/316 구 카드 API. getAllEntrySheet() 사용 권장.
    */
   async getRaceCard(params: {
     meet: MeetCode;
@@ -379,6 +425,7 @@ export class KRAClient {
   }
 }
 
+/** @deprecated API314/316 구 카드 API — API26_2로 교체됨 */
 export interface KRARaceCard {
   raceDt: number;
   raceNo: number;
@@ -412,6 +459,62 @@ export interface KRARaceCard {
   latstBledg2: string;
   latstTrea1Txt: string;
   latstTrea2Txt: string;
+}
+
+/**
+ * API26_2/entrySheet_2: 출전표 상세정보
+ * - 날짜(rc_date) + 경마장(meet) 단위로 전체 경주 일괄 반환
+ * - rating은 미등급 시 "-" 문자열, 등급 있으면 숫자
+ */
+export interface KRAEntrySheetItem {
+  age: number;
+  ageCond: string;
+  budam: string;
+  chaksun1: number;
+  chaksun2: number;
+  chaksun3: number;
+  chaksun4: number;
+  chaksun5: number;
+  chaksunT: number;       // 통산 수득상금 (= erngSump)
+  chaksunY: number;       // 금년 수득상금 (= erngLoy)
+  chaksun_6m: number;     // 최근 6개월 수득상금 (= erngLsm)
+  chulNo: number;         // 출주번호 (= pthrNo, PK)
+  dusu: number;           // 출전 두수
+  hrName: string;
+  hrNameEn: string;
+  hrNo: string;
+  ilsu: number;           // 경마일수
+  jkName: string;
+  jkNameEn: string;
+  jkNo: string;
+  meet: string;           // "서울" | "부산경남"
+  ord1CntT: number;       // 통산 1착 횟수 (= sumpRcodFplc)
+  ord1CntY: number;       // 금년 1착 횟수 (= loyRcodFplc)
+  ord2CntT: number;
+  ord2CntY: number;
+  ord3CntT: number;
+  ord3CntY: number;
+  owName: string;
+  owNameEn: string;
+  owNo: number | string;
+  prd: string;            // 산지
+  prizeCond: string;
+  rank: string;           // 등급 (예: "국6등급")
+  rating: number | string; // 미등급이면 "-", 등급 있으면 숫자
+  rcCntT: number;         // 통산 출전수 (= sumpRcodSum)
+  rcCntY: number;         // 금년 출전수 (= loyRcodSum)
+  rcDate: number;
+  rcDay: string;
+  rcDist: number;
+  rcName: string;
+  rcNo: number;
+  sex: string;
+  sexCond: string;
+  stTime: string;         // 출발시각 (예: "출발 :10:45")
+  trName: string;
+  trNameEn: string;
+  trNo: string;
+  wgBudam: number;        // 부담중량
 }
 
 // ============================================
