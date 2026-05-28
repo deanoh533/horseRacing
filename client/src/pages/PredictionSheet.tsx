@@ -9,7 +9,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { ChevronLeft, Loader2, LayoutList, Activity } from 'lucide-react';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
@@ -723,20 +723,20 @@ function ColJockeyInfo({
 function ColHistory({ history }: { history: RaceEntry[] }) {
   return (
     <div className="p-3">
-      <div className="text-[10px] mb-1.5 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
+      <div className="text-xs mb-2 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
         직전 경주
       </div>
       {history.length === 0 ? (
-        <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
+        <p className="text-sm" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
       ) : (
-        <div className="space-y-1">
-          <div className="grid text-[10px]" style={{ gridTemplateColumns: '3rem 5rem 2.5rem 3.5rem 2.5rem 2.5rem', color: 'var(--color-text-disabled)' }}>
+        <div className="space-y-1.5">
+          <div className="grid text-xs" style={{ gridTemplateColumns: '3.5rem 6rem 3rem 4rem 3rem 3rem', color: 'var(--color-text-disabled)' }}>
             <span>날짜</span><span>경마장·거리</span><span className="text-center">착순</span>
             <span>기록</span><span>부담</span><span>주로</span>
           </div>
           {history.map((h, i) => (
-            <div key={i} className="grid font-mono-num text-[11px]"
-              style={{ gridTemplateColumns: '3rem 5rem 2.5rem 3.5rem 2.5rem 2.5rem' }}>
+            <div key={i} className="grid font-mono-num text-[13px]"
+              style={{ gridTemplateColumns: '3.5rem 6rem 3rem 4rem 3rem 3rem' }}>
               <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
               <span style={{ color: 'var(--color-text-secondary)' }}>
                 {MEET_NAMES[h.meet] ?? '?'} {h.rc_dist ?? '-'}m
@@ -781,52 +781,52 @@ function Col5Items({
     <div className="p-3 flex flex-col gap-2 h-full">
       {/* A/B 토글 */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
+        <span className="text-xs font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
           주요 항목 점수
         </span>
-        <div className="flex items-center rounded overflow-hidden text-[10px] font-medium"
+        <div className="flex items-center rounded overflow-hidden text-xs font-medium"
           style={{ border: '1px solid var(--color-bg-elevated)' }}>
           <button
             onClick={() => onViewModeChange(viewMode === 'bar' ? 'radar' : 'bar')}
-            className="flex items-center justify-center gap-0.5 w-12 py-1 transition-all"
+            className="flex items-center justify-center gap-1 w-14 py-1.5 transition-all"
             style={{
               background: viewMode === 'bar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'bar' ? '#0a0e27' : 'var(--color-text-secondary)',
             }}>
-            <LayoutList className="w-2.5 h-2.5" />바
+            <LayoutList className="w-3 h-3" />바
           </button>
           <button
             onClick={() => onViewModeChange(viewMode === 'bar' ? 'radar' : 'bar')}
-            className="flex items-center justify-center gap-0.5 w-12 py-1 transition-all"
+            className="flex items-center justify-center gap-1 w-14 py-1.5 transition-all"
             style={{
               background: viewMode === 'radar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'radar' ? '#0a0e27' : 'var(--color-text-secondary)',
             }}>
-            <Activity className="w-2.5 h-2.5" />레이더
+            <Activity className="w-3 h-3" />레이더
           </button>
         </div>
       </div>
 
-      {/* 높이 고정: 바(5항목×28px≈140) vs 레이더(170px) → 190으로 통일 */}
-      <div className="flex-1 flex flex-col justify-center" style={{ minHeight: 190 }}>
+      {/* 높이 고정: 바(5항목×36px≈180) vs 레이더(220px) → 220으로 통일 */}
+      <div className="flex-1 flex flex-col justify-center" style={{ minHeight: 220 }}>
       {!hasScores && (
-        <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
+        <p className="text-sm" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
 
       {hasScores && viewMode === 'bar' && (
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {top5Items.map((item) => {
             const pending = item.status === 'expert_pending';
             return (
-              <div key={item.itemId} className="flex items-center gap-1.5">
-                <span className="text-[11px] shrink-0 w-14 text-right"
+              <div key={item.itemId} className="flex items-center gap-2">
+                <span className="text-[13px] shrink-0 w-16 text-right"
                   style={{ color: 'var(--color-text-secondary)' }}>{item.itemName}</span>
-                <div className="flex-1 h-1.5 rounded-full overflow-hidden"
+                <div className="flex-1 h-3 rounded-full overflow-hidden"
                   style={{ background: 'var(--color-bg-elevated)' }}>
                   <div className="h-full rounded-full"
                     style={{ width: `${item.rawScore * 100}%`, background: pending ? 'var(--color-text-disabled)' : accentColor }} />
                 </div>
-                <span className="text-[10px] font-mono-num w-6 shrink-0"
+                <span className="text-xs font-mono-num w-8 shrink-0"
                   style={{ color: pending ? 'var(--color-text-disabled)' : 'var(--color-text-primary)' }}>
                   {item.rawScore.toFixed(2)}
                 </span>
@@ -837,43 +837,41 @@ function Col5Items({
       )}
 
       {hasScores && viewMode === 'radar' && (
-        <div className="flex justify-center items-center" style={{ height: 190 }}>
-          <div style={{ width: 170, height: 170 }}>
-            <Radar
-              data={{
-                labels: top5Items.map((i) => i.itemName),
-                datasets: [{
-                  data: top5Items.map((i) => Math.round(i.rawScore * 100)),
-                  borderColor: accentColor,
-                  backgroundColor: `${accentColor}20`,
-                  borderWidth: 1.5,
-                  pointBackgroundColor: accentColor,
-                  pointRadius: 2,
-                }],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                  r: {
-                    min: 0, max: 100,
-                    ticks: { display: false },
-                    grid: { color: 'rgba(94,107,138,0.25)' },
-                    angleLines: { color: 'rgba(94,107,138,0.2)' },
-                    pointLabels: { color: 'rgba(176,190,197,0.85)', font: { size: 9 } },
-                  },
+        <div className="w-full" style={{ height: 220 }}>
+          <Radar
+            data={{
+              labels: top5Items.map((i) => i.itemName),
+              datasets: [{
+                data: top5Items.map((i) => Math.round(i.rawScore * 100)),
+                borderColor: accentColor,
+                backgroundColor: `${accentColor}20`,
+                borderWidth: 2,
+                pointBackgroundColor: accentColor,
+                pointRadius: 3,
+              }],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                r: {
+                  min: 0, max: 100,
+                  ticks: { display: false },
+                  grid: { color: 'rgba(94,107,138,0.25)' },
+                  angleLines: { color: 'rgba(94,107,138,0.2)' },
+                  pointLabels: { color: 'rgba(176,190,197,0.9)', font: { size: 11 } },
                 },
-                plugins: {
-                  legend: { display: false },
-                  tooltip: {
-                    backgroundColor: 'rgba(19,27,58,0.95)',
-                    borderColor: 'rgba(94,107,138,0.4)', borderWidth: 1,
-                    titleColor: '#b0bec5', bodyColor: '#ffffff',
-                  },
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: 'rgba(19,27,58,0.95)',
+                  borderColor: 'rgba(94,107,138,0.4)', borderWidth: 1,
+                  titleColor: '#b0bec5', bodyColor: '#ffffff',
                 },
-              }}
-            />
-          </div>
+              },
+            }}
+          />
         </div>
       )}
       </div>
@@ -961,6 +959,7 @@ export function PredictionSheet() {
   const meet = Number(meetStr);
   const rcDate = Number(dateStr);
   const rcNo = Number(rcNoStr);
+  const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useState<ViewMode>('bar');
 
@@ -1058,13 +1057,13 @@ export function PredictionSheet() {
     <div className="space-y-4 pb-8">
       {/* 내비게이션 */}
       <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        <Link
-          to={`/race/${meet}/${rcDate}/${rcNo}/entries`}
+        <button
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1 hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
-          출마정보
-        </Link>
+          뒤로
+        </button>
         {isPostRace && (
           <span
             className="text-xs px-1.5 py-0.5 rounded"

@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronDown, Sparkles, Bot, Loader2 } from 'lucide-react';
 import { useHorsesByRace, usePredictionsByRace, useGradeWinnerStats } from '../lib/queries';
@@ -32,6 +32,7 @@ export function RaceDetail() {
   const rcNo = Number(rcNoStr);
 
   const [showLowerRanks, setShowLowerRanks] = useState(false);
+  const navigate = useNavigate();
 
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
@@ -64,13 +65,13 @@ export function RaceDetail() {
     <div className="space-y-4">
       {/* 내비게이션 */}
       <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1 hover:text-white"
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1 hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           뒤로
-        </Link>
+        </button>
       </div>
 
       {/* 경주 정보 카드 */}

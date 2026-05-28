@@ -7,7 +7,7 @@
  *  - 셀 클릭: 기수 → 기수 패널 / 조교사 → 조교사 패널
  *  - 마명: 말 상세 페이지 링크
  */
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target, History, Dumbbell, Dna, ExternalLink } from 'lucide-react';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
@@ -83,6 +83,7 @@ export function RaceEntries() {
   const [sortKey, setSortKey] = useState<SortKey>('pthr_no');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expandedCell, setExpandedCell] = useState<ExpandedCell>(null);
+  const navigate = useNavigate();
 
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
@@ -147,9 +148,9 @@ export function RaceEntries() {
     <div className="space-y-4">
       {/* 내비게이션 */}
       <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-        <Link to="/dashboard" className="inline-flex items-center gap-1 hover:text-white">
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1 hover:text-white transition-colors">
           <ChevronLeft className="w-4 h-4" />뒤로
-        </Link>
+        </button>
       </div>
 
       <RaceInfoBlock rcDate={rcDate} meet={meet} rcNo={rcNo} race={race} horses={horses} gradeStats={gradeStats} />

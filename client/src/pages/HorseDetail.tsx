@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, FileText, GitCompare, Save, TrendingUp, Loader2, Star } from 'lucide-react';
 import { useHorseHistory, useHorsesByRace, usePredictionsByRace, useHorseTraining } from '../lib/queries';
 import { type RaceEntry, type ItemScore, formatActualOrd, isCancelled } from '../lib/supabase';
@@ -34,16 +34,18 @@ export function HorseDetail() {
     );
   }
 
+  const navigate = useNavigate();
+
   if (!horse) {
     return (
       <div className="space-y-4">
-        <Link
-          to={`/race/${meetStr}/${dateStr}/${rcNoStr}`}
-          className="inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-white"
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
-          경주 상세로
-        </Link>
+          뒤로
+        </button>
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-400">
           ❌ 출전마 데이터 없음 (pthr_no={chulNo})
         </div>
@@ -57,13 +59,13 @@ export function HorseDetail() {
   return (
     <div className="space-y-4">
       {/* 뒤로 */}
-      <Link
-        to={`/race/${meetStr}/${dateStr}/${rcNoStr}`}
-        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-white"
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-white transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
-        경주 상세로
-      </Link>
+        뒤로
+      </button>
 
       {/* 말 정보 */}
       <div className="bg-[var(--color-bg-surface)] rounded-xl p-6 border border-[var(--color-bg-elevated)]">
