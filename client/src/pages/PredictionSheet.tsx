@@ -144,6 +144,7 @@ function formatDate(d: number): string {
 
 
 interface SectionalInfo {
+  cornerStr: string | null;  // 코너/중간지점 순위 (예: "5-3-2-2")
   s1fOrd: number | null;
   s1fTime: number | null;   // 출발 200m 스플릿 (초)
   g3fOrd: number | null;
@@ -154,11 +155,19 @@ interface SectionalInfo {
 
 function getSectionalInfo(h: RaceEntry): SectionalInfo {
   const isSe = h.meet === 1;
+  // 코너/중간지점 순위 계산
+  // 서울: 1~4코너 순위 / 부경: g4f·g2f 지점 순위
+  // bu_g8f_ord, bu_g6f_ord 컬럼 DB에 추가 시 buCornerRanks 배열 앞에 prepend
+  const cornerRanks = isSe
+    ? [h.sj_1c_ord ?? null, h.sj_2c_ord ?? null, h.sj_3c_ord ?? null, h.sj_4c_ord ?? null]
+    : [h.bu_g4f_ord ?? null, h.bu_g2f_ord ?? null];
+  const validCornerRanks = cornerRanks.filter((r): r is number => r !== null);
   const s1fTime = isSe ? (h.se_s1f_acc_time ?? null) : (h.bu_s1f_acc_time ?? null);
   const g3fAcc = isSe ? (h.se_g3f_acc_time ?? null) : (h.bu_g3f_acc_time ?? null);
   const g1fAcc = isSe ? (h.se_g1f_acc_time ?? null) : (h.bu_g1f_acc_time ?? null);
 
   return {
+    cornerStr: validCornerRanks.length > 0 ? validCornerRanks.join('-') : null,
     s1fOrd: isSe ? (h.sj_s1f_ord ?? null) : (h.bu_s1f_ord ?? null),
     s1fTime,
     g3fOrd: isSe ? (h.sj_g3f_ord ?? null) : (h.bu_g3f_ord ?? null),
@@ -772,11 +781,15 @@ function ColHistory({ history }: { history: RaceEntry[] }) {
           {history.map((h, i) => {
             const sec = getSectionalInfo(h);
             const hasSecData =
+              sec.cornerStr != null ||
               sec.s1fOrd != null || sec.s1fTime != null ||
               sec.g3fOrd != null || sec.g3fSplit != null ||
               sec.g1fOrd != null || sec.g1fSplit != null;
 
             const secChunks: string[] = [];
+            if (sec.cornerStr != null) {
+              secChunks.push(sec.cornerStr);
+            }
             if (sec.s1fOrd != null || sec.s1fTime != null) {
               const parts = [
                 sec.s1fOrd != null ? `${sec.s1fOrd}위` : null,
