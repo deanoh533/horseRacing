@@ -51,13 +51,6 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
 
 const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부경' };
 
-const TOP5_ITEMS: { id: string; label: string }[] = [
-  { id: '01_rating',           label: '레이팅'  },
-  { id: '09_jockey_form',      label: '기수폼'  },
-  { id: '06_distance_fitness', label: '거리적성' },
-  { id: '03_recent_form',      label: '착순추세' },
-  { id: '17_market_odds',      label: '배당률'  },
-];
 
 const PODIUM_STYLES = [
   { border: 'border-[#ffd700]', glow: '0 0 24px rgba(255,215,0,0.25)', accent: '#ffd700', label: '1위', labelColor: 'text-[#ffd700]' },
@@ -762,7 +755,7 @@ function ColHistory({ history }: { history: RaceEntry[] }) {
   );
 }
 
-// ─── 열 4: 5항목 점수 ────────────────────────────────────────────────
+// ─── 열 4: 주요 항목 점수 ───────────────────────────────────────────────
 
 function Col5Items({
   itemScores,
@@ -777,12 +770,19 @@ function Col5Items({
 }) {
   const hasScores = itemScores && Object.keys(itemScores).length > 0;
 
+  // 현재 가중치 기준 상위 5개 항목 동적 선택
+  const top5Items = hasScores
+    ? Object.values(itemScores!)
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 5)
+    : [];
+
   return (
-    <div className="p-3 flex flex-col gap-2">
+    <div className="p-3 flex flex-col gap-2 h-full">
       {/* A/B 토글 */}
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
-          5항목 점수
+          주요 항목 점수
         </span>
         <div className="flex items-center rounded overflow-hidden text-[10px] font-medium"
           style={{ border: '1px solid var(--color-bg-elevated)' }}>
@@ -807,29 +807,28 @@ function Col5Items({
         </div>
       </div>
 
-      {/* 높이 고정: 바(5항목×22px≈110) vs 레이더(160px) → 170으로 통일 */}
-      <div style={{ minHeight: 170 }}>
+      {/* 높이 고정: 바(5항목×28px≈140) vs 레이더(170px) → 190으로 통일 */}
+      <div className="flex-1 flex flex-col justify-center" style={{ minHeight: 190 }}>
       {!hasScores && (
         <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
 
       {hasScores && viewMode === 'bar' && (
-        <div className="space-y-1.5">
-          {TOP5_ITEMS.map(({ id, label }) => {
-            const score = itemScores![id]?.rawScore ?? 0;
-            const pending = itemScores![id]?.status === 'expert_pending';
+        <div className="space-y-3">
+          {top5Items.map((item) => {
+            const pending = item.status === 'expert_pending';
             return (
-              <div key={id} className="flex items-center gap-1.5">
+              <div key={item.itemId} className="flex items-center gap-1.5">
                 <span className="text-[11px] shrink-0 w-14 text-right"
-                  style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
+                  style={{ color: 'var(--color-text-secondary)' }}>{item.itemName}</span>
                 <div className="flex-1 h-1.5 rounded-full overflow-hidden"
                   style={{ background: 'var(--color-bg-elevated)' }}>
                   <div className="h-full rounded-full"
-                    style={{ width: `${score * 100}%`, background: pending ? 'var(--color-text-disabled)' : accentColor }} />
+                    style={{ width: `${item.rawScore * 100}%`, background: pending ? 'var(--color-text-disabled)' : accentColor }} />
                 </div>
                 <span className="text-[10px] font-mono-num w-6 shrink-0"
                   style={{ color: pending ? 'var(--color-text-disabled)' : 'var(--color-text-primary)' }}>
-                  {score.toFixed(2)}
+                  {item.rawScore.toFixed(2)}
                 </span>
               </div>
             );
@@ -838,13 +837,13 @@ function Col5Items({
       )}
 
       {hasScores && viewMode === 'radar' && (
-        <div className="flex justify-center items-center" style={{ height: 170 }}>
-          <div style={{ width: 160, height: 160 }}>
+        <div className="flex justify-center items-center" style={{ height: 190 }}>
+          <div style={{ width: 170, height: 170 }}>
             <Radar
               data={{
-                labels: TOP5_ITEMS.map((i) => i.label),
+                labels: top5Items.map((i) => i.itemName),
                 datasets: [{
-                  data: TOP5_ITEMS.map(({ id }) => Math.round((itemScores![id]?.rawScore ?? 0) * 100)),
+                  data: top5Items.map((i) => Math.round(i.rawScore * 100)),
                   borderColor: accentColor,
                   backgroundColor: `${accentColor}20`,
                   borderWidth: 1.5,
