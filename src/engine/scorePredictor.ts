@@ -65,6 +65,43 @@ export async function predictRace(
   const currentSeason = monthToSeason(currentMonth);
   const allRaceRatings = entryList.map(e => e.ratg ?? 0);
 
+  // 기수·조교사 최근 90일 착순 배치 fetch (⑨b⑩b용)
+  const ninetyDaysAgo = dateMinusDays(rcDate, 90);
+  const jockeyNos = [...new Set(entryList.map(e => e.jcky_no).filter((x): x is string => x !== null && x !== undefined))];
+  const trainerNos = [...new Set(entryList.map(e => e.trar_no).filter((x): x is string => x !== null && x !== undefined))];
+
+  const [jockeyRecentRaw, trainerRecentRaw] = await Promise.all([
+    jockeyNos.length > 0
+      ? sb.from('race_entries')
+          .select('jcky_no, ord')
+          .in('jcky_no', jockeyNos)
+          .gte('race_date', ninetyDaysAgo)
+          .lt('race_date', rcDate)
+          .not('ord', 'is', null)
+          .lt('ord', 50)
+      : Promise.resolve({ data: [] as { jcky_no: string; ord: number }[], error: null }),
+    trainerNos.length > 0
+      ? sb.from('race_entries')
+          .select('trar_no, ord')
+          .in('trar_no', trainerNos)
+          .gte('race_date', ninetyDaysAgo)
+          .lt('race_date', rcDate)
+          .not('ord', 'is', null)
+          .lt('ord', 50)
+      : Promise.resolve({ data: [] as { trar_no: string; ord: number }[], error: null }),
+  ]);
+
+  const jockeyRecentMap = new Map<string, number[]>();
+  for (const r of (jockeyRecentRaw.data ?? []) as { jcky_no: string; ord: number }[]) {
+    if (!jockeyRecentMap.has(r.jcky_no)) jockeyRecentMap.set(r.jcky_no, []);
+    jockeyRecentMap.get(r.jcky_no)!.push(r.ord);
+  }
+  const trainerRecentMap = new Map<string, number[]>();
+  for (const r of (trainerRecentRaw.data ?? []) as { trar_no: string; ord: number }[]) {
+    if (!trainerRecentMap.has(r.trar_no)) trainerRecentMap.set(r.trar_no, []);
+    trainerRecentMap.get(r.trar_no)!.push(r.ord);
+  }
+
   // 경주 거리/주로: race_entries에 없으면 races 테이블에서 fallback
   let rcDist = entryList[0]?.rc_dist ?? null;
   let trackType = entryList[0]?.track_type ?? null;
@@ -83,7 +120,7 @@ export async function predictRace(
   const results = await Promise.all(
     entryList.map(async (e) => {
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
-      const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason);
+      const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap);
       input.erngSump = e.erng_sump ?? undefined;
       input.allRaceRatings = allRaceRatings;
       const score = engine.calculateScores(input);
@@ -112,7 +149,9 @@ async function buildEngineInput(
   e: EntryRow & { rc_dist: number | null; track_type: string | null },
   totalHorses: number,
   currentMonth: number,
-  currentSeason: 'spring' | 'summer' | 'autumn' | 'winter'
+  currentSeason: 'spring' | 'summer' | 'autumn' | 'winter',
+  jockeyRecentMap: Map<string, number[]>,
+  trainerRecentMap: Map<string, number[]>
 ): Promise<ScoreEngineInput> {
   const rcDate = e.race_date;
 
@@ -319,6 +358,8 @@ async function buildEngineInput(
     horseAllOrds,
     combinationOrds,
     recent5Popularities,
+    jockeyRecentOrds: e.jcky_no ? (jockeyRecentMap.get(e.jcky_no) ?? []) : [],
+    trainerRecentOrds: e.trar_no ? (trainerRecentMap.get(e.trar_no) ?? []) : [],
   };
 }
 
@@ -387,4 +428,17 @@ function rcDateToDate(rcDate: number): Date {
 
 function dateToRcDate(d: Date): number {
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function dateMinusDays(dateNum: number, days: number): number {
+  const y = Math.floor(dateNum / 10000);
+  const m = Math.floor((dateNum % 10000) / 100);
+  const d = dateNum % 100;
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - days);
+  return (
+    dt.getFullYear() * 10000 +
+    (dt.getMonth() + 1) * 100 +
+    dt.getDate()
+  );
 }

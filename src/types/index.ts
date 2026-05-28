@@ -168,7 +168,7 @@ export interface ParsedWeight {
 }
 
 // ============================================
-// 17개 항목 ID
+// 19개 항목 ID
 // ============================================
 
 export const SCORE_ITEM_IDS = [
@@ -181,7 +181,9 @@ export const SCORE_ITEM_IDS = [
   '07_track_adaptation',
   '08_burden_weight',
   '09_jockey_form',
+  '09b_jockey_recent',
   '10_trainer_form',
+  '10b_trainer_recent',
   '11_race_interval',
   '12_starting_position',
   '13_age_distance_gender',
@@ -197,7 +199,7 @@ export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
 /** 별칭 (간결한 이름) */
 export type ItemId = ScoreItemId;
 
-/** 18개 항목 비중 (총 100점) — 2026-05-28 Spearman ρ 기반 재조정 */
+/** 19개 항목 비중 (총 100점) — 2026-05-28 Spearman ρ 기반 재조정 + ⑨b⑩b 추가 */
 export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '01_rating': 6.00,           // ratg 17.8% 공백 → 데이터 복구 후 재측정 예정
   '02_weight_change': 1.00,    // ρ=-0.098, 신호 미미
@@ -207,9 +209,11 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '06_distance_fitness': 24.00, // ρ=0.572 ✅ 압도적 1위
   '07_track_adaptation': 0,    // ρ=-0.304 (역상관), SEALED
   '08_burden_weight': 11.00,   // ρ=0.263 ✅
-  '09_jockey_form': 7.50,      // ρ=0.181 ✅
-  '10_trainer_form': 4.50,     // ρ=0.107 ✅
-  '11_race_interval': 4.00,    // 이전 ρ=0.142, 임시 보류
+  '09_jockey_form': 5.50,      // ρ=0.181 ✅ (⑨b 신설로 7.50→5.50)
+  '09b_jockey_recent': 4.00,   // 기수 최근 90일형 신규
+  '10_trainer_form': 3.00,     // ρ=0.107 ✅ (⑩b 신설로 4.50→3.00)
+  '10b_trainer_recent': 2.50,  // 조교사 최근 90일형 신규
+  '11_race_interval': 3.00,    // 이전 ρ=0.142 (4.00→3.00)
   '12_starting_position': 4.50, // ρ=0.104 ✅
   '13_age_distance_gender': 0,  // ρ=-0.017 (역방향) → 비활성화
   '14_pedigree': 3.00,          // 미조회 버그 수정 후 재측정 예정
@@ -219,7 +223,7 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '18_earnings': 3.00,          // erng_sump 공백 → 데이터 복구 후 재측정 예정
 };
 
-/** 17개 항목 한국어 이름 */
+/** 19개 항목 한국어 이름 */
 export const ITEM_NAMES: Record<ScoreItemId, string> = {
   '01_rating': '레이팅',
   '02_weight_change': '마체중 변화',
@@ -230,7 +234,9 @@ export const ITEM_NAMES: Record<ScoreItemId, string> = {
   '07_track_adaptation': '주로 적응',
   '08_burden_weight': '부담중량',
   '09_jockey_form': '기수 폼',
+  '09b_jockey_recent': '기수 최근폼',
   '10_trainer_form': '조교사 폼',
+  '10b_trainer_recent': '조교사 최근폼',
   '11_race_interval': '경주 간격',
   '12_starting_position': '출발번호',
   '13_age_distance_gender': '나이×거리×성별',

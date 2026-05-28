@@ -17,7 +17,7 @@ import {
   type ItemId,
 } from '@app-types/index.js';
 
-// 17개 항목 모두 import
+// 19개 항목 모두 import
 import { calculateRatingScore } from './scoreItems/01_rating.js';
 import { calculateWeightChangeScore } from './scoreItems/02_weight_change.js';
 import { calculateRecentFormScore } from './scoreItems/03_recent_form.js';
@@ -27,7 +27,9 @@ import { calculateDistanceFitnessScore } from './scoreItems/06_distance_fitness.
 import { calculateTrackAdaptationScore } from './scoreItems/07_track_adaptation.js';
 import { calculateBurdenWeightScore } from './scoreItems/08_burden_weight.js';
 import { calculateJockeyFormScore } from './scoreItems/09_jockey_form.js';
+import { calculateJockeyRecentScore } from './scoreItems/09b_jockey_recent.js';
 import { calculateTrainerFormScore } from './scoreItems/10_trainer_form.js';
+import { calculateTrainerRecentScore } from './scoreItems/10b_trainer_recent.js';
 import { calculateRaceIntervalScore } from './scoreItems/11_race_interval.js';
 import { calculateStartingPositionScore } from './scoreItems/12_starting_position.js';
 // import { calculateAgeDistanceGenderScore } from './scoreItems/13_age_distance_gender.js'; // 비활성화
@@ -81,9 +83,13 @@ export interface ScoreEngineInput {
   // ⑨ 기수 통산 성적 (jockey_stats)
   jockeyCareerWinRate?: number | null;
   jockeyCareerQuRate?: number | null;
+  // ⑨b 기수 최근 3개월형
+  jockeyRecentOrds?: number[];
 
   // ⑩ 조교사 폼
   trainer60DayOrds?: number[];
+  // ⑩b 조교사 최근 3개월형
+  trainerRecentOrds?: number[];
 
   // ⑪ 경주 간격
   intervalDays?: number | null;
@@ -229,10 +235,22 @@ export class ScoreEngine {
       })
     );
 
+    // ⑨b 기수 최근 3개월형
+    items['09b_jockey_recent'] = this.make(
+      '09b_jockey_recent',
+      calculateJockeyRecentScore({ recentOrds: input.jockeyRecentOrds ?? [] })
+    );
+
     // ⑩ 조교사 폼
     items['10_trainer_form'] = this.make(
       '10_trainer_form',
       calculateTrainerFormScore({ recent60DayOrds: input.trainer60DayOrds ?? [] })
+    );
+
+    // ⑩b 조교사 최근 3개월형
+    items['10b_trainer_recent'] = this.make(
+      '10b_trainer_recent',
+      calculateTrainerRecentScore({ recentOrds: input.trainerRecentOrds ?? [] })
     );
 
     // ⑪ 경주 간격
