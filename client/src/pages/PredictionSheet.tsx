@@ -730,47 +730,30 @@ function ColJockeyInfo({
 function ColHistory({ history }: { history: RaceEntry[] }) {
   return (
     <div className="p-3">
-      <div className="text-[13px] mb-1.5 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
+      <div className="text-[10px] mb-1.5 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
         직전 경주
       </div>
       {history.length === 0 ? (
-        <p className="text-sm" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
+        <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
+          <div className="grid text-[10px]" style={{ gridTemplateColumns: '3rem 5rem 2.5rem 3.5rem 2.5rem 2.5rem', color: 'var(--color-text-disabled)' }}>
+            <span>날짜</span><span>경마장·거리</span><span className="text-center">착순</span>
+            <span>기록</span><span>부담</span><span>주로</span>
+          </div>
           {history.map((h, i) => (
-            <div
-              key={i}
-              className="pb-1.5 border-b border-[var(--color-bg-elevated)] last:border-0 last:pb-0"
-            >
-              {/* 상단: 날짜·경마장거리·착순·기록 */}
-              <div className="flex items-center gap-1.5 font-mono-num text-sm flex-wrap">
-                <span className="shrink-0" style={{ color: 'var(--color-text-disabled)' }}>
-                  {formatDate(h.race_date)}
-                </span>
-                <span className="shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
-                  {MEET_NAMES[h.meet] ?? '?'}{h.rc_dist ? ` ${h.rc_dist}m` : ''}
-                </span>
-                <span className="font-semibold shrink-0" style={{ color: ordColor(h.ord) }}>
-                  {h.ord != null ? `${h.ord}위` : '-'}
-                </span>
-                <span style={{ color: 'var(--color-text-primary)' }}>
-                  {formatRcTime(h.rc_time)}
-                </span>
-              </div>
-              {/* 하단: 출발번호·기수명(기수무게)·부담중량 */}
-              <div
-                className="flex items-center gap-2 text-[13px] mt-0.5 flex-wrap"
-                style={{ color: 'var(--color-text-disabled)' }}
-              >
-                <span>{h.pthr_no}번</span>
-                {h.jcky_nm && (
-                  <span>
-                    {h.jcky_nm}
-                    {h.wg_jk != null ? `(${h.wg_jk})` : ''}
-                  </span>
-                )}
-                {h.burd_wgt != null && <span>{h.burd_wgt}kg</span>}
-              </div>
+            <div key={i} className="grid font-mono-num text-[11px]"
+              style={{ gridTemplateColumns: '3rem 5rem 2.5rem 3.5rem 2.5rem 2.5rem' }}>
+              <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
+              <span style={{ color: 'var(--color-text-secondary)' }}>
+                {MEET_NAMES[h.meet] ?? '?'} {h.rc_dist ?? '-'}m
+              </span>
+              <span className="text-center font-semibold" style={{ color: ordColor(h.ord) }}>
+                {h.ord != null ? `${h.ord}위` : '-'}
+              </span>
+              <span style={{ color: 'var(--color-text-primary)' }}>{formatRcTime(h.rc_time)}</span>
+              <span style={{ color: 'var(--color-text-secondary)' }}>{h.burd_wgt ?? '-'}</span>
+              <span style={{ color: 'var(--color-text-disabled)' }}>{h.track_type ?? '-'}</span>
             </div>
           ))}
         </div>
@@ -798,40 +781,34 @@ function Col5Items({
     <div className="p-3 flex flex-col gap-2">
       {/* A/B 토글 */}
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
-          주요 항목 점수
+        <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
+          5항목 점수
         </span>
-        <div
-          className="flex items-center rounded overflow-hidden text-sm font-medium"
-          style={{ border: '1px solid var(--color-bg-elevated)' }}
-        >
+        <div className="flex items-center rounded overflow-hidden text-[10px] font-medium"
+          style={{ border: '1px solid var(--color-bg-elevated)' }}>
           <button
             onClick={() => onViewModeChange('bar')}
-            className="flex items-center justify-center gap-0.5 w-[64px] py-1 transition-all"
+            className="flex items-center gap-0.5 px-2 py-1 transition-all"
             style={{
               background: viewMode === 'bar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'bar' ? '#0a0e27' : 'var(--color-text-secondary)',
-            }}
-          >
+            }}>
             <LayoutList className="w-2.5 h-2.5" />바
           </button>
           <button
             onClick={() => onViewModeChange('radar')}
-            className="flex items-center justify-center gap-0.5 w-[64px] py-1 transition-all"
+            className="flex items-center gap-0.5 px-2 py-1 transition-all"
             style={{
               background: viewMode === 'radar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'radar' ? '#0a0e27' : 'var(--color-text-secondary)',
-            }}
-          >
+            }}>
             <Activity className="w-2.5 h-2.5" />레이더
           </button>
         </div>
       </div>
 
-      {/* min-height: radar(160) + 여유 → bar↔radar 토글 시 카드 높이 고정 */}
-      <div style={{ minHeight: 172 }}>
       {!hasScores && (
-        <p className="text-sm" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
+        <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
 
       {hasScores && viewMode === 'bar' && (
@@ -841,28 +818,15 @@ function Col5Items({
             const pending = itemScores![id]?.status === 'expert_pending';
             return (
               <div key={id} className="flex items-center gap-1.5">
-                <span
-                  className="text-sm shrink-0 w-16 text-right"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  {label}
-                </span>
-                <div
-                  className="flex-1 h-1.5 rounded-full overflow-hidden"
-                  style={{ background: 'var(--color-bg-elevated)' }}
-                >
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${score * 100}%`,
-                      background: pending ? 'var(--color-text-disabled)' : accentColor,
-                    }}
-                  />
+                <span className="text-[11px] shrink-0 w-14 text-right"
+                  style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden"
+                  style={{ background: 'var(--color-bg-elevated)' }}>
+                  <div className="h-full rounded-full"
+                    style={{ width: `${score * 100}%`, background: pending ? 'var(--color-text-disabled)' : accentColor }} />
                 </div>
-                <span
-                  className="text-[13px] font-mono-num w-6 shrink-0"
-                  style={{ color: pending ? 'var(--color-text-disabled)' : 'var(--color-text-primary)' }}
-                >
+                <span className="text-[10px] font-mono-num w-6 shrink-0"
+                  style={{ color: pending ? 'var(--color-text-disabled)' : 'var(--color-text-primary)' }}>
                   {score.toFixed(2)}
                 </span>
               </div>
@@ -877,18 +841,14 @@ function Col5Items({
             <Radar
               data={{
                 labels: TOP5_ITEMS.map((i) => i.label),
-                datasets: [
-                  {
-                    data: TOP5_ITEMS.map(({ id }) =>
-                      Math.round((itemScores![id]?.rawScore ?? 0) * 100)
-                    ),
-                    borderColor: accentColor,
-                    backgroundColor: `${accentColor}20`,
-                    borderWidth: 1.5,
-                    pointBackgroundColor: accentColor,
-                    pointRadius: 2,
-                  },
-                ],
+                datasets: [{
+                  data: TOP5_ITEMS.map(({ id }) => Math.round((itemScores![id]?.rawScore ?? 0) * 100)),
+                  borderColor: accentColor,
+                  backgroundColor: `${accentColor}20`,
+                  borderWidth: 1.5,
+                  pointBackgroundColor: accentColor,
+                  pointRadius: 2,
+                }],
               }}
               options={{
                 responsive: true,
@@ -899,7 +859,7 @@ function Col5Items({
                     ticks: { display: false },
                     grid: { color: 'rgba(94,107,138,0.25)' },
                     angleLines: { color: 'rgba(94,107,138,0.2)' },
-                    pointLabels: { color: 'rgba(176,190,197,0.85)', font: { size: 11 } },
+                    pointLabels: { color: 'rgba(176,190,197,0.85)', font: { size: 9 } },
                   },
                 },
                 plugins: {
@@ -915,7 +875,6 @@ function Col5Items({
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
