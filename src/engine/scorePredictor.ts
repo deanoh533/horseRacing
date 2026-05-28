@@ -117,10 +117,32 @@ export async function predictRace(
     trackType = race?.track_type ?? null;
   }
 
+  // 주행성향 배치 fetch (⑲용) — horse_running_style_by_distance 뷰
+  const distCat = getRcDistCategory(rcDist ?? 1600);
+  const hrNames = entryList.map(e => e.hr_name);
+  const { data: styleRows } = await sb
+    .from('horse_running_style_by_distance')
+    .select('hr_name, avg_position_ratio, stddev_position_ratio')
+    .in('hr_name', hrNames)
+    .eq('dist_category', distCat);
+
+  const styleMap = new Map<string, { avg: number | null; std: number | null }>();
+  for (const row of (styleRows ?? []) as {
+    hr_name: string;
+    avg_position_ratio: number | null;
+    stddev_position_ratio: number | null;
+  }[]) {
+    styleMap.set(row.hr_name, {
+      avg: row.avg_position_ratio,
+      std: row.stddev_position_ratio,
+    });
+  }
+  const paceType = computePaceType(styleMap);
+
   const results = await Promise.all(
     entryList.map(async (e) => {
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
-      const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap);
+      const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType);
       input.erngSump = e.erng_sump ?? undefined;
       input.allRaceRatings = allRaceRatings;
       const score = engine.calculateScores(input);
@@ -151,7 +173,9 @@ async function buildEngineInput(
   currentMonth: number,
   currentSeason: 'spring' | 'summer' | 'autumn' | 'winter',
   jockeyRecentMap: Map<string, number[]>,
-  trainerRecentMap: Map<string, number[]>
+  trainerRecentMap: Map<string, number[]>,
+  styleMap: Map<string, { avg: number | null; std: number | null }>,
+  paceType: 'HOT' | 'NORMAL' | 'SLOW'
 ): Promise<ScoreEngineInput> {
   const rcDate = e.race_date;
 
@@ -360,6 +384,9 @@ async function buildEngineInput(
     recent5Popularities,
     jockeyRecentOrds: e.jcky_no ? (jockeyRecentMap.get(e.jcky_no) ?? []) : [],
     trainerRecentOrds: e.trar_no ? (trainerRecentMap.get(e.trar_no) ?? []) : [],
+    runningStyleAvgRatio: styleMap.get(e.hr_name)?.avg ?? null,
+    runningStyleStddev: styleMap.get(e.hr_name)?.std ?? null,
+    paceType,
   };
 }
 
@@ -428,6 +455,26 @@ function rcDateToDate(rcDate: number): Date {
 
 function dateToRcDate(d: Date): number {
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function getRcDistCategory(rcDist: number): 'short' | 'middle' | 'long' {
+  if (rcDist < 1400) return 'short';
+  if (rcDist <= 1800) return 'middle';
+  return 'long';
+}
+
+function computePaceType(
+  styleMap: Map<string, { avg: number | null; std: number | null }>
+): 'HOT' | 'NORMAL' | 'SLOW' {
+  let frontCount = 0;
+  for (const { avg, std } of styleMap.values()) {
+    if (avg == null) continue;
+    const isFree = std != null && std >= 0.35;
+    if (!isFree && avg <= 0.35) frontCount++;
+  }
+  if (frontCount >= 3) return 'HOT';
+  if (frontCount <= 1) return 'SLOW';
+  return 'NORMAL';
 }
 
 function dateMinusDays(dateNum: number, days: number): number {

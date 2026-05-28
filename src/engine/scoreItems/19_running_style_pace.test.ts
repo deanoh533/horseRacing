@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateRunningStylePaceScore,
   classifyRunningStyleFromData,
-  type PaceType,
 } from './19_running_style_pace';
 
 describe('classifyRunningStyleFromData', () => {

@@ -38,6 +38,10 @@ import { calculateSeasonalPatternScore } from './scoreItems/15_seasonal_pattern.
 import { calculateChemistryScore } from './scoreItems/16_jockey_horse_chemistry.js';
 import { calculateMarketOddsScore } from './scoreItems/17_market_odds.js';
 import { calculateEarningsScore } from './scoreItems/18_earnings.js';
+import {
+  calculateRunningStylePaceScore,
+  type PaceType,
+} from './scoreItems/19_running_style_pace.js';
 
 /**
  * 점수 계산을 위한 입력 데이터
@@ -125,6 +129,11 @@ export interface ScoreEngineInput {
 
   // ⑱ 수득상금 (race_cards에서)
   erngSump?: number;
+
+  // ⑲ 주행성향 × 페이스
+  runningStyleAvgRatio?: number | null;
+  runningStyleStddev?: number | null;
+  paceType?: PaceType;
 }
 
 /**
@@ -309,6 +318,16 @@ export class ScoreEngine {
     items['18_earnings'] = this.make(
       '18_earnings',
       calculateEarningsScore({ erngSump: input.erngSump })
+    );
+
+    // ⑲ 주행성향 × 페이스
+    items['19_running_style_pace'] = this.make(
+      '19_running_style_pace',
+      calculateRunningStylePaceScore({
+        avgPositionRatio: input.runningStyleAvgRatio ?? null,
+        stddevPositionRatio: input.runningStyleStddev ?? null,
+        paceType: input.paceType ?? 'NORMAL',
+      })
     );
 
     // 종합 점수

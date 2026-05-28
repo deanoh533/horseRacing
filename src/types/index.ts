@@ -168,7 +168,7 @@ export interface ParsedWeight {
 }
 
 // ============================================
-// 19개 항목 ID
+// 20개 항목 ID
 // ============================================
 
 export const SCORE_ITEM_IDS = [
@@ -192,6 +192,7 @@ export const SCORE_ITEM_IDS = [
   '16_jockey_horse_chemistry',
   '17_market_odds',
   '18_earnings',
+  '19_running_style_pace',
 ] as const;
 
 export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
@@ -199,10 +200,10 @@ export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
 /** 별칭 (간결한 이름) */
 export type ItemId = ScoreItemId;
 
-/** 19개 항목 비중 (총 100점) — 2026-05-28 Spearman ρ 기반 재조정 + ⑨b⑩b 추가 */
+/** 20개 항목 비중 (총 100점) — 2026-05-28 Spearman ρ 기반 재조정 + ⑨b⑩b + ⑲ 추가 */
 export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '01_rating': 6.00,           // ratg 17.8% 공백 → 데이터 복구 후 재측정 예정
-  '02_weight_change': 1.00,    // ρ=-0.098, 신호 미미
+  '02_weight_change': 0.50,    // 1.00 → 0.50 (⑲ 신설 재원 조정)
   '03_recent_form': 10.00,     // ρ=0.241 ✅
   '04_sectional_time': 0,      // ρ=-0.225 (역상관), SEALED
   '05_late_position': 12.50,   // ρ=0.296 ✅
@@ -217,13 +218,14 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '12_starting_position': 4.50, // ρ=0.104 ✅
   '13_age_distance_gender': 0,  // ρ=-0.017 (역방향) → 비활성화
   '14_pedigree': 3.00,          // 미조회 버그 수정 후 재측정 예정
-  '15_seasonal_pattern': 2.00,  // ρ=-0.020, 약함
-  '16_jockey_horse_chemistry': 2.00, // ρ=-0.092, 약함
+  '15_seasonal_pattern': 0.50,  // 2.00 → 0.50 (⑲ 신설 재원 조정)
+  '16_jockey_horse_chemistry': 0.50, // 2.00 → 0.50 (⑲ 신설 재원 조정)
   '17_market_odds': 3.00,       // ρ=0.109, 순환참조 이슈
   '18_earnings': 3.00,          // erng_sump 공백 → 데이터 복구 후 재측정 예정
+  '19_running_style_pace': 3.50, // ⑲ 주행성향×페이스 신규 (한국경마 최대 미반영 신호)
 };
 
-/** 19개 항목 한국어 이름 */
+/** 20개 항목 한국어 이름 */
 export const ITEM_NAMES: Record<ScoreItemId, string> = {
   '01_rating': '레이팅',
   '02_weight_change': '마체중 변화',
@@ -245,6 +247,7 @@ export const ITEM_NAMES: Record<ScoreItemId, string> = {
   '16_jockey_horse_chemistry': '기수-말 궁합',
   '17_market_odds': '배당률',
   '18_earnings': '수득상금',
+  '19_running_style_pace': '주행성향×페이스',
 };
 
 /** 본인이 평소 중시하는 4대 핵심 분석 영역 (UI 강조용) */
