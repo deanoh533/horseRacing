@@ -959,8 +959,9 @@ function HorseCard({
       className="rounded-xl overflow-hidden"
       style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}
     >
-      <div className="grid [grid-template-columns:2fr_1.2fr_3fr_2fr]">
-        <div className="border-r border-[var(--color-bg-elevated)]">
+      {/* 모바일: 2+2 그리드 / 데스크탑: 4열 그리드 */}
+      <div className="grid grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]">
+        <div className="border-b border-r border-[var(--color-bg-elevated)] md:border-b-0">
           <ColHorseInfo
             horse={horse}
             prediction={prediction}
@@ -973,13 +974,13 @@ function HorseCard({
             gateStats={gateStats}
           />
         </div>
-        <div className="border-r border-[var(--color-bg-elevated)]">
+        <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
           <ColJockeyInfo horse={horse} history={history} jockeyStat={jockeyStat} jockeyHorseCombo={jockeyHorseCombo} />
         </div>
-        <div className="border-r border-[var(--color-bg-elevated)]">
+        <div className="col-span-2 md:col-span-1 border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
           <ColHistory history={history} />
         </div>
-        <div>
+        <div className="col-span-2 md:col-span-1">
           <Col5Items
             itemScores={prediction?.item_scores}
             accentColor={accentColor}
