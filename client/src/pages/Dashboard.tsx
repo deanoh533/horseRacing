@@ -289,6 +289,7 @@ function RaceCard({ race, predictions }: RaceCardProps) {
                   hrName={p.hr_name}
                   totalScore={p.total_score}
                   actualOrd={p.actual_ord}
+                  hasResult={hasResult}
                 />
               );
             })}
@@ -333,9 +334,10 @@ interface PredictionTileProps {
   hrName: string;
   totalScore: number;
   actualOrd: number | null;
+  hasResult: boolean;
 }
 
-function PredictionTile({ rank, hrName, totalScore, actualOrd }: PredictionTileProps) {
+function PredictionTile({ rank, hrName, totalScore, actualOrd, hasResult }: PredictionTileProps) {
   const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
   const colors = {
     1: 'text-[var(--color-accent-gold)] border-[var(--color-accent-gold)]',
@@ -343,6 +345,16 @@ function PredictionTile({ rank, hrName, totalScore, actualOrd }: PredictionTileP
     3: 'text-[var(--color-text-secondary)] border-[var(--color-text-disabled)]',
   };
   const isHit = actualOrd === rank;
+
+  // 경주 전(hasResult=false): 착순 표시 없음
+  // 경주 후 + null: 실제 출주 취소
+  // 경주 후 + 숫자: 착순 표시
+  const resultLabel = !hasResult
+    ? null
+    : isCancelled(actualOrd)
+      ? '취소'
+      : `${actualOrd}위${isHit ? ' ✓' : ''}`;
+
   return (
     <div
       className={`flex flex-col items-center justify-center p-2 rounded border ${colors[rank]} bg-[var(--color-bg-primary)]/50`}
@@ -352,17 +364,19 @@ function PredictionTile({ rank, hrName, totalScore, actualOrd }: PredictionTileP
       <div className="text-xs text-[var(--color-accent-cyan)] mt-0.5">
         {totalScore.toFixed(1)}점
       </div>
-      <div
-        className={`text-[12px] mt-0.5 ${
-          isCancelled(actualOrd)
-            ? 'text-[var(--color-accent-pink)]'
-            : isHit
-              ? 'text-[var(--color-success)] font-bold'
-              : 'text-[var(--color-text-disabled)]'
-        }`}
-      >
-        {isCancelled(actualOrd) ? '🚫 출주 취소' : `실제 ${actualOrd}위${isHit ? ' ✓' : ''}`}
-      </div>
+      {resultLabel !== null && (
+        <div
+          className={`text-[12px] mt-0.5 ${
+            isCancelled(actualOrd)
+              ? 'text-[var(--color-accent-pink)]'
+              : isHit
+                ? 'text-[var(--color-success)] font-bold'
+                : 'text-[var(--color-text-disabled)]'
+          }`}
+        >
+          {resultLabel}
+        </div>
+      )}
     </div>
   );
 }
