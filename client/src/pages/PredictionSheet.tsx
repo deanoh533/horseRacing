@@ -139,6 +139,37 @@ function formatDate(d: number): string {
 }
 
 
+interface SectionalInfo {
+  s1fOrd: number | null;
+  s1fTime: number | null;   // 출발 200m 스플릿 (초)
+  g3fOrd: number | null;
+  g3fSplit: number | null;  // 결승 600m 스플릿 = rc_time - g3f_acc_time
+  g1fOrd: number | null;
+  g1fSplit: number | null;  // 결승 200m 스플릿 = rc_time - g1f_acc_time
+}
+
+function getSectionalInfo(h: RaceEntry): SectionalInfo {
+  const isSe = h.meet === 1;
+  const s1fTime = isSe ? (h.se_s1f_acc_time ?? null) : (h.bu_s1f_acc_time ?? null);
+  const g3fAcc = isSe ? (h.se_g3f_acc_time ?? null) : (h.bu_g3f_acc_time ?? null);
+  const g1fAcc = isSe ? (h.se_g1f_acc_time ?? null) : (h.bu_g1f_acc_time ?? null);
+
+  return {
+    s1fOrd: isSe ? (h.sj_s1f_ord ?? null) : (h.bu_s1f_ord ?? null),
+    s1fTime,
+    g3fOrd: isSe ? (h.sj_g3f_ord ?? null) : (h.bu_g3f_ord ?? null),
+    g3fSplit:
+      h.rc_time != null && g3fAcc != null
+        ? +((h.rc_time as number) - (g3fAcc as number)).toFixed(1)
+        : null,
+    g1fOrd: isSe ? (h.sj_g1f_ord ?? null) : (h.bu_g1f_ord ?? null),
+    g1fSplit:
+      h.rc_time != null && g1fAcc != null
+        ? +((h.rc_time as number) - (g1fAcc as number)).toFixed(1)
+        : null,
+  };
+}
+
 function daysBetween(a: number, b: number): number {
   const toDate = (d: number) =>
     new Date(Math.floor(d / 10000), Math.floor((d % 10000) / 100) - 1, d % 100);
@@ -734,21 +765,69 @@ function ColHistory({ history }: { history: RaceEntry[] }) {
             <span>날짜</span><span>경마장·거리</span><span className="text-center">착순</span>
             <span>기록</span><span>부담</span><span>주로</span>
           </div>
-          {history.map((h, i) => (
-            <div key={i} className="grid font-mono-num text-[13px]"
-              style={{ gridTemplateColumns: '3.5rem 6rem 3rem 4rem 3rem 3rem' }}>
-              <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
-              <span style={{ color: 'var(--color-text-secondary)' }}>
-                {MEET_NAMES[h.meet] ?? '?'} {h.rc_dist ?? '-'}m
-              </span>
-              <span className="text-center font-semibold" style={{ color: ordColor(h.ord) }}>
-                {h.ord != null ? `${h.ord}위` : '-'}
-              </span>
-              <span style={{ color: 'var(--color-text-primary)' }}>{formatRcTime(h.rc_time)}</span>
-              <span style={{ color: 'var(--color-text-secondary)' }}>{h.burd_wgt ?? '-'}</span>
-              <span style={{ color: 'var(--color-text-disabled)' }}>{h.track_type ?? '-'}</span>
-            </div>
-          ))}
+          {history.map((h, i) => {
+            const sec = getSectionalInfo(h);
+            const hasSecData =
+              sec.s1fOrd != null || sec.s1fTime != null ||
+              sec.g3fOrd != null || sec.g3fSplit != null ||
+              sec.g1fOrd != null || sec.g1fSplit != null;
+
+            const fmtSec = (time: number | null) =>
+              time != null ? `${time.toFixed(1)}` : null;
+
+            const secChunks: string[] = [];
+            if (sec.s1fOrd != null || sec.s1fTime != null) {
+              const parts = [
+                sec.s1fOrd != null ? `${sec.s1fOrd}위` : null,
+                fmtSec(sec.s1fTime) != null ? `(${fmtSec(sec.s1fTime)}초)` : null,
+              ].filter(Boolean).join('');
+              secChunks.push(`출 ${parts}`);
+            }
+            if (sec.g3fOrd != null || sec.g3fSplit != null) {
+              const parts = [
+                sec.g3fOrd != null ? `${sec.g3fOrd}위` : null,
+                fmtSec(sec.g3fSplit) != null ? `(${fmtSec(sec.g3fSplit)}초)` : null,
+              ].filter(Boolean).join('');
+              secChunks.push(`g3 ${parts}`);
+            }
+            if (sec.g1fOrd != null || sec.g1fSplit != null) {
+              const parts = [
+                sec.g1fOrd != null ? `${sec.g1fOrd}위` : null,
+                fmtSec(sec.g1fSplit) != null ? `(${fmtSec(sec.g1fSplit)}초)` : null,
+              ].filter(Boolean).join('');
+              secChunks.push(`g1 ${parts}`);
+            }
+
+            return (
+              <div key={i}>
+                {/* 기존 메인 행 — 변경 없음 */}
+                <div
+                  className="grid font-mono-num text-[13px]"
+                  style={{ gridTemplateColumns: '3.5rem 6rem 3rem 4rem 3rem 3rem' }}
+                >
+                  <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>
+                    {MEET_NAMES[h.meet] ?? '?'} {h.rc_dist ?? '-'}m
+                  </span>
+                  <span className="text-center font-semibold" style={{ color: ordColor(h.ord) }}>
+                    {h.ord != null ? `${h.ord}위` : '-'}
+                  </span>
+                  <span style={{ color: 'var(--color-text-primary)' }}>{formatRcTime(h.rc_time)}</span>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>{h.burd_wgt ?? '-'}</span>
+                  <span style={{ color: 'var(--color-text-disabled)' }}>{h.track_type ?? '-'}</span>
+                </div>
+                {/* 구간기록 서브행 — 데이터 있을 때만 */}
+                {hasSecData && secChunks.length > 0 && (
+                  <div
+                    className="font-mono-num text-[11px] mt-0.5 mb-1"
+                    style={{ color: 'var(--color-text-disabled)' }}
+                  >
+                    {secChunks.join(' · ')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
