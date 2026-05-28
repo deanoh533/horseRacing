@@ -13,6 +13,7 @@
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
+import { predictRace } from '../engine/scorePredictor.js';
 import type { MeetCode } from '@app-types/index.js';
 
 export interface RaceCardSyncResult {
@@ -93,9 +94,23 @@ async function syncOneMeet(
           console.warn(`    rc_no=${rcNo} ⚠️ races upsert 실패 (계속): ${raceError.message}`);
         }
 
+        // 예측 점수 생성 (사전 모드: ord=null → actual_ord=null)
+        try {
+          const preds = await predictRace(sb, rcDate, meet, rcNo);
+          if (preds.length > 0) {
+            await sb.from('predictions')
+              .delete()
+              .eq('race_date', rcDate).eq('meet', meet).eq('rc_no', rcNo);
+            const { error: predErr } = await sb.from('predictions').insert(preds);
+            if (predErr) throw predErr;
+          }
+        } catch (e) {
+          console.warn(`    rc_no=${rcNo} ⚠️ 예측 생성 실패 (계속): ${(e as Error).message}`);
+        }
+
         result.racesSynced++;
         result.horsesSynced += raceItems.length;
-        console.log(`    rc_no=${rcNo} ✓ ${raceItems.length}마`);
+        console.log(`    rc_no=${rcNo} ✓ ${raceItems.length}마 + 예측`);
       } catch (e) {
         const msg = (e as Error).message;
         result.errors.push(`rcNo=${rcNo}: ${msg.slice(0, 80)}`);
