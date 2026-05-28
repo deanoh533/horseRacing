@@ -87,17 +87,51 @@ async function syncOneMeet(
 }
 
 // ============================================
+// 날짜 유틸
+// ============================================
+function rcDateToDate(d: number): Date {
+  return new Date(Math.floor(d / 10000), Math.floor((d % 10000) / 100) - 1, d % 100);
+}
+
+function dateToRcDate(d: Date): number {
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function dateRange(from: number, to: number): number[] {
+  const dates: number[] = [];
+  let cur = rcDateToDate(from);
+  const end = rcDateToDate(to);
+  while (cur <= end) {
+    dates.push(dateToRcDate(cur));
+    cur = addDays(cur, 1);
+  }
+  return dates;
+}
+
+// ============================================
 // CLI
 // ============================================
 async function main() {
   const args = process.argv.slice(2);
   let trDate = 0;
+  let fromDate = 0;
+  let toDate = 0;
   let meets: MeetCode[] = [1, 3];
   let hrNo: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--date' && args[i + 1]) {
       trDate = parseInt(args[i + 1]!, 10);
+    } else if (args[i] === '--from' && args[i + 1]) {
+      fromDate = parseInt(args[i + 1]!, 10);
+    } else if (args[i] === '--to' && args[i + 1]) {
+      toDate = parseInt(args[i + 1]!, 10);
     } else if (args[i] === '--meet' && args[i + 1]) {
       meets = args[i + 1]!
         .split(',')
@@ -108,21 +142,42 @@ async function main() {
     }
   }
 
-  if (!trDate) {
+  if (!trDate && !fromDate) {
     console.error(
-      'Usage: tsx src/sync/trainingSync.ts --date YYYYMMDD [--meet 1,3] [--hr_no <번호>]'
+      'Usage:\n' +
+      '  tsx src/sync/trainingSync.ts --date YYYYMMDD [--meet 1,3] [--hr_no <번호>]\n' +
+      '  tsx src/sync/trainingSync.ts --from YYYYMMDD --to YYYYMMDD [--meet 1,3]'
     );
     process.exit(1);
   }
 
-  const results = await syncTraining({ trDate, meets, hrNo });
-  console.log('\n' + '='.repeat(50));
-  for (const r of results) {
-    console.log(
-      `  meet=${r.meet}: ${r.rowsSynced} rows / ${r.errors.length} errors`
-    );
-    for (const err of r.errors) console.log(`    - ${err}`);
+  // 단일 날짜
+  if (trDate) {
+    const results = await syncTraining({ trDate, meets, hrNo });
+    console.log('\n' + '='.repeat(50));
+    for (const r of results) {
+      console.log(`  meet=${r.meet}: ${r.rowsSynced} rows / ${r.errors.length} errors`);
+      for (const err of r.errors) console.log(`    - ${err}`);
+    }
+    return;
   }
+
+  // 날짜 범위
+  if (!toDate) toDate = fromDate;
+  const dates = dateRange(fromDate, toDate);
+  console.log(`\n범위 sync: ${fromDate} ~ ${toDate} (${dates.length}일)`);
+
+  let totalRows = 0;
+  let totalErrors = 0;
+  for (const d of dates) {
+    const results = await syncTraining({ trDate: d, meets, hrNo });
+    for (const r of results) {
+      totalRows += r.rowsSynced;
+      totalErrors += r.errors.length;
+    }
+  }
+  console.log('\n' + '='.repeat(50));
+  console.log(`  완료: ${dates.length}일 / ${totalRows} rows / 에러 ${totalErrors}건`);
 }
 
 const isMainModule =
