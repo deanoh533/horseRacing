@@ -132,6 +132,10 @@ function formatRcTime(t: number | null): string {
   return min > 0 ? `${min}:${sec.padStart(4, '0')}` : sec;
 }
 
+function fmtSec(time: number | null): string | null {
+  return time != null ? `${time.toFixed(1)}` : null;
+}
+
 function formatDate(d: number): string {
   const m = Math.floor((d % 10000) / 100);
   const day = d % 100;
@@ -159,13 +163,13 @@ function getSectionalInfo(h: RaceEntry): SectionalInfo {
     s1fTime,
     g3fOrd: isSe ? (h.sj_g3f_ord ?? null) : (h.bu_g3f_ord ?? null),
     g3fSplit:
-      h.rc_time != null && g3fAcc != null
-        ? +((h.rc_time as number) - (g3fAcc as number)).toFixed(1)
+      h.rc_time != null && h.rc_time > 0 && g3fAcc != null
+        ? +Math.max(0, (h.rc_time as number) - (g3fAcc as number)).toFixed(1)
         : null,
     g1fOrd: isSe ? (h.sj_g1f_ord ?? null) : (h.bu_g1f_ord ?? null),
     g1fSplit:
-      h.rc_time != null && g1fAcc != null
-        ? +((h.rc_time as number) - (g1fAcc as number)).toFixed(1)
+      h.rc_time != null && h.rc_time > 0 && g1fAcc != null
+        ? +Math.max(0, (h.rc_time as number) - (g1fAcc as number)).toFixed(1)
         : null,
   };
 }
@@ -771,9 +775,6 @@ function ColHistory({ history }: { history: RaceEntry[] }) {
               sec.s1fOrd != null || sec.s1fTime != null ||
               sec.g3fOrd != null || sec.g3fSplit != null ||
               sec.g1fOrd != null || sec.g1fSplit != null;
-
-            const fmtSec = (time: number | null) =>
-              time != null ? `${time.toFixed(1)}` : null;
 
             const secChunks: string[] = [];
             if (sec.s1fOrd != null || sec.s1fTime != null) {
