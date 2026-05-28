@@ -787,8 +787,8 @@ function Col5Items({
         <div className="flex items-center rounded overflow-hidden text-[10px] font-medium"
           style={{ border: '1px solid var(--color-bg-elevated)' }}>
           <button
-            onClick={() => onViewModeChange('bar')}
-            className="flex items-center gap-0.5 px-2 py-1 transition-all"
+            onClick={() => onViewModeChange(viewMode === 'bar' ? 'radar' : 'bar')}
+            className="flex items-center justify-center gap-0.5 w-12 py-1 transition-all"
             style={{
               background: viewMode === 'bar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'bar' ? '#0a0e27' : 'var(--color-text-secondary)',
@@ -796,8 +796,8 @@ function Col5Items({
             <LayoutList className="w-2.5 h-2.5" />바
           </button>
           <button
-            onClick={() => onViewModeChange('radar')}
-            className="flex items-center gap-0.5 px-2 py-1 transition-all"
+            onClick={() => onViewModeChange(viewMode === 'bar' ? 'radar' : 'bar')}
+            className="flex items-center justify-center gap-0.5 w-12 py-1 transition-all"
             style={{
               background: viewMode === 'radar' ? 'var(--color-accent-cyan)' : 'transparent',
               color: viewMode === 'radar' ? '#0a0e27' : 'var(--color-text-secondary)',
@@ -807,6 +807,8 @@ function Col5Items({
         </div>
       </div>
 
+      {/* 높이 고정: 바(5항목×22px≈110) vs 레이더(160px) → 170으로 통일 */}
+      <div style={{ minHeight: 170 }}>
       {!hasScores && (
         <p className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
       )}
@@ -836,7 +838,7 @@ function Col5Items({
       )}
 
       {hasScores && viewMode === 'radar' && (
-        <div className="flex justify-center">
+        <div className="flex justify-center items-center" style={{ height: 170 }}>
           <div style={{ width: 160, height: 160 }}>
             <Radar
               data={{
@@ -875,6 +877,7 @@ function Col5Items({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
