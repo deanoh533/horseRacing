@@ -926,16 +926,13 @@ export function useHistoryRacesPrizeCond(
   return useQuery({
     queryKey: ['history-races-prize-cond', sortedKey],
     queryFn: async (): Promise<Map<string, string>> => {
-      if (keys.length === 0) return new Map();
       const uniqueKeys = [...new Map(keys.map((k) => [`${k.race_date}-${k.meet}-${k.rc_no}`, k])).values()];
 
       const { data, error } = await supabase
         .from('races')
         .select('race_date, meet, rc_no, prize_cond')
-        .in(
-          'race_date',
-          [...new Set(uniqueKeys.map((k) => k.race_date))]
-        );
+        .in('race_date', [...new Set(uniqueKeys.map((k) => k.race_date))])
+        .in('meet', [...new Set(uniqueKeys.map((k) => k.meet))]);
       if (error) throw error;
       const map = new Map<string, string>();
       for (const r of data ?? []) {
