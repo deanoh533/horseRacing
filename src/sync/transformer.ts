@@ -272,6 +272,15 @@ export interface RaceEntryResultRow {
   bu_g3f_ord: number | null;
   bu_g4f_ord: number | null;
   bu_s1f_ord: number | null;
+  // 부경 구간별 개별 타임 (부경 경주만 채워짐)
+  bu_s1f_time: number | null;
+  bu_1fg_time: number | null;
+  bu_2fg_time: number | null;
+  bu_3fg_time: number | null;
+  bu_4_2f_time: number | null;
+  bu_6_4f_time: number | null;
+  bu_8_6f_time: number | null;
+  bu_10_8f_time: number | null;
   // 서울 구간기록 (서울 경주만 채워짐)
   se_g1f_acc_time: number | null;
   se_g3f_acc_time: number | null;
@@ -454,6 +463,14 @@ export function toRaceEntryResultRow(horse: KRARaceResult): RaceEntryResultRow {
     bu_g3f_ord: zeroToNull(horse.buG3fOrd),
     bu_g4f_ord: zeroToNull(horse.buG4fOrd),
     bu_s1f_ord: zeroToNull(horse.buS1fOrd),
+    bu_s1f_time: zeroToNull(horse.buS1fTime),
+    bu_1fg_time: zeroToNull(horse.bu_1fGTime),
+    bu_2fg_time: zeroToNull(horse.bu_2fGTime),
+    bu_3fg_time: zeroToNull(horse.bu_3fGTime),
+    bu_4_2f_time: zeroToNull(horse.bu_4_2fTime),
+    bu_6_4f_time: zeroToNull(horse.bu_6_4fTime),
+    bu_8_6f_time: zeroToNull(horse.bu_8_6fTime),
+    bu_10_8f_time: zeroToNull(horse.bu_10_8fTime),
     se_g1f_acc_time: zeroToNull(horse.seG1fAccTime),
     se_g3f_acc_time: zeroToNull(horse.seG3fAccTime),
     se_s1f_acc_time: zeroToNull(horse.seS1fAccTime),

@@ -160,9 +160,32 @@ GET /API314/textDataHoldSePtinInfo?race_dt=20260524    → 정상 (11건)
 
 ---
 
+---
+
+### ℹ️ Quirk 8: API4_3/raceResult_3 — API214_1과 거의 동일, 교체 불필요
+
+**발견:** 2026-05-30 `probe_compare_apis.ts` 실행 (필드 수 직접 비교)
+
+| 항목 | API214_1 | API4_3 |
+|---|---|---|
+| 필드 수 | 90 | 89 |
+| API4_3에만 있는 필드 | — | `hrNameEn`, `jkNameEn`, `owNameEn`, `trNameEn`, `sexCond` (영문명 + 성별조건) |
+| API214_1에만 있는 필드 | `wgJk`(기수체중), `birthday`, `ordBigo`, `rankRise`, `hrTool`, `wgBudamBigo` | — |
+
+**결론:**
+- API4_3는 영문명 4개 + sexCond 추가 대신 `wgJk`(기수체중) 등 6개를 빠뜨림
+- **API214_1이 더 유리** → 교체 불필요
+- `wgHr`, `winOdds`, `plcOdds`, `track`, `weather`, `se_1cAccTime`, `sj_1cOrd` 등은 API214_1도 이미 반환함
+
+**부경 구간 개별 타임 수집:** 2026-05-30 완료
+- `bu_s1fTime`, `bu_1fGTime`~`bu_10_8fTime` 8개 필드 race_entries에 추가
+- transformer.ts + dailySync.ts 반영, backfill 완료
+
+---
+
 ## 변경 이력
 
 | 일자 | 변경 |
 |---|---|
 | 2026-05-25 | 신규 작성. Quirk 1-5 정리 |
-| 2026-05-30 | Quirk 6(API6_1 페이스 데이터), Quirk 7(ratg=0 구조적 공백) 추가 |
+| 2026-05-30 | Quirk 6(API6_1 페이스 데이터), Quirk 7(ratg=0 구조적 공백), Quirk 8(API4_3 비교) 추가 |
