@@ -32,6 +32,7 @@ import {
   useTrainingBatchByNames,
   useJockeyHorseComboBatch,
   useHorseGateStatsBatch,
+  useHistoryRacesPrizeCond,
   type JockeyHorseComboStat,
 } from '../lib/queries';
 import {
@@ -264,7 +265,7 @@ interface TimeStats {
   formStr: string; // "1-2-5-3-1" 구→신
 }
 
-function computeTimeStats(history: RaceEntry[]): TimeStats | null {
+export function computeTimeStats(history: RaceEntry[]): TimeStats | null {
   const valid = history.filter((h) => h.rc_time != null && h.rc_time > 0);
   if (valid.length === 0) return null;
   const sorted = [...valid].sort((a, b) => a.rc_time! - b.rc_time!);
@@ -340,7 +341,7 @@ function ScoreBar({ score, maxScore, color }: { score: number; maxScore: number;
   );
 }
 
-function StyleBadge({ style }: { style: RunningStyle }) {
+export function StyleBadge({ style }: { style: RunningStyle }) {
   if (style === 'unknown') return null;
   const info = STYLE_INFO[style];
   return (
@@ -1356,6 +1357,19 @@ export function PredictionSheet() {
     return map;
   }, [hrNames, historyQueries]);
 
+  // prize_cond 배치 조회용 key 목록
+  const historyRaceKeys = useMemo(() => {
+    const keys: Array<{ race_date: number; meet: number; rc_no: number }> = [];
+    historyByName.forEach((hist) => {
+      for (const h of hist) {
+        keys.push({ race_date: h.race_date, meet: h.meet, rc_no: h.rc_no });
+      }
+    });
+    return keys;
+  }, [historyByName]);
+
+  const { data: prizeCondMap = new Map<string, string>() } = useHistoryRacesPrizeCond(historyRaceKeys);
+
   const bloodlineByName = useMemo(() => {
     const map = new Map<string, BloodlineInfo>();
     (bloodlines ?? []).forEach((b) =>
@@ -1460,6 +1474,7 @@ export function PredictionSheet() {
               latestTraining={trainingMap?.get(horse.hr_name)?.[0]}
               jockeyHorseCombo={jockeyHorseComboMap?.get(`${horse.hr_name}:${horse.jcky_nm ?? ''}`)}
               gateStats={gateStatsMap?.get(horse.hr_name)}
+              prizeCondMap={prizeCondMap}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
