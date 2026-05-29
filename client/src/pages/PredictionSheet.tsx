@@ -11,7 +11,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ChevronLeft, Loader2, LayoutList, Activity } from 'lucide-react';
+import { ChevronLeft, LayoutList, Activity } from 'lucide-react';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import {
   Chart as ChartJS,
@@ -117,6 +117,58 @@ function useHorseBloodlinesByNames(hrNames: string[]) {
 }
 
 // ─── 유틸 ────────────────────────────────────────────────────────────
+
+function HorseCardSkeleton() {
+  return (
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-bg-elevated)' }}
+    >
+      {/* 데스크탑 (md+): 4열 grid — 실제 HorseCard 비율과 동일 */}
+      <div className="hidden md:grid" style={{ gridTemplateColumns: '2fr 1.2fr 3fr 2fr' }}>
+        {/* Col 1: 기수 정보 */}
+        <div className="p-3 border-r border-[var(--color-bg-elevated)] flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-white/[.07] animate-pulse flex-shrink-0" />
+            <div className="flex flex-col gap-1 flex-1">
+              <div className="h-2.5 bg-white/[.07] animate-pulse rounded w-[70%]" />
+              <div className="h-2 bg-white/[.07] animate-pulse rounded w-[50%]" />
+            </div>
+          </div>
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[80%]" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[55%]" />
+        </div>
+        {/* Col 2: 말 정보 */}
+        <div className="p-3 border-r border-[var(--color-bg-elevated)] flex flex-col gap-2">
+          <div className="h-4 bg-white/[.07] animate-pulse rounded-full w-11" />
+          <div className="h-2.5 bg-white/[.07] animate-pulse rounded w-[85%]" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[65%]" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[72%]" />
+        </div>
+        {/* Col 3: 직전경주 / 점수 */}
+        <div className="p-3 border-r border-[var(--color-bg-elevated)] flex flex-col gap-2">
+          <div className="h-11 bg-white/[.07] animate-pulse rounded" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[90%]" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[70%]" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[80%]" />
+        </div>
+        {/* Col 4: 베팅 조합 */}
+        <div className="p-3 flex flex-col gap-2">
+          <div className="h-3 bg-white/[.07] animate-pulse rounded w-[75%]" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-full" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[85%]" />
+          <div className="h-2 bg-white/[.07] animate-pulse rounded w-[60%]" />
+        </div>
+      </div>
+      {/* 모바일 (<md): 막대형 */}
+      <div className="md:hidden p-3 flex flex-col gap-2">
+        <div className="h-3 bg-white/[.07] animate-pulse rounded w-[60%]" />
+        <div className="h-2.5 bg-white/[.07] animate-pulse rounded w-full" />
+        <div className="h-2 bg-white/[.07] animate-pulse rounded w-[80%]" />
+      </div>
+    </div>
+  );
+}
 
 function formatErng(v: number | null): string {
   if (v == null || v === 0) return '-';
@@ -1196,12 +1248,10 @@ export function PredictionSheet() {
 
       {/* 로딩 / 에러 */}
       {isLoading && (
-        <div
-          className="flex items-center justify-center py-16 gap-2 text-sm"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          <Loader2 className="w-4 h-4 animate-spin" />
-          불러오는 중...
+        <div className="space-y-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <HorseCardSkeleton key={i} />
+          ))}
         </div>
       )}
       {error && (
