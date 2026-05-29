@@ -911,6 +911,46 @@ export function useHorseGateStatsBatch(hrNames: string[]) {
 }
 
 /**
+ * 히스토리 경주들의 prize_cond 배치 조회
+ * - ColHistory에서 경기조건 컬럼 표시에 사용
+ * - key: `${race_date}-${meet}-${rc_no}` → prize_cond
+ */
+export function useHistoryRacesPrizeCond(
+  keys: Array<{ race_date: number; meet: number; rc_no: number }>
+) {
+  const sortedKey = keys
+    .map((k) => `${k.race_date}-${k.meet}-${k.rc_no}`)
+    .sort()
+    .join(',');
+
+  return useQuery({
+    queryKey: ['history-races-prize-cond', sortedKey],
+    queryFn: async (): Promise<Map<string, string>> => {
+      if (keys.length === 0) return new Map();
+      const uniqueKeys = [...new Map(keys.map((k) => [`${k.race_date}-${k.meet}-${k.rc_no}`, k])).values()];
+
+      const { data, error } = await supabase
+        .from('races')
+        .select('race_date, meet, rc_no, prize_cond')
+        .in(
+          'race_date',
+          [...new Set(uniqueKeys.map((k) => k.race_date))]
+        );
+      if (error) throw error;
+      const map = new Map<string, string>();
+      for (const r of data ?? []) {
+        if (r.prize_cond) {
+          map.set(`${r.race_date}-${r.meet}-${r.rc_no}`, r.prize_cond);
+        }
+      }
+      return map;
+    },
+    enabled: keys.length > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
  * DB에 데이터 있는 날짜 목록 (대시보드 날짜 선택용)
  */
 export function useAvailableDates() {
