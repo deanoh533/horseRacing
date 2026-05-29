@@ -849,86 +849,111 @@ function ColJockeyInfo({
 
 // ─── 열 3: 직전 경주 ─────────────────────────────────────────────────
 
-function ColHistory({ history }: { history: RaceEntry[] }) {
-  return (
-    <div className="p-3">
-      <div className="text-xs mb-2 font-semibold" style={{ color: 'var(--color-text-disabled)' }}>
-        직전 경주
+function ColHistory({
+  history,
+  prizeCondMap,
+}: {
+  history: RaceEntry[];
+  prizeCondMap: Map<string, string>;
+}) {
+  if (history.length === 0) {
+    return (
+      <div className="p-3 text-[12px]" style={{ color: 'var(--color-text-disabled)' }}>
+        직전 경주 이력 없음
       </div>
-      {history.length === 0 ? (
-        <p className="text-sm" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</p>
-      ) : (
-        <div className="space-y-1.5">
-          <div className="grid text-xs" style={{ gridTemplateColumns: '3.5rem 6rem 3rem 4rem 3rem 3rem', color: 'var(--color-text-disabled)' }}>
-            <span>날짜</span><span>경마장·거리</span><span className="text-center">착순</span>
-            <span>기록</span><span>부담</span><span>주로</span>
-          </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[11px] font-mono-num border-collapse">
+        <thead>
+          <tr style={{ background: 'var(--color-bg-primary)' }}>
+            {['날짜', '장소', '거리', '조건', '주로', '착순', '기록', '중량', '기수'].map((h) => (
+              <th
+                key={h}
+                className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]"
+                style={{ color: 'var(--color-accent-cyan)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: 'inherit' }}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
           {history.map((h, i) => {
             const sec = getSectionalInfo(h);
             const hasSecData =
-              sec.cornerStr != null ||
-              sec.s1fOrd != null || sec.s1fTime != null ||
-              sec.g3fOrd != null || sec.g3fSplit != null ||
-              sec.g1fOrd != null || sec.g1fSplit != null;
+              sec.cornerStr != null || sec.s1fTime != null ||
+              sec.g3fSplit != null || sec.g1fSplit != null;
 
-            const secChunks: string[] = [];
-            if (sec.cornerStr != null) {
-              secChunks.push(sec.cornerStr);
-            }
-            if (sec.s1fOrd != null || sec.s1fTime != null) {
-              const parts = [
-                sec.s1fOrd != null ? `${sec.s1fOrd}위` : null,
-                fmtSec(sec.s1fTime) != null ? `(${fmtSec(sec.s1fTime)}초)` : null,
-              ].filter(Boolean).join('');
-              secChunks.push(`출 ${parts}`);
-            }
-            if (sec.g3fOrd != null || sec.g3fSplit != null) {
-              const parts = [
-                sec.g3fOrd != null ? `${sec.g3fOrd}위` : null,
-                fmtSec(sec.g3fSplit) != null ? `(${fmtSec(sec.g3fSplit)}초)` : null,
-              ].filter(Boolean).join('');
-              secChunks.push(`g3 ${parts}`);
-            }
-            if (sec.g1fOrd != null || sec.g1fSplit != null) {
-              const parts = [
-                sec.g1fOrd != null ? `${sec.g1fOrd}위` : null,
-                fmtSec(sec.g1fSplit) != null ? `(${fmtSec(sec.g1fSplit)}초)` : null,
-              ].filter(Boolean).join('');
-              secChunks.push(`g1 ${parts}`);
-            }
+            const prizeKey = `${h.race_date}-${h.meet}-${h.rc_no}`;
+            const prizeCond = prizeCondMap.get(prizeKey) ?? '-';
+            const rowBg = i % 2 === 1 ? 'var(--color-bg-primary)' : 'transparent';
+
+            const tdStyle = { background: rowBg, color: 'var(--color-text-secondary)' };
 
             return (
-              <div key={i}>
-                {/* 기존 메인 행 — 변경 없음 */}
-                <div
-                  className="grid font-mono-num text-[13px]"
-                  style={{ gridTemplateColumns: '3.5rem 6rem 3rem 4rem 3rem 3rem' }}
-                >
-                  <span style={{ color: 'var(--color-text-disabled)' }}>{formatDate(h.race_date)}</span>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>
-                    {MEET_NAMES[h.meet] ?? '?'} {h.rc_dist ?? '-'}m
-                  </span>
-                  <span className="text-center font-semibold" style={{ color: ordColor(h.ord) }}>
+              <>
+                <tr key={`main-${h.race_date}-${h.pthr_no}`}>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={tdStyle}>
+                    {formatDate(h.race_date)}
+                  </td>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={tdStyle}>
+                    {MEET_NAMES[h.meet] ?? '?'}
+                  </td>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={tdStyle}>
+                    {h.rc_dist ?? '-'}
+                  </td>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={{ ...tdStyle, color: 'var(--color-text-disabled)' }}>
+                    {prizeCond}
+                  </td>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={{ ...tdStyle, color: 'var(--color-text-disabled)' }}>
+                    {h.track_type ?? '-'}
+                  </td>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)] font-semibold" style={{ ...tdStyle, color: ordColor(h.ord) }}>
                     {h.ord != null ? `${h.ord}위` : '-'}
-                  </span>
-                  <span style={{ color: 'var(--color-text-primary)' }}>{formatRcTime(h.rc_time)}</span>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>{h.burd_wgt ?? '-'}</span>
-                  <span style={{ color: 'var(--color-text-disabled)' }}>{h.track_type ?? '-'}</span>
-                </div>
-                {/* 구간기록 서브행 — 데이터 있을 때만 */}
-                {hasSecData && secChunks.length > 0 && (
-                  <div
-                    className="font-mono-num text-[11px] mt-0.5 mb-1"
-                    style={{ color: 'var(--color-text-disabled)' }}
+                  </td>
+                  <td
+                    className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]"
+                    style={{ ...tdStyle, color: h.ord === 1 ? 'var(--color-success)' : 'var(--color-text-secondary)' }}
                   >
-                    {secChunks.join(' · ')}
-                  </div>
+                    {formatRcTime(h.rc_time)}
+                  </td>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={tdStyle}>
+                    {h.burd_wgt ?? '-'}
+                  </td>
+                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={{ ...tdStyle, color: 'var(--color-text-disabled)' }}>
+                    {h.jcky_nm ?? '-'}
+                  </td>
+                </tr>
+                {hasSecData && (
+                  <tr key={`sec-${h.race_date}-${h.pthr_no}`}>
+                    <td
+                      colSpan={9}
+                      className="px-2 pb-1.5 text-left border-b border-[var(--color-bg-elevated)]"
+                      style={{ background: rowBg, fontSize: '9px', color: 'var(--color-text-disabled)' }}
+                    >
+                      {sec.cornerStr != null && (
+                        <span style={{ color: 'var(--color-accent-cyan)' }}>코너 {sec.cornerStr}</span>
+                      )}
+                      {sec.s1fTime != null && (
+                        <span> · 출발 {fmtSec(sec.s1fTime)}s</span>
+                      )}
+                      {sec.g3fSplit != null && (
+                        <span> · 막판600m {fmtSec(sec.g3fSplit)}s</span>
+                      )}
+                      {sec.g1fSplit != null && (
+                        <span> · 막판200m {fmtSec(sec.g1fSplit)}s</span>
+                      )}
+                    </td>
+                  </tr>
                 )}
-              </div>
+              </>
             );
           })}
-        </div>
-      )}
+        </tbody>
+      </table>
     </div>
   );
 }
