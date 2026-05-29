@@ -490,7 +490,6 @@ function ComboBetBox({
 
 function ColHorseInfo({
   horse,
-  prediction,
   runningStyle: _runningStyle,
   accentColor: _accentColor,
   bloodline,
@@ -499,7 +498,6 @@ function ColHorseInfo({
   gateStats,
 }: {
   horse: RaceEntry;
-  prediction: Prediction | undefined;
   runningStyle: RunningStyle;
   accentColor: string;
   bloodline: BloodlineInfo | undefined;
@@ -539,9 +537,6 @@ function ColHorseInfo({
   const hasEquipChange = equipAdded.length > 0 || equipRemoved.length > 0;
 
   const dist = horse.rc_dist;
-
-  // suppress unused warning
-  void prediction;
 
   return (
     <div className="p-2.5 flex flex-col gap-1 text-[12px]">
@@ -1148,14 +1143,7 @@ function CardHeader({
       <span className="text-[15px] font-bold">{horse.hr_name}</span>
 
       {/* 주행성향 배지 */}
-      {runningStyle !== 'unknown' && (() => {
-        const info = STYLE_INFO[runningStyle];
-        return (
-          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold border ${info.className}`}>
-            {info.emoji} {info.shortName}
-          </span>
-        );
-      })()}
+      {runningStyle !== 'unknown' && <StyleBadge style={runningStyle} />}
 
       {/* 공백 배지 */}
       {racingGap != null && (
@@ -1246,7 +1234,6 @@ function HorseCard({
         <div className="border-b border-r border-[var(--color-bg-elevated)] md:border-b-0">
           <ColHorseInfo
             horse={horse}
-            prediction={prediction}
             runningStyle={runningStyle}
             accentColor={accent}
             bloodline={bloodline}

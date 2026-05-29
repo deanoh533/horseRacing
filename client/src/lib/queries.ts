@@ -932,7 +932,8 @@ export function useHistoryRacesPrizeCond(
         .from('races')
         .select('race_date, meet, rc_no, prize_cond')
         .in('race_date', [...new Set(uniqueKeys.map((k) => k.race_date))])
-        .in('meet', [...new Set(uniqueKeys.map((k) => k.meet))]);
+        .in('meet', [...new Set(uniqueKeys.map((k) => k.meet))])
+        .in('rc_no', [...new Set(uniqueKeys.map((k) => k.rc_no))]);
       if (error) throw error;
       const map = new Map<string, string>();
       for (const r of data ?? []) {
