@@ -126,7 +126,7 @@ function HorseCardSkeleton() {
     >
       {/* 데스크탑 (md+): 4열 grid — 실제 HorseCard 비율과 동일 */}
       <div className="hidden md:grid" style={{ gridTemplateColumns: '2fr 1.2fr 3fr 2fr' }}>
-        {/* Col 1: 기수 정보 */}
+        {/* Col 1: 마정보 */}
         <div className="p-3 border-r border-[var(--color-bg-elevated)] flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-white/[.07] animate-pulse flex-shrink-0" />
@@ -138,7 +138,7 @@ function HorseCardSkeleton() {
           <div className="h-2 bg-white/[.07] animate-pulse rounded w-[80%]" />
           <div className="h-2 bg-white/[.07] animate-pulse rounded w-[55%]" />
         </div>
-        {/* Col 2: 말 정보 */}
+        {/* Col 2: 기수 정보 */}
         <div className="p-3 border-r border-[var(--color-bg-elevated)] flex flex-col gap-2">
           <div className="h-4 bg-white/[.07] animate-pulse rounded-full w-11" />
           <div className="h-2.5 bg-white/[.07] animate-pulse rounded w-[85%]" />
