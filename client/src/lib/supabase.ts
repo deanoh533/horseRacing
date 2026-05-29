@@ -104,6 +104,8 @@ export interface RaceEntry {
   bu_g2f_ord?: number | null;
   bu_g3f_ord?: number | null;
   bu_g4f_ord?: number | null;
+  bu_g6f_ord?: number | null;
+  bu_g8f_ord?: number | null;
   bu_s1f_ord?: number | null;
   // 구간기록 — 서울 (서울 경주만 채워짐)
   se_g1f_acc_time?: number | null;
@@ -187,6 +189,8 @@ export interface SectionalRecord {
   bu_g2f_ord: number | null;
   bu_g3f_ord: number | null;
   bu_g4f_ord: number | null;
+  bu_g6f_ord: number | null;
+  bu_g8f_ord: number | null;
   bu_s1f_ord: number | null;
   fetched_at: string | null;
 }

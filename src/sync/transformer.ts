@@ -271,6 +271,8 @@ export interface RaceEntryResultRow {
   bu_g2f_ord: number | null;
   bu_g3f_ord: number | null;
   bu_g4f_ord: number | null;
+  bu_g6f_ord: number | null;
+  bu_g8f_ord: number | null;
   bu_s1f_ord: number | null;
   // 부경 구간별 개별 타임 (부경 경주만 채워짐)
   bu_s1f_time: number | null;
@@ -462,6 +464,8 @@ export function toRaceEntryResultRow(horse: KRARaceResult): RaceEntryResultRow {
     bu_g2f_ord: zeroToNull(horse.buG2fOrd),
     bu_g3f_ord: zeroToNull(horse.buG3fOrd),
     bu_g4f_ord: zeroToNull(horse.buG4fOrd),
+    bu_g6f_ord: zeroToNull(horse.buG6fOrd),
+    bu_g8f_ord: zeroToNull(horse.buG8fOrd),
     bu_s1f_ord: zeroToNull(horse.buS1fOrd),
     bu_s1f_time: zeroToNull(horse.buS1fTime),
     bu_1fg_time: zeroToNull(horse.bu_1fGTime),

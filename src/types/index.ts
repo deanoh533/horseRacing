@@ -59,6 +59,8 @@ export interface KRARaceResult {
   buG2fOrd?: number;
   buG3fOrd?: number;
   buG4fOrd?: number;
+  buG6fOrd?: number;  // 1600m+ 장거리만 유효
+  buG8fOrd?: number;  // 2000m+ 장거리만 유효
   buS1fOrd?: number;
   // 구간별 서울 누적시간 (seG* = 서울, 0이면 해당 경마장 아님)
   seG1fAccTime?: number;  // 서울 G1F 누적통과시간 (초)

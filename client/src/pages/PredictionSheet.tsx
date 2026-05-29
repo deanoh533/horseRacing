@@ -208,11 +208,10 @@ interface SectionalInfo {
 function getSectionalInfo(h: RaceEntry): SectionalInfo {
   const isSe = h.meet === 1;
   // 코너/중간지점 순위 계산
-  // 서울: 1~4코너 순위 / 부경: g4f·g2f 지점 순위
-  // bu_g8f_ord, bu_g6f_ord 컬럼 DB에 추가 시 buCornerRanks 배열 앞에 prepend
+  // 서울: 1~4코너 순위 / 부경: G8F→G6F→G4F→G2F (장거리일수록 앞쪽 체크포인트 추가됨)
   const cornerRanks = isSe
     ? [h.sj_1c_ord ?? null, h.sj_2c_ord ?? null, h.sj_3c_ord ?? null, h.sj_4c_ord ?? null]
-    : [h.bu_g4f_ord ?? null, h.bu_g2f_ord ?? null];
+    : [h.bu_g8f_ord ?? null, h.bu_g6f_ord ?? null, h.bu_g4f_ord ?? null, h.bu_g2f_ord ?? null];
   const validCornerRanks = cornerRanks.filter((r): r is number => r !== null);
   const s1fTime = isSe ? (h.se_s1f_acc_time ?? null) : (h.bu_s1f_acc_time ?? null);
   const g3fAcc = isSe ? (h.se_g3f_acc_time ?? null) : (h.bu_g3f_acc_time ?? null);
