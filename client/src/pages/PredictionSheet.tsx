@@ -697,65 +697,74 @@ function ColJockeyInfo({
   history,
   jockeyStat,
   jockeyHorseCombo,
+  latestTraining,
 }: {
   horse: RaceEntry;
   history: RaceEntry[];
   jockeyStat: JockeyStat | undefined;
   jockeyHorseCombo: JockeyHorseComboStat | undefined;
+  latestTraining: TrainingLog | undefined;
 }) {
   const lastBurdWgt = history[0]?.burd_wgt ?? null;
   const burdDiff =
     horse.burd_wgt != null && lastBurdWgt != null ? horse.burd_wgt - lastBurdWgt : null;
 
-  return (
-    <div className="p-3 flex flex-col gap-2">
-      {/* 기수명 */}
-      <div>
-        <div className="text-[13px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>기수</div>
-        <div className="text-base font-semibold">{horse.jcky_nm ?? '-'}</div>
-      </div>
+  const hasHealth =
+    horse.latst_bledg1 || horse.latst_bledg2 ||
+    horse.latst_trea1_txt || horse.latst_trea2_txt;
 
-      {/* 부담중량 + 전경주 대비 변화 */}
+  return (
+    <div className="p-2.5 flex flex-col gap-2 text-[12px]">
+      {/* 기수명 + 체중 */}
       <div>
-        <div className="text-[13px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>부담중량</div>
-        <div className="flex items-baseline gap-1 font-mono-num">
-          <span className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[14px] font-bold" style={{ color: 'var(--color-text-primary)' }}>
+            {horse.jcky_nm ?? '-'}
+          </span>
+          {horse.wg_jk != null && (
+            <span className="font-mono-num text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>
+              {horse.wg_jk}kg
+            </span>
+          )}
+        </div>
+
+        {/* 부담중량 */}
+        <div className="flex items-baseline gap-1 font-mono-num mt-0.5">
+          <span className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             {horse.burd_wgt != null ? `${horse.burd_wgt}kg` : '-'}
           </span>
           {burdDiff != null && burdDiff !== 0 && (
             <span
-              className="text-sm"
+              className="text-[12px]"
               style={{ color: burdDiff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}
             >
               ({burdDiff > 0 ? '+' : ''}{burdDiff})
             </span>
           )}
+          <span className="text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>부담중량</span>
         </div>
-      </div>
 
-      {/* 기수 통산 성적 (jockey_stats 커버 시) */}
-      {jockeyStat && (
-        <div>
-          <div className="text-[13px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>통산 성적</div>
-          <div className="text-sm font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-            {jockeyStat.race_cnt_t != null ? `${jockeyStat.race_cnt_t}전` : '-'}
-            {jockeyStat.first_cnt != null && (
-              <span> ({jockeyStat.first_cnt}승)</span>
+        {/* 통산 성적 */}
+        {jockeyStat && (
+          <div className="font-mono-num text-[11px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+            {jockeyStat.race_cnt_t != null ? `${jockeyStat.race_cnt_t}전 ` : ''}
+            {jockeyStat.first_cnt != null ? `${jockeyStat.first_cnt}승` : ''}
+            {jockeyStat.win_rate_t != null && (
+              <span className="ml-1" style={{ color: 'var(--color-accent-cyan)' }}>
+                {jockeyStat.win_rate_t}%
+              </span>
             )}
           </div>
-          {jockeyStat.win_rate_t != null && (
-            <div className="text-sm font-mono-num" style={{ color: 'var(--color-accent-cyan)' }}>
-              승률 {jockeyStat.win_rate_t}%
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* E-002: 기수-말 조합 이력 */}
-      {jockeyHorseCombo != null && jockeyHorseCombo.total > 0 && (
-        <div>
-          <div className="text-[13px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>조합 이력</div>
-          <div className="text-sm font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+      <div className="border-t border-[var(--color-bg-elevated)]" />
+
+      {/* 이 말과의 전적 */}
+      <div>
+        <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>이 말과의 전적</div>
+        {jockeyHorseCombo != null && jockeyHorseCombo.total > 0 ? (
+          <div className="font-mono-num text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
             {jockeyHorseCombo.total}전{' '}
             <span style={{ color: jockeyHorseCombo.wins > 0 ? 'var(--color-success)' : undefined }}>
               {jockeyHorseCombo.wins}승
@@ -765,24 +774,74 @@ function ColJockeyInfo({
               연{jockeyHorseCombo.places} 복{jockeyHorseCombo.shows}
             </span>
           </div>
+        ) : (
+          <div className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>이력 없음</div>
+        )}
+      </div>
+
+      <div className="border-t border-[var(--color-bg-elevated)]" />
+
+      {/* 최근 조교 */}
+      <div>
+        <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-accent-cyan)' }}>▸ 최근 조교</div>
+        {latestTraining ? (
+          <div className="flex flex-col gap-0.5 font-mono-num text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+            <span>
+              {formatDate(latestTraining.train_date)}
+              {latestTraining.chul_gubun && <span className="ml-1">{latestTraining.chul_gubun}</span>}
+            </span>
+            <span style={{ color: 'var(--color-text-disabled)' }}>
+              {latestTraining.pr_gubun ?? '-'}
+              {latestTraining.tr_term != null && latestTraining.tr_term > 0 && (
+                <span className="ml-1">{formatTrTerm(latestTraining.tr_term)}</span>
+              )}
+            </span>
+          </div>
+        ) : (
+          <div className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>조교 기록 없음</div>
+        )}
+      </div>
+
+      <div className="border-t border-[var(--color-bg-elevated)]" />
+
+      {/* 진료·폐출혈 내역 */}
+      <div>
+        <div
+          className="text-[10px] mb-0.5"
+          style={{ color: hasHealth ? 'var(--color-accent-pink)' : 'var(--color-text-disabled)' }}
+        >
+          ▸ 진료내역
         </div>
-      )}
+        {hasHealth ? (
+          <div className="flex flex-col gap-0.5 text-[11px]" style={{ color: 'var(--color-accent-pink)' }}>
+            {horse.latst_bledg1 && <span>폐출혈: {horse.latst_bledg1}</span>}
+            {horse.latst_bledg2 && <span>폐출혈2: {horse.latst_bledg2}</span>}
+            {horse.latst_trea1_txt && <span>{horse.latst_trea1_txt}</span>}
+            {horse.latst_trea2_txt && <span>{horse.latst_trea2_txt}</span>}
+          </div>
+        ) : (
+          <div className="text-[11px]" style={{ color: 'var(--color-text-disabled)' }}>없음</div>
+        )}
+      </div>
 
       {/* 사후: 실제 착순 + 인기순위 */}
       {horse.ord != null && (
-        <div>
-          <div className="text-[13px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>실제 착순</div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-base font-mono-num font-bold" style={{ color: ordColor(horse.ord) }}>
-              {horse.ord}위
-            </span>
-            {horse.popularity != null && (
-              <span className="text-sm font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-                인기 {horse.popularity}위
+        <>
+          <div className="border-t border-[var(--color-bg-elevated)]" />
+          <div>
+            <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>실제 착순</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[14px] font-mono-num font-bold" style={{ color: ordColor(horse.ord) }}>
+                {horse.ord}위
               </span>
-            )}
+              {horse.popularity != null && (
+                <span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+                  인기 {horse.popularity}위
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
