@@ -490,12 +490,11 @@ function ComboBetBox({
 function ColHorseInfo({
   horse,
   prediction,
-  runningStyle,
-  accentColor,
+  runningStyle: _runningStyle,
+  accentColor: _accentColor,
   bloodline,
   history,
   trainerStat,
-  latestTraining,
   gateStats,
 }: {
   horse: RaceEntry;
@@ -505,18 +504,25 @@ function ColHorseInfo({
   bloodline: BloodlineInfo | undefined;
   history: RaceEntry[];
   trainerStat: { total: number; wins: number } | undefined;
-  latestTraining: TrainingLog | undefined;
   gateStats: Map<number, { total: number; wins: number }> | undefined;
 }) {
-  const pRank = prediction?.predicted_rank ?? 999;
-  const pScore = prediction?.total_score ?? 0;
-  const timeStats = useMemo(() => computeTimeStats(history), [history]);
+  const sameDistStats = useMemo(
+    () => (horse.rc_dist != null ? computeSameDistStats(history, horse.rc_dist) : null),
+    [history, horse.rc_dist]
+  );
 
-  // E-001: 출전 공백기
-  const lastRaceDate = history[0]?.race_date ?? null;
-  const racingGap = lastRaceDate != null ? daysBetween(horse.race_date, lastRaceDate) : null;
+  const total = horse.sump_rcod_sum ?? 0;
+  const fplc = horse.sump_rcod_fplc ?? 0;
+  const splc = horse.sump_rcod_splc ?? 0;
+  const tplc = horse.sump_rcod_tplc ?? 0;
+  const rest = Math.max(total - fplc - splc - tplc, 0);
+  const careerStr = total > 0 ? `${total}전 ${fplc}/${splc}/${tplc}/${rest}` : null;
 
-  // E-003: 현재 게이트 통산 성적
+  const trainerWinRate =
+    trainerStat && trainerStat.total > 0
+      ? `${trainerStat.wins}승/${trainerStat.total}전`
+      : null;
+
   const currentGateStat = gateStats?.get(horse.pthr_no) ?? null;
 
   const currentEquip = [
@@ -524,233 +530,162 @@ function ColHorseInfo({
     horse.asis_equip4, horse.asis_equip5,
   ].filter((e): e is string => !!e);
   const prevEquip = history[0]
-    ? [
-        history[0].asis_equip1, history[0].asis_equip2, history[0].asis_equip3,
-        history[0].asis_equip4, history[0].asis_equip5,
-      ].filter((e): e is string => !!e)
+    ? [history[0].asis_equip1, history[0].asis_equip2, history[0].asis_equip3,
+       history[0].asis_equip4, history[0].asis_equip5].filter((e): e is string => !!e)
     : null;
   const equipAdded = prevEquip != null ? currentEquip.filter((e) => !prevEquip.includes(e)) : [];
   const equipRemoved = prevEquip != null ? prevEquip.filter((e) => !currentEquip.includes(e)) : [];
   const hasEquipChange = equipAdded.length > 0 || equipRemoved.length > 0;
 
-  const total = horse.sump_rcod_sum ?? 0;
-  const fplc = horse.sump_rcod_fplc ?? 0;
-  const splc = horse.sump_rcod_splc ?? 0;
-  const tplc = horse.sump_rcod_tplc ?? 0;
-  const rest = Math.max(total - fplc - splc - tplc, 0);
-  const careerStr = total > 0 ? `${total}전 (${fplc}-${splc}-${tplc}-${rest})` : null;
+  const dist = horse.rc_dist;
 
-  const trainerWinRate =
-    trainerStat && trainerStat.total > 0
-      ? ((trainerStat.wins / trainerStat.total) * 100).toFixed(1)
-      : null;
+  // suppress unused warning
+  void prediction;
 
   return (
-    <div className="p-3 flex flex-col gap-1 min-w-0">
-      {/* AI 배지 */}
-      {pRank < 999 && (
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span
-            className="text-[13px] font-bold px-1.5 py-0.5 rounded font-mono-num shrink-0"
-            style={{
-              background: `${accentColor}20`,
-              color: accentColor,
-              border: `1px solid ${accentColor}40`,
-            }}
-          >
-            AI {pRank}위
-          </span>
-          <div className="flex-1 min-w-0">
-            <ScoreBar score={pScore} maxScore={100} color={accentColor} />
-          </div>
-          <span className="text-[13px] font-mono-num shrink-0" style={{ color: accentColor }}>
-            {pScore.toFixed(1)}
-          </span>
-        </div>
-      )}
-
-      {/* 번호 + 마명 + 성향 */}
-      <div className="flex items-baseline gap-1 flex-wrap">
-        <span className="text-base font-bold font-mono-num" style={{ color: accentColor }}>
-          {horse.pthr_no}번
-        </span>
-        <span className="text-base font-bold leading-tight">{horse.hr_name}</span>
-        <StyleBadge style={runningStyle} />
+    <div className="p-2.5 flex flex-col gap-1 text-[12px]">
+      {/* 나이 · 성 · 국적 · 레이팅 (라벨 없이) */}
+      <div className="flex items-baseline gap-1.5 flex-wrap font-mono-num">
+        {horse.ag != null && <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{horse.ag}세</span>}
+        {horse.gndr && <span style={{ color: 'var(--color-text-secondary)' }}>{horse.gndr}</span>}
+        {horse.prds && <span style={{ color: 'var(--color-text-secondary)' }}>· {horse.prds}</span>}
+        {horse.ratg != null && horse.ratg > 0 && (
+          <span className="font-bold" style={{ color: 'var(--color-accent-cyan)' }}>R{horse.ratg}</span>
+        )}
       </div>
 
-      {/* 나이 / 성별 / 산지 / 레이팅 */}
-      <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        {horse.ag ?? '?'}세 {horse.gndr ?? ''}
-        {horse.prds ? ` · ${horse.prds}` : ''}
-        {horse.ratg && horse.ratg > 0 ? (
-          <span className="ml-1.5 font-mono-num font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            R{horse.ratg}
-          </span>
-        ) : null}
-      </div>
-
-      {/* 혈통: 모마 - 부마 */}
+      {/* 혈통 */}
       {(bloodline?.dam_hr_nm || bloodline?.sire_hr_nm) && (
-        <div className="text-[13px]" style={{ color: 'var(--color-text-disabled)' }}>
-          {bloodline.dam_hr_nm ?? '?'}(모) - {bloodline.sire_hr_nm ?? '?'}(부)
+        <div style={{ color: 'var(--color-text-disabled)', fontSize: '11px' }}>
+          {bloodline.dam_hr_nm ?? '?'}(모) · {bloodline.sire_hr_nm ?? '?'}(부)
         </div>
       )}
 
-      {/* 조교사 (+ 최근 2년 승수) / 마주 */}
+      {/* 조교사 · 마주 */}
       {(horse.trar_nm || horse.owner_nm) && (
-        <div className="text-[13px]" style={{ color: 'var(--color-text-disabled)' }}>
+        <div className="flex items-baseline gap-1.5 flex-wrap" style={{ color: 'var(--color-text-disabled)', fontSize: '11px' }}>
           {horse.trar_nm && (
             <span>
-              조교 {horse.trar_nm}
-              {trainerWinRate != null && (
-                <span className="ml-1 font-mono-num">
-                  ({trainerStat!.wins}승/{trainerStat!.total}전 {trainerWinRate}%)
-                </span>
-              )}
+              {horse.trar_nm}
+              {trainerWinRate && <span className="font-mono-num ml-1">({trainerWinRate})</span>}
+              <span style={{ color: 'var(--color-text-disabled)' }}> 조교사</span>
             </span>
           )}
-          {horse.trar_nm && horse.owner_nm && <span className="mx-1">/</span>}
-          {horse.owner_nm && <span>마주 {horse.owner_nm}</span>}
+          {horse.trar_nm && horse.owner_nm && <span>·</span>}
+          {horse.owner_nm && <span>{horse.owner_nm} <span style={{ color: 'var(--color-text-disabled)' }}>마주</span></span>}
         </div>
       )}
 
-      {/* 통산 성적 (N전 W-P-S-R) + 수득상금 */}
-      {(careerStr || (horse.erng_sump != null && horse.erng_sump > 0)) && (
-        <div
-          className="font-mono-num text-sm flex items-center gap-1.5 flex-wrap"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          {careerStr && <span>{careerStr}</span>}
-          {horse.erng_sump != null && horse.erng_sump > 0 && (
-            <span style={{ color: 'var(--color-text-disabled)' }}>{formatErng(horse.erng_sump)}</span>
-          )}
-        </div>
-      )}
+      {/* 통산전적 · 수득상금 */}
+      <div className="flex items-baseline gap-1.5 flex-wrap font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+        {careerStr && <span>{careerStr}</span>}
+        {horse.erng_sump != null && horse.erng_sump > 0 && (
+          <span style={{ color: 'var(--color-text-disabled)' }}>{formatErng(horse.erng_sump)}</span>
+        )}
+      </div>
 
       {/* 마체중 */}
-      {horse.wg_hr != null && (
-        <div className="flex items-baseline gap-1 font-mono-num">
-          <span className="text-sm font-semibold">{horse.wg_hr}kg</span>
-          {horse.wg_hr_diff != null && horse.wg_hr_diff !== 0 && (
-            <span
-              className="text-[13px]"
-              style={{ color: horse.wg_hr_diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}
-            >
-              ({horse.wg_hr_diff > 0 ? '+' : ''}{horse.wg_hr_diff})
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* 최고 기록 */}
-      {timeStats && (
-        <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-          최 {formatRcTime(timeStats.bestTime)}
-          <span style={{ color: 'var(--color-text-disabled)' }}>
-            {' '}({formatDate(timeStats.bestDate)},{' '}
-            {timeStats.bestBurdWgt != null ? `${timeStats.bestBurdWgt}kg` : '-'},{' '}
-            {timeStats.bestPthrNo}번)
+      <div className="flex items-baseline gap-1.5 flex-wrap font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
+        {horse.wg_hr != null && (
+          <span>
+            {horse.wg_hr}kg
+            {horse.wg_hr_diff != null && horse.wg_hr_diff !== 0 && (
+              <span
+                className="ml-0.5"
+                style={{ color: horse.wg_hr_diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}
+              >
+                ({horse.wg_hr_diff > 0 ? '+' : ''}{horse.wg_hr_diff})
+              </span>
+            )}
           </span>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* 평균 기록 + 형태 (구→신, 대시 구분) */}
-      {timeStats && (
-        <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-secondary)' }}>
-          평 {formatRcTime(timeStats.avgTime)} {timeStats.count}전
-          {timeStats.formStr && (
-            <span className="ml-1" style={{ color: 'var(--color-text-disabled)' }}>
-              ({timeStats.formStr})
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* E-001: 출전 공백기 */}
-      {racingGap != null && (
-        <div
-          className="text-[13px] font-mono-num"
-          style={{ color: racingGap >= 30 ? 'var(--color-accent-gold)' : 'var(--color-text-disabled)' }}
-        >
-          공백 {racingGap}일{racingGap >= 30 ? ' [장기]' : ''}
-        </div>
-      )}
-
-      {/* E-003: 현재 게이트 통산 성적 */}
+      {/* 게이트 성적 */}
       {currentGateStat != null && currentGateStat.total >= 3 && (
-        <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
+        <div className="font-mono-num" style={{ color: 'var(--color-text-disabled)', fontSize: '11px' }}>
           {horse.pthr_no}번 게이트 {currentGateStat.total}전{' '}
           <span style={{ color: currentGateStat.wins > 0 ? 'var(--color-success)' : undefined }}>
-            {currentGateStat.wins}승
-            ({Math.round((currentGateStat.wins / currentGateStat.total) * 100)}%)
+            {currentGateStat.wins}승({Math.round((currentGateStat.wins / currentGateStat.total) * 100)}%)
           </span>
         </div>
       )}
 
-      {/* 최근 조교 */}
-      {latestTraining && (
-        <div className="text-[13px] font-mono-num" style={{ color: 'var(--color-text-disabled)' }}>
-          조교 {formatDate(latestTraining.train_date)}
-          {latestTraining.tr_term != null && latestTraining.tr_term > 0 && (
-            <span className="ml-1" style={{ color: 'var(--color-text-secondary)' }}>
-              {formatTrTerm(latestTraining.tr_term)}
-            </span>
-          )}
-          {latestTraining.pr_gubun && (
-            <span className="ml-1">{latestTraining.pr_gubun}</span>
-          )}
-          {latestTraining.chul_gubun && (
-            <span className="ml-1">[{latestTraining.chul_gubun}]</span>
-          )}
-        </div>
-      )}
-
-      {/* 장구 */}
+      {/* 장구 변경 */}
       {(currentEquip.length > 0 || equipRemoved.length > 0) && (
-        <div className="text-[13px]">
-          <span style={{ color: 'var(--color-text-disabled)' }}>장구 </span>
+        <div className="flex items-center gap-1 flex-wrap text-[11px]">
           {hasEquipChange && (
             <span
-              className="text-[11px] font-bold mr-1 px-1 rounded"
+              className="px-1 rounded font-bold text-[10px]"
               style={{
                 background: 'rgba(255,215,0,0.12)',
                 color: 'var(--color-accent-gold)',
                 border: '1px solid rgba(255,215,0,0.3)',
               }}
             >
-              변경
+              장구변경
             </span>
           )}
           {currentEquip.map((e) => (
-            <span
-              key={e}
-              className="mr-1"
-              style={{ color: equipAdded.includes(e) ? 'var(--color-success)' : 'var(--color-text-secondary)' }}
-            >
+            <span key={e} style={{ color: equipAdded.includes(e) ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>
               {e}
             </span>
           ))}
           {equipRemoved.map((e) => (
-            <span
-              key={`rm-${e}`}
-              className="mr-1 line-through"
-              style={{ color: 'var(--color-danger)' }}
-            >
-              {e}
-            </span>
+            <span key={`rm-${e}`} className="line-through" style={{ color: 'var(--color-danger)' }}>{e}</span>
           ))}
         </div>
       )}
 
-      {/* 건강정보 */}
-      {(horse.latst_bledg1 || horse.latst_bledg2 || horse.latst_trea1_txt || horse.latst_trea2_txt) && (
-        <div className="text-[13px] flex flex-col gap-0.5" style={{ color: 'var(--color-accent-pink)' }}>
-          {horse.latst_bledg1 && <span>폐출혈1: {horse.latst_bledg1}</span>}
-          {horse.latst_bledg2 && <span>폐출혈2: {horse.latst_bledg2}</span>}
-          {horse.latst_trea1_txt && <span>진료1: {horse.latst_trea1_txt}</span>}
-          {horse.latst_trea2_txt && <span>진료2: {horse.latst_trea2_txt}</span>}
+      {/* 구분선 */}
+      <div className="border-t border-[var(--color-bg-elevated)] my-1" />
+
+      {/* 같은거리 최고기록 하이라이트 박스 */}
+      {dist != null && sameDistStats != null ? (
+        <>
+          <div
+            className="rounded-md px-2 py-1.5"
+            style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-bg-elevated)' }}
+          >
+            <div className="flex items-center gap-1 mb-1" style={{ fontSize: '9px', color: 'var(--color-accent-cyan)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span>⚡</span>
+              <span>{dist}m 최고</span>
+            </div>
+            <div className="font-mono-num font-bold" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}>
+              {formatRcTime(sameDistStats.bestTime)}
+            </div>
+            <div className="font-mono-num" style={{ fontSize: '10px', color: 'var(--color-text-disabled)' }}>
+              {[
+                sameDistStats.bestBurdWgt != null ? `${sameDistStats.bestBurdWgt}kg` : null,
+                sameDistStats.bestTrackType,
+                sameDistStats.bestOrd != null ? `${sameDistStats.bestOrd}위` : null,
+                `${sameDistStats.bestPthrNo}번 게이트`,
+              ].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+
+          {/* 같은거리 평균기록 */}
+          <div
+            className="rounded-md px-2 py-1.5"
+            style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-bg-elevated)' }}
+          >
+            <div className="flex items-center gap-1 mb-1" style={{ fontSize: '9px', color: 'var(--color-text-disabled)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span>—</span>
+              <span>{dist}m 평균</span>
+            </div>
+            <div className="font-mono-num font-semibold" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              {formatRcTime(sameDistStats.avgTime)}
+            </div>
+            <div className="font-mono-num" style={{ fontSize: '10px', color: 'var(--color-text-disabled)' }}>
+              {sameDistStats.count}전 기준 · 전적 {sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
+            </div>
+          </div>
+        </>
+      ) : dist != null ? (
+        <div style={{ fontSize: '11px', color: 'var(--color-text-disabled)' }}>
+          {dist}m 경주 이력 없음
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
