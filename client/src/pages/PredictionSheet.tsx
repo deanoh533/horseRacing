@@ -80,16 +80,16 @@ function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   });
 }
 
-function useMultipleHorseHistories(hrNames: string[], beforeDate: number) {
+function useMultipleHorseHistories(hrNames: string[], beforeDate: number, limit = 10) {
   return useQueries({
     queries: hrNames.map((hrName) => ({
-      queryKey: ['horse-history', hrName, beforeDate, 5],
+      queryKey: ['horse-history', hrName, beforeDate, limit],
       queryFn: async (): Promise<RaceEntry[]> => {
         const { data, error } = await supabase
           .from('race_entries').select('*')
           .eq('hr_name', hrName).lt('race_date', beforeDate)
           .not('ord', 'is', null)
-          .order('race_date', { ascending: false }).limit(5);
+          .order('race_date', { ascending: false }).limit(limit);
         if (error) throw error;
         return data ?? [];
       },
@@ -283,6 +283,46 @@ function computeTimeStats(history: RaceEntry[]): TimeStats | null {
     avgTime: avg,
     count: valid.length,
     formStr: form,
+  };
+}
+
+export interface SameDistStats {
+  bestTime: number;
+  bestBurdWgt: number | null;
+  bestTrackType: string | null;
+  bestOrd: number | null;
+  bestPthrNo: number;
+  avgTime: number;
+  count: number;
+  wins: number;
+  places: number;
+  shows: number;
+}
+
+export function computeSameDistStats(
+  history: RaceEntry[],
+  targetDist: number
+): SameDistStats | null {
+  const valid = history.filter(
+    (h) => h.rc_dist === targetDist && h.rc_time != null && h.rc_time > 0
+  );
+  if (valid.length === 0) return null;
+
+  const sorted = [...valid].sort((a, b) => a.rc_time! - b.rc_time!);
+  const best = sorted[0]!;
+  const avgTime = valid.reduce((s, h) => s + h.rc_time!, 0) / valid.length;
+
+  return {
+    bestTime: best.rc_time!,
+    bestBurdWgt: best.burd_wgt,
+    bestTrackType: best.track_type,
+    bestOrd: best.ord,
+    bestPthrNo: best.pthr_no,
+    avgTime,
+    count: valid.length,
+    wins: valid.filter((h) => h.ord === 1).length,
+    places: valid.filter((h) => h.ord != null && h.ord <= 2).length,
+    shows: valid.filter((h) => h.ord != null && h.ord <= 3).length,
   };
 }
 
