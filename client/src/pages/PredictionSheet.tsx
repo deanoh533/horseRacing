@@ -963,11 +963,15 @@ function ColHistory({
 function Col5Items({
   itemScores,
   accentColor,
+  pRank,
+  pScore,
   viewMode,
   onViewModeChange,
 }: {
   itemScores: Record<string, ItemScore> | undefined;
   accentColor: string;
+  pRank: number;
+  pScore: number;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
@@ -1011,7 +1015,7 @@ function Col5Items({
       </div>
 
       {/* 고정 높이 컨테이너 — bar/radar 모두 항상 DOM에 존재, display로만 전환 → reflow 없음 */}
-      <div className="relative overflow-hidden" style={{ height: 220 }}>
+      <div className="relative overflow-hidden" style={{ minHeight: 160, height: '100%' }}>
         {!hasScores && (
           <p className="text-sm absolute inset-0 flex items-center px-1"
             style={{ color: 'var(--color-text-disabled)' }}>예측 없음</p>
@@ -1085,6 +1089,16 @@ function Col5Items({
           )}
         </div>
       </div>
+
+      {/* 하단 AI 순위 + 총점 */}
+      {pRank < 999 && (
+        <div className="mt-auto pt-2 border-t border-[var(--color-bg-elevated)] text-center">
+          <div className="text-[18px]">{rankEmoji(pRank)}</div>
+          <div className="font-mono-num text-[12px] font-bold" style={{ color: accentColor }}>
+            {pScore.toFixed(1)}점
+          </div>
+        </div>
+      )}
     </div>
   );
 }
