@@ -1072,6 +1072,92 @@ function Col5Items({
 
 // ─── 말 카드 ─────────────────────────────────────────────────────────
 
+function rankAccentColor(pRank: number): string {
+  if (pRank === 1) return '#ffd700';
+  if (pRank === 2) return '#a8a8b3';
+  if (pRank === 3) return '#cd7f32';
+  return 'var(--color-accent-cyan)';
+}
+
+function rankEmoji(pRank: number): string {
+  if (pRank === 1) return '🥇';
+  if (pRank === 2) return '🥈';
+  if (pRank === 3) return '🥉';
+  if (pRank >= 999) return '';
+  return `${pRank}위`;
+}
+
+function CardHeader({
+  horse,
+  prediction,
+  runningStyle,
+  racingGap,
+}: {
+  horse: RaceEntry;
+  prediction: Prediction | undefined;
+  runningStyle: RunningStyle;
+  racingGap: number | null;
+}) {
+  const pRank = prediction?.predicted_rank ?? 999;
+  const pScore = prediction?.total_score ?? 0;
+  const accent = rankAccentColor(pRank);
+
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-bg-elevated)] flex-wrap"
+      style={{ background: 'var(--color-bg-elevated)' }}
+    >
+      {/* 번호 + 마명 */}
+      <span className="text-[17px] font-extrabold font-mono-num" style={{ color: 'var(--color-accent-cyan)' }}>
+        {horse.pthr_no}
+      </span>
+      <span className="text-[15px] font-bold">{horse.hr_name}</span>
+
+      {/* 주행성향 배지 */}
+      {runningStyle !== 'unknown' && (() => {
+        const info = STYLE_INFO[runningStyle];
+        return (
+          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold border ${info.className}`}>
+            {info.emoji} {info.shortName}
+          </span>
+        );
+      })()}
+
+      {/* 공백 배지 */}
+      {racingGap != null && (
+        <span
+          className="text-[10px] px-1.5 py-0.5 rounded border"
+          style={{
+            color: racingGap >= 30 ? 'var(--color-accent-gold)' : 'var(--color-text-disabled)',
+            borderColor: racingGap >= 30 ? 'rgba(255,215,0,0.4)' : 'var(--color-bg-elevated)',
+            background: racingGap >= 30 ? 'rgba(255,215,0,0.08)' : 'transparent',
+          }}
+        >
+          공백 {racingGap}일{racingGap >= 30 ? ' [장기]' : ''}
+        </span>
+      )}
+
+      {/* AI 점수바 + 총점 + 순위 이모지 */}
+      <div className="ml-auto flex items-center gap-2">
+        {pRank < 999 && (
+          <>
+            <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${Math.min(pScore, 100)}%`, background: accent }}
+              />
+            </div>
+            <span className="text-[11px] font-mono-num font-semibold" style={{ color: accent }}>
+              {pScore.toFixed(1)}
+            </span>
+            <span className="text-[17px]">{rankEmoji(pRank)}</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HorseCard({
   horse,
   prediction,
@@ -1083,6 +1169,7 @@ function HorseCard({
   latestTraining,
   jockeyHorseCombo,
   gateStats,
+  prizeCondMap,
   viewMode,
   onViewModeChange,
 }: {
@@ -1096,44 +1183,62 @@ function HorseCard({
   latestTraining: TrainingLog | undefined;
   jockeyHorseCombo: JockeyHorseComboStat | undefined;
   gateStats: Map<number, { total: number; wins: number }> | undefined;
+  prizeCondMap: Map<string, string>;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
   const pRank = prediction?.predicted_rank ?? 999;
-  const pStyle = PODIUM_STYLES[pRank - 1];
-  const accentColor = pStyle?.accent ?? 'var(--color-text-disabled)';
-  const borderColor = pRank <= 3 ? `${accentColor}50` : 'var(--color-bg-elevated)';
+  const accent = rankAccentColor(pRank);
+  const borderColor = pRank <= 3 ? `${accent}50` : 'var(--color-bg-elevated)';
+
+  const lastRaceDate = history[0]?.race_date ?? null;
+  const racingGap = lastRaceDate != null ? daysBetween(horse.race_date, lastRaceDate) : null;
 
   return (
     <div
       className="rounded-xl overflow-hidden"
       style={{ background: 'var(--color-bg-surface)', border: `1px solid ${borderColor}` }}
     >
-      {/* 모바일: 2+2 그리드 / 데스크탑: 4열 그리드 */}
-      <div className="grid grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]">
+      {/* 헤더 */}
+      <CardHeader
+        horse={horse}
+        prediction={prediction}
+        runningStyle={runningStyle}
+        racingGap={racingGap}
+      />
+
+      {/* 본문 4열 그리드 */}
+      <div className="grid grid-cols-2 md:[grid-template-columns:1.5fr_1.2fr_2.8fr_1.5fr]">
         <div className="border-b border-r border-[var(--color-bg-elevated)] md:border-b-0">
           <ColHorseInfo
             horse={horse}
             prediction={prediction}
             runningStyle={runningStyle}
-            accentColor={accentColor}
+            accentColor={accent}
             bloodline={bloodline}
             history={history}
             trainerStat={trainerStat}
-            latestTraining={latestTraining}
             gateStats={gateStats}
           />
         </div>
         <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
-          <ColJockeyInfo horse={horse} history={history} jockeyStat={jockeyStat} jockeyHorseCombo={jockeyHorseCombo} />
+          <ColJockeyInfo
+            horse={horse}
+            history={history}
+            jockeyStat={jockeyStat}
+            jockeyHorseCombo={jockeyHorseCombo}
+            latestTraining={latestTraining}
+          />
         </div>
         <div className="col-span-2 md:col-span-1 border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
-          <ColHistory history={history} />
+          <ColHistory history={history.slice(0, 5)} prizeCondMap={prizeCondMap} />
         </div>
         <div className="col-span-2 md:col-span-1">
           <Col5Items
             itemScores={prediction?.item_scores}
-            accentColor={accentColor}
+            accentColor={accent}
+            pRank={pRank}
+            pScore={prediction?.total_score ?? 0}
             viewMode={viewMode}
             onViewModeChange={onViewModeChange}
           />
