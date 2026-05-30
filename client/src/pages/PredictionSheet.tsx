@@ -802,8 +802,9 @@ function ColHistory({
           {history.map((h, i) => {
             const sec = getSectionalInfo(h);
             const hasSecData =
-              sec.cornerStr != null || sec.s1fTime != null ||
-              sec.g3fSplit != null || sec.g1fSplit != null;
+              sec.cornerStr != null || sec.s1fOrd != null || sec.s1fTime != null ||
+              sec.g3fOrd != null || sec.g3fSplit != null ||
+              sec.g1fOrd != null || sec.g1fSplit != null;
 
             const prizeKey = `${h.race_date}-${h.meet}-${h.rc_no}`;
             const prizeCond = prizeCondMap.get(prizeKey) ?? '-';
@@ -855,14 +856,23 @@ function ColHistory({
                       {sec.cornerStr != null && (
                         <span style={{ color: 'var(--color-accent-cyan)' }}>코너 {sec.cornerStr}</span>
                       )}
-                      {sec.s1fTime != null && (
-                        <span> · 출발 {fmtSec(sec.s1fTime)}s</span>
+                      {(sec.s1fOrd != null || sec.s1fTime != null) && (
+                        <span> · 출발 {[
+                          sec.s1fOrd != null ? `${sec.s1fOrd}위` : null,
+                          fmtSec(sec.s1fTime) != null ? `${fmtSec(sec.s1fTime)}s` : null,
+                        ].filter(Boolean).join(' ')}</span>
                       )}
-                      {sec.g3fSplit != null && (
-                        <span> · 막판600m {fmtSec(sec.g3fSplit)}s</span>
+                      {(sec.g3fOrd != null || sec.g3fSplit != null) && (
+                        <span> · 막판600m {[
+                          sec.g3fOrd != null ? `${sec.g3fOrd}위` : null,
+                          fmtSec(sec.g3fSplit) != null ? `${fmtSec(sec.g3fSplit)}s` : null,
+                        ].filter(Boolean).join(' ')}</span>
                       )}
-                      {sec.g1fSplit != null && (
-                        <span> · 막판200m {fmtSec(sec.g1fSplit)}s</span>
+                      {(sec.g1fOrd != null || sec.g1fSplit != null) && (
+                        <span> · 막판200m {[
+                          sec.g1fOrd != null ? `${sec.g1fOrd}위` : null,
+                          fmtSec(sec.g1fSplit) != null ? `${fmtSec(sec.g1fSplit)}s` : null,
+                        ].filter(Boolean).join(' ')}</span>
                       )}
                     </td>
                   </tr>
