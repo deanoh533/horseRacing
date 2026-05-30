@@ -7,6 +7,7 @@
  *  - 셀 클릭: 기수 → 기수 패널 / 조교사 → 조교사 패널
  *  - 마명: 말 상세 페이지 링크
  */
+import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronUp, ChevronDown, Loader2, Bot, Zap, Award, Target, History, Dumbbell, Dna, ExternalLink } from 'lucide-react';
@@ -25,11 +26,12 @@ import {
   useTrainerStats,
   useJockeyHorseComboBatch,
   useJockeyRecentForm,
-  type JockeyHorseComboStat,
 } from '../lib/queries';
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { classifyRunningStyle, STYLE_INFO, describeFrontRunSuccess, type RunningStyle } from '../lib/runningStyle';
+import { getSectionalInfo, fmtSec } from '../lib/sectional';
+import { computeSameDistStats } from './PredictionSheet';
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
@@ -369,7 +371,7 @@ export function RaceEntries() {
                                 <TrainerPanel entry={h} />
                               )}
                               {isHorseOpen && (
-                                <HorsePanel entry={h} meet={meet} rcDate={rcDate} rcNo={rcNo} />
+                                <HorsePanel entry={h} meet={meet} rcDate={rcDate} rcNo={rcNo} rcDist={race?.rc_dist ?? null} />
                               )}
                             </td>
                           </tr>
@@ -634,17 +636,26 @@ function TrainerPanel({ entry }: { entry: RaceEntry }) {
 // 말 상세 패널 (구간능력·이력·혈통)
 // ============================================================
 function HorsePanel({
-  entry, meet, rcDate, rcNo,
+  entry, meet, rcDate, rcNo, rcDist,
 }: {
-  entry: RaceEntry; meet: number; rcDate: number; rcNo: number;
+  entry: RaceEntry; meet: number; rcDate: number; rcNo: number; rcDist: number | null;
 }) {
   const { data: ability, isLoading: abLoading } = useHorseSectionalAbility(entry.hr_name);
-  const { data: history, isLoading: histLoading } = useHorseHistory(entry.hr_name, rcDate, 5);
+  const { data: history, isLoading: histLoading } = useHorseHistory(entry.hr_name, rcDate, 10);
   const { data: horseInfo } = useHorseInfo(entry.hr_no ?? '');
+
+  const { data: training } = useHorseTraining(entry.hr_no ?? '', 30);
+  const sameDistStats = useMemo(
+    () => (rcDist != null ? computeSameDistStats(history ?? [], rcDist) : null),
+    [history, rcDist]
+  );
+  const hasHealth =
+    entry.latst_bledg1 || entry.latst_bledg2 ||
+    entry.latst_trea1_txt || entry.latst_trea2_txt;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-      {/* 기본 정보 */}
+      {/* 기본 정보 + 같은거리 기록 + 조교/진료 */}
       <DetailCard icon={<Award className="w-3.5 h-3.5" />} title="기본 정보">
         <KV label="출생지" value={entry.prds ?? '-'} />
         <KV label="마주" value={entry.owner_nm ?? '-'} />
@@ -655,6 +666,86 @@ function HorsePanel({
             label="통산전적"
             value={`${entry.sump_rcod_sum ?? '?'}전 / 1위 ${entry.sump_rcod_fplc} · 2위 ${entry.sump_rcod_splc} · 3위 ${entry.sump_rcod_tplc}`}
           />
+        )}
+
+        {/* 같은거리 최고/평균 */}
+        {rcDist != null && (
+          <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] space-y-1.5">
+            {sameDistStats != null ? (
+              <>
+                <div
+                  className="rounded px-2 py-1.5"
+                  style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-bg-elevated)' }}
+                >
+                  <div className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-accent-cyan)' }}>
+                    ⚡ {rcDist}m 최고
+                  </div>
+                  <div className="font-mono-num font-bold text-[13px]" style={{ color: 'var(--color-text-primary)' }}>
+                    {(() => {
+                      const m = Math.floor(sameDistStats.bestTime / 60);
+                      const s = (sameDistStats.bestTime % 60).toFixed(1);
+                      return m > 0 ? `${m}:${s.padStart(4, '0')}` : s;
+                    })()}
+                  </div>
+                  <div className="font-mono-num text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+                    {[
+                      sameDistStats.bestBurdWgt != null ? `${sameDistStats.bestBurdWgt}kg` : null,
+                      sameDistStats.bestTrackType,
+                      sameDistStats.bestOrd != null ? `${sameDistStats.bestOrd}위` : null,
+                    ].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+                <div
+                  className="rounded px-2 py-1.5"
+                  style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-bg-elevated)' }}
+                >
+                  <div className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>
+                    — {rcDist}m 평균
+                  </div>
+                  <div className="font-mono-num font-semibold text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    {(() => {
+                      const m = Math.floor(sameDistStats.avgTime / 60);
+                      const s = (sameDistStats.avgTime % 60).toFixed(1);
+                      return m > 0 ? `${m}:${s.padStart(4, '0')}` : s;
+                    })()}
+                  </div>
+                  <div className="font-mono-num text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+                    {sameDistStats.count}전 기준 · {sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ color: 'var(--color-text-disabled)' }}>{rcDist}m 이력 없음</div>
+            )}
+          </div>
+        )}
+
+        {/* 최근 조교 */}
+        {training && training.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
+            <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-accent-cyan)' }}>▸ 최근 조교</div>
+            <div className="font-mono-num text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+              {formatShortDate(training[0]!.train_date)}
+              {training[0]!.chul_gubun && <span className="ml-1">{training[0]!.chul_gubun}</span>}
+              {training[0]!.pr_gubun && <span className="ml-1 text-[var(--color-text-disabled)]">{training[0]!.pr_gubun}</span>}
+              {training[0]!.tr_term != null && training[0]!.tr_term > 0 && (
+                <span className="ml-1 text-[var(--color-text-disabled)]">{training[0]!.tr_term}초</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 진료내역 */}
+        {hasHealth && (
+          <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
+            <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-accent-pink)' }}>▸ 진료내역</div>
+            <div className="text-[11px] space-y-0.5" style={{ color: 'var(--color-accent-pink)' }}>
+              {entry.latst_bledg1 && <div>폐출혈: {entry.latst_bledg1}</div>}
+              {entry.latst_bledg2 && <div>폐출혈2: {entry.latst_bledg2}</div>}
+              {entry.latst_trea1_txt && <div>{entry.latst_trea1_txt}</div>}
+              {entry.latst_trea2_txt && <div>{entry.latst_trea2_txt}</div>}
+            </div>
+          </div>
         )}
       </DetailCard>
 
@@ -686,7 +777,7 @@ function HorsePanel({
         )}
       </DetailCard>
 
-      {/* 최근 5경주 */}
+      {/* 최근 5경주 + 구간기록 서브행 */}
       <DetailCard icon={<History className="w-3.5 h-3.5" />} title="최근 5경주">
         {histLoading ? (
           <div className="text-[var(--color-text-disabled)]"><Loader2 className="w-3 h-3 animate-spin inline mr-1" />로딩…</div>
@@ -703,14 +794,36 @@ function HorsePanel({
               </tr>
             </thead>
             <tbody>
-              {history.map((h, i) => (
-                <tr key={i} className="border-t border-[var(--color-bg-elevated)]">
-                  <td className="py-1">{formatShortDate(h.race_date)}</td>
-                  <td className="py-1 text-right">{h.rc_dist ?? '-'}m</td>
-                  <td className="py-1 text-right"><span className={ordBadgeClass(h.ord)}>{h.ord != null ? `${h.ord}위` : '-'}</span></td>
-                  <td className="py-1 text-right font-mono-num">{h.rc_time != null ? `${h.rc_time}s` : '-'}</td>
-                </tr>
-              ))}
+              {history.slice(0, 5).map((h, i) => {
+                const sec = getSectionalInfo(h);
+                const hasSecData =
+                  sec.cornerStr != null || sec.s1fTime != null ||
+                  sec.g3fSplit != null || sec.g1fSplit != null;
+                return (
+                  <React.Fragment key={i}>
+                    <tr className="border-t border-[var(--color-bg-elevated)]">
+                      <td className="py-1">{formatShortDate(h.race_date)}</td>
+                      <td className="py-1 text-right">{h.rc_dist ?? '-'}m</td>
+                      <td className="py-1 text-right">
+                        <span className={ordBadgeClass(h.ord)}>{h.ord != null ? `${h.ord}위` : '-'}</span>
+                      </td>
+                      <td className="py-1 text-right font-mono-num">{h.rc_time != null ? `${h.rc_time}s` : '-'}</td>
+                    </tr>
+                    {hasSecData && (
+                      <tr>
+                        <td colSpan={4} className="pb-1 text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+                          {sec.cornerStr != null && (
+                            <span style={{ color: 'var(--color-accent-cyan)' }}>코너 {sec.cornerStr}</span>
+                          )}
+                          {sec.s1fTime != null && <span> · 출발 {fmtSec(sec.s1fTime)}s</span>}
+                          {sec.g3fSplit != null && <span> · 막판600m {fmtSec(sec.g3fSplit)}s</span>}
+                          {sec.g1fSplit != null && <span> · 막판200m {fmtSec(sec.g1fSplit)}s</span>}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}

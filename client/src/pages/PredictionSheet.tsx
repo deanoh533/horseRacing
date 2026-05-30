@@ -45,7 +45,7 @@ import {
   type TrainingLog,
 } from '../lib/supabase';
 import { classifyRunningStyle, STYLE_INFO, type RunningStyle } from '../lib/runningStyle';
-import { getSectionalInfo, fmtSec, type SectionalInfo } from '../lib/sectional';
+import { getSectionalInfo, fmtSec } from '../lib/sectional';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
 
