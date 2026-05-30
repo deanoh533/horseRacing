@@ -1026,7 +1026,8 @@ export function useHorseGradeDistStatsBatch(
       const { data: matchingRaces, error: e1 } = await supabase
         .from('races')
         .select('race_date, meet, rc_no')
-        .eq('prize_cond', prizeCond);
+        .eq('prize_cond', prizeCond)
+        .eq('rc_dist', rcDist);
       if (e1) throw e1;
       if (!matchingRaces || matchingRaces.length === 0) return new Map();
 
