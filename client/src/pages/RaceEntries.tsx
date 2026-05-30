@@ -30,8 +30,7 @@ import {
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { classifyRunningStyle, STYLE_INFO, describeFrontRunSuccess, type RunningStyle } from '../lib/runningStyle';
-import { getSectionalInfo, fmtSec } from '../lib/sectional';
-import { computeSameDistStats } from './PredictionSheet';
+import { getSectionalInfo, fmtSec, computeSameDistStats } from '../lib/sectional';
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({

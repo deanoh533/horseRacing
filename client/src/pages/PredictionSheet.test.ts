@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { RaceEntry } from '../lib/supabase';
 
 // computeSameDistStats를 직접 테스트하기 위해 모듈에서 export가 필요하다.
-import { computeSameDistStats } from './PredictionSheet';
+import { computeSameDistStats } from '../lib/sectional';
 
 function makeEntry(overrides: Partial<RaceEntry>): RaceEntry {
   return {
