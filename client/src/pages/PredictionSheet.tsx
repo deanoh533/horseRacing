@@ -33,6 +33,7 @@ import {
   useJockeyHorseComboBatch,
   useHorseGateStatsBatch,
   useHistoryRacesPrizeCond,
+  useHorseGradeDistStatsBatch,
   type JockeyHorseComboStat,
 } from '../lib/queries';
 import {
@@ -1141,6 +1142,8 @@ function HorseCard({
   latestTraining,
   jockeyHorseCombo,
   gateStats,
+  gradeDistStat,
+  racePrizeCond,
   prizeCondMap,
   rcDist,
   viewMode,
@@ -1156,6 +1159,8 @@ function HorseCard({
   latestTraining: TrainingLog | undefined;
   jockeyHorseCombo: JockeyHorseComboStat | undefined;
   gateStats: Map<number, { total: number; wins: number }> | undefined;
+  gradeDistStat: GradeDistStat | undefined;
+  racePrizeCond: string | null;
   prizeCondMap: Map<string, string>;
   rcDist: number | null;
   viewMode: ViewMode;
@@ -1193,6 +1198,8 @@ function HorseCard({
             trainerStat={trainerStat}
             gateStats={gateStats}
             rcDist={rcDist}
+            gradeDistStat={gradeDistStat}
+            racePrizeCond={racePrizeCond}
           />
         </div>
         <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
@@ -1274,6 +1281,13 @@ export function PredictionSheet() {
 
   // E-003: 게이트별 통산 성적
   const { data: gateStatsMap } = useHorseGateStatsBatch(hrNames);
+
+  // E-006: 등급+거리 특화 성적
+  const { data: gradeDistStatsMap } = useHorseGradeDistStatsBatch(
+    hrNames,
+    race?.prize_cond ?? null,
+    race?.rc_dist ?? null
+  );
 
   const predByName = useMemo(() => {
     const map = new Map<string, Prediction>();
@@ -1414,6 +1428,8 @@ export function PredictionSheet() {
               latestTraining={trainingMap?.get(horse.hr_name)?.[0]}
               jockeyHorseCombo={jockeyHorseComboMap?.get(`${horse.hr_name}:${horse.jcky_nm ?? ''}`)}
               gateStats={gateStatsMap?.get(horse.hr_name)}
+              gradeDistStat={gradeDistStatsMap?.get(horse.hr_name)}
+              racePrizeCond={race?.prize_cond ?? null}
               prizeCondMap={prizeCondMap}
               rcDist={race?.rc_dist ?? null}
               viewMode={viewMode}
