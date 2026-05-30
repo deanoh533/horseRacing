@@ -640,6 +640,42 @@ export function useJockeyStatsBatch(jckyNos: string[], meet: number) {
 }
 
 /**
+ * 기수 최근 N일 성적 (race_entries 집계)
+ * - JockeyPanel에서 "최근 3개월 폼" 표시에 사용
+ * - meet 기준 필터: 서울/부경 분리
+ */
+export function useJockeyRecentForm(
+  jckyNo: string,
+  meet: number,
+  daysBack = 90
+) {
+  return useQuery({
+    queryKey: ['jockey-recent-form', jckyNo, meet, daysBack],
+    queryFn: async (): Promise<{ total: number; wins: number; places: number; shows: number } | null> => {
+      const cutoff = getDateNDaysAgo(daysBack);
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('ord')
+        .eq('jcky_no', jckyNo)
+        .eq('meet', meet)
+        .gte('race_date', cutoff)
+        .not('ord', 'is', null);
+      if (error) throw error;
+      const items = data ?? [];
+      if (items.length === 0) return null;
+      return {
+        total: items.length,
+        wins: items.filter((r) => r.ord === 1).length,
+        places: items.filter((r) => r.ord != null && r.ord <= 2).length,
+        shows: items.filter((r) => r.ord != null && r.ord <= 3).length,
+      };
+    },
+    enabled: !!jckyNo && !!meet,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
  * 해당 등급/거리 우승마 평균·최고 기록
  * race_entries JOIN races (Supabase 관계 필터) — migration 불필요
  * 3경주 미만이면 null 반환
