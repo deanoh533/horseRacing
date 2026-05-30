@@ -124,6 +124,14 @@ export interface RaceEntry {
   sj_4c_ord?: number | null;
 }
 
+/** E-006: 등급+거리 특화 성적 집계 */
+export interface GradeDistStat {
+  total: number;
+  wins: number;    // ord === 1
+  places: number;  // ord <= 2
+  shows: number;   // ord <= 3
+}
+
 /** @deprecated race_entries로 대체됨 — 기존 코드 호환용 alias */
 export type HorseResult = RaceEntry;
 
