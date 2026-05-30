@@ -208,13 +208,13 @@ export function RaceEntries() {
                   <tr>
                     <SortHeader label="번" k="pthr_no" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                     <SortHeader label="마명" k="hr_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" />
-                    <th className="px-2 py-2 text-left whitespace-nowrap text-xs">산지·성·연령</th>
+                    <th className="hidden md:table-cell px-2 py-2 text-left whitespace-nowrap text-xs">산지·성·연령</th>
                     <SortHeader label="레이팅" k="ratg" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                     <SortHeader label="중량/증감" k="burd_wgt" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                     <SortHeader label="기수" k="jcky_nm" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" />
-                    <SortHeader label="조교사" k="trar_nm" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" />
-                    <th className="px-2 py-2 text-left whitespace-nowrap">최근 폼</th>
-                    <SortHeader label="AI" k="predicted_rank" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
+                    <SortHeader label="조교사" k="trar_nm" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" className="hidden md:table-cell" />
+                    <th className="hidden md:table-cell px-2 py-2 text-left whitespace-nowrap">최근 폼</th>
+                    <SortHeader label="AI" k="predicted_rank" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" className="hidden md:table-cell" />
                   </tr>
                 </thead>
                 <tbody>
@@ -275,7 +275,7 @@ export function RaceEntries() {
                           </td>
 
                           {/* 산지·성·연령 */}
-                          <td className="px-2 py-2 text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
+                          <td className="hidden md:table-cell px-2 py-2 text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
                             {[h.prds, h.gndr, h.ag != null ? `${h.ag}세` : null]
                               .filter(Boolean).join(' · ')}
                           </td>
@@ -325,7 +325,7 @@ export function RaceEntries() {
                           </td>
 
                           {/* 조교사 — 클릭 시 조교사 패널 */}
-                          <td className="px-2 py-2">
+                          <td className="hidden md:table-cell px-2 py-2">
                             {h.trar_nm ? (
                               <button
                                 className="text-left hover:underline transition-colors"
@@ -347,12 +347,12 @@ export function RaceEntries() {
                           </td>
 
                           {/* 최근 폼 */}
-                          <td className="px-2 py-2 text-xs text-[var(--color-text-secondary)]">
+                          <td className="hidden md:table-cell px-2 py-2 text-xs text-[var(--color-text-secondary)]">
                             {h.recent_form}
                           </td>
 
                           {/* AI 예측 순위 */}
-                          <td className="px-2 py-2 text-center">
+                          <td className="hidden md:table-cell px-2 py-2 text-center">
                             <span className={rankBadgeClass(h.predicted_rank)}>
                               {formatPredRank(h.predicted_rank)}
                             </span>
@@ -409,16 +409,17 @@ export function RaceEntries() {
 // 정렬 헤더
 // ============================================================
 function SortHeader({
-  label, k, sortKey, sortDir, onClick, align,
+  label, k, sortKey, sortDir, onClick, align, className: extraClass = '',
 }: {
   label: string; k: SortKey; sortKey: SortKey; sortDir: SortDir;
   onClick: (k: SortKey) => void; align: 'left' | 'right' | 'center';
+  className?: string;
 }) {
   const active = sortKey === k;
   const alignClass = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
   return (
     <th
-      className={`px-2 py-2 ${alignClass} cursor-pointer select-none hover:text-[var(--color-accent-cyan)] whitespace-nowrap`}
+      className={`px-2 py-2 ${alignClass} cursor-pointer select-none hover:text-[var(--color-accent-cyan)] whitespace-nowrap ${extraClass}`}
       onClick={() => onClick(k)}
     >
       <span className="inline-flex items-center gap-0.5">
