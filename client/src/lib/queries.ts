@@ -14,6 +14,7 @@ import {
   type HorseRunningStyleByDistance,
   type RaceSectionalStats,
   type Horse,
+  type GradeDistStat,
 } from './supabase';
 
 /**
@@ -1001,5 +1002,64 @@ export function useAvailableDates() {
       return dates;
     },
     staleTime: 60 * 60 * 1000,
+  });
+}
+
+/**
+ * E-006: 등급+거리 특화 성적 배치 조회
+ * - 현재 경주와 동일한 prize_cond + rc_dist 에서의 전체 이력 집계
+ * - 2단계 쿼리: races(prize_cond 필터) → race_entries(hrName+dist 필터) → 클라이언트 교집합
+ * - key: hrName → GradeDistStat
+ */
+export function useHorseGradeDistStatsBatch(
+  hrNames: string[],
+  prizeCond: string | null,
+  rcDist: number | null
+) {
+  const sortedNames = hrNames.slice().sort().join(',');
+  return useQuery({
+    queryKey: ['horse-grade-dist-stats', sortedNames, prizeCond ?? '', rcDist ?? 0],
+    queryFn: async (): Promise<Map<string, GradeDistStat>> => {
+      if (hrNames.length === 0 || !prizeCond || !rcDist) return new Map();
+
+      // 1단계: prize_cond 일치 경주 키 목록
+      const { data: matchingRaces, error: e1 } = await supabase
+        .from('races')
+        .select('race_date, meet, rc_no')
+        .eq('prize_cond', prizeCond);
+      if (e1) throw e1;
+      if (!matchingRaces || matchingRaces.length === 0) return new Map();
+
+      const raceSet = new Set(
+        matchingRaces.map((r) => `${r.race_date}-${r.meet}-${r.rc_no}`)
+      );
+
+      // 2단계: 해당 말들의 같은 거리 경주 결과
+      const { data: entries, error: e2 } = await supabase
+        .from('race_entries')
+        .select('hr_name, race_date, meet, rc_no, ord')
+        .in('hr_name', hrNames)
+        .eq('rc_dist', rcDist)
+        .not('ord', 'is', null);
+      if (e2) throw e2;
+
+      // 3단계: race 키 교집합 필터 후 집계
+      const map = new Map<string, GradeDistStat>();
+      for (const e of entries ?? []) {
+        if (!e.hr_name || e.ord == null) continue;
+        const key = `${e.race_date}-${e.meet}-${e.rc_no}`;
+        if (!raceSet.has(key)) continue;
+
+        const s = map.get(e.hr_name) ?? { total: 0, wins: 0, places: 0, shows: 0 };
+        s.total++;
+        if (e.ord === 1) s.wins++;
+        if (e.ord <= 2) s.places++;
+        if (e.ord <= 3) s.shows++;
+        map.set(e.hr_name, s);
+      }
+      return map;
+    },
+    enabled: hrNames.length > 0 && !!prizeCond && !!rcDist,
+    staleTime: 24 * 60 * 60 * 1000,
   });
 }
