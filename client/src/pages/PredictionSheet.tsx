@@ -43,6 +43,7 @@ import {
   type ItemScore,
   type JockeyStat,
   type TrainingLog,
+  type GradeDistStat,
 } from '../lib/supabase';
 import { classifyRunningStyle, STYLE_INFO, type RunningStyle } from '../lib/runningStyle';
 import { getSectionalInfo, fmtSec, computeSameDistStats } from '../lib/sectional';
@@ -415,6 +416,8 @@ function ColHorseInfo({
   trainerStat,
   gateStats,
   rcDist,
+  gradeDistStat,
+  racePrizeCond,
 }: {
   horse: RaceEntry;
   runningStyle: RunningStyle;
@@ -424,6 +427,8 @@ function ColHorseInfo({
   trainerStat: { total: number; wins: number } | undefined;
   gateStats: Map<number, { total: number; wins: number }> | undefined;
   rcDist: number | null;
+  gradeDistStat: GradeDistStat | undefined;
+  racePrizeCond: string | null;
 }) {
   // race_entries.rc_dist는 사후에만 채워짐 → races 테이블 rc_dist를 fallback으로 사용
   const targetDist = horse.rc_dist ?? rcDist;
@@ -597,6 +602,19 @@ function ColHorseInfo({
             <div className="font-mono-num" style={{ fontSize: '10px', color: 'var(--color-text-disabled)' }}>
               {sameDistStats.count}전 기준 · 전적 {sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
             </div>
+            {gradeDistStat != null && gradeDistStat.total >= 2 && racePrizeCond != null && (
+              <div
+                className="font-mono-num mt-1 pt-1 border-t"
+                style={{ fontSize: '10px', color: 'var(--color-text-disabled)', borderColor: 'var(--color-bg-elevated)' }}
+              >
+                <span style={{ color: 'var(--color-accent-cyan)' }}>{racePrizeCond} 특화</span>
+                {' '}
+                {gradeDistStat.total}전 {gradeDistStat.wins}승
+                {(gradeDistStat.places - gradeDistStat.wins > 0 || gradeDistStat.shows - gradeDistStat.places > 0) && (
+                  <span> (연{gradeDistStat.places - gradeDistStat.wins} 복{gradeDistStat.shows - gradeDistStat.places})</span>
+                )}
+              </div>
+            )}
           </div>
         </>
       ) : dist != null ? (
