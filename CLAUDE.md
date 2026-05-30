@@ -138,7 +138,7 @@ npm run test:run     # vitest 단위 테스트
 - [docs/PRD_v6.1_entries_view.md](docs/PRD_v6.1_entries_view.md) — 출마정보 화면 PRD
 - [docs/PRD_v6.1_race_info_legend.md](docs/PRD_v6.1_race_info_legend.md) — 에이스경마 1-34번 매핑
 
-> **UI 현황 (2026-05-28):** 예상지 = 모바일 2+2 그리드 / 데스크탑 4열(`grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]`). 아코디언 레이아웃 미사용(사용자 확인). Col5Items = 가중치 상위 5개 동적 표시. RaceInfoBlock 공통 헤더(3개 화면 공유), 조교 이력 추가 완료. 대시보드 개발 용어 제거·모바일 버튼 개선 완료.
+> **UI 현황 (2026-05-31):** 예상지 = 모바일 2+2 그리드 / 데스크탑 4열(`grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]`). 아코디언 레이아웃 미사용(사용자 확인). Col5Items = 가중치 상위 5개 동적 표시. RaceInfoBlock 공통 헤더(3개 화면 공유), 조교 이력 추가 완료. 대시보드 개발 용어 제거·모바일 버튼 개선 완료. **로딩 스켈레톤(U-001) 완료** — Loader2 스피너 → 4열 HorseCardSkeleton 8개. `lib/sectional.ts` 공통 유틸(getSectionalInfo·fmtSec·computeSameDistStats) 분리 완료. RaceEntries JockeyPanel(조합이력·최근3개월폼)·HorsePanel(구간기록·같은거리기록·조교·진료) 개선 완료.
 >
 > **training_logs 주의:** `st_time`/`sp_time`은 YYYYMMDDHHmmss 타임스탬프 (훈련 시작/종료 시각). 실제 소요시간은 `tr_term`(초). `pr_gubun` 범례: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더.
 
@@ -161,10 +161,13 @@ npm run test:run     # vitest 단위 테스트
 
 > **2026-05-28 T-016 가중치 재학습 완료** → 단승 32.5% / 연승 52.8% / 복승 65.9% (⑲ SEALED + ⑨b⑩b 반영)
 
-**완료된 작업 (2026-05-30):**
+**완료된 작업 (2026-05-30~31):**
+- ✅ 예상지 로딩 스켈레톤 (U-001) — Loader2 스피너 → 4열 구조 HorseCardSkeleton 8개 (데스크탑 2fr/1.2fr/3fr/2fr, 모바일 막대형)
+- ✅ RaceEntries JockeyPanel 개선 — 조합이력·최근 3개월 단승/연/복 성적
+- ✅ RaceEntries HorsePanel 개선 — 구간기록 서브행·같은거리기록·조교·진료 표시
+- ✅ `lib/sectional.ts` 공통 유틸 분리 — getSectionalInfo·fmtSec·computeSameDistStats (PredictionSheet·RaceEntries 공유)
 - ✅ API4_3 vs API214_1 전수 비교 — API214_1이 필드 더 많음 (교체 불필요). 상세: docs/kra_api_quirks.md Quirk 8
 - ✅ 부경 구간 개별 타임 8개 컬럼 신설 (`bu_s1f_time`, `bu_1fg_time`~`bu_10_8f_time`) + backfill 완료
-  - 향후 구간기록 테이블 UI 구현 시 즉시 활용 가능
 
 **완료된 작업 (2026-05-28):**
 - ✅ ①레이팅 경주 내 percentile 재설계 (T-015)
