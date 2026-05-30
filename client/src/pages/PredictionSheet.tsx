@@ -496,6 +496,7 @@ function ColHorseInfo({
   history,
   trainerStat,
   gateStats,
+  rcDist,
 }: {
   horse: RaceEntry;
   runningStyle: RunningStyle;
@@ -504,10 +505,13 @@ function ColHorseInfo({
   history: RaceEntry[];
   trainerStat: { total: number; wins: number } | undefined;
   gateStats: Map<number, { total: number; wins: number }> | undefined;
+  rcDist: number | null;
 }) {
+  // race_entries.rc_dist는 사후에만 채워짐 → races 테이블 rc_dist를 fallback으로 사용
+  const targetDist = horse.rc_dist ?? rcDist;
   const sameDistStats = useMemo(
-    () => (horse.rc_dist != null ? computeSameDistStats(history, horse.rc_dist) : null),
-    [history, horse.rc_dist]
+    () => (targetDist != null ? computeSameDistStats(history, targetDist) : null),
+    [history, targetDist]
   );
 
   const total = horse.sump_rcod_sum ?? 0;
@@ -536,7 +540,7 @@ function ColHorseInfo({
   const equipRemoved = prevEquip != null ? prevEquip.filter((e) => !currentEquip.includes(e)) : [];
   const hasEquipChange = equipAdded.length > 0 || equipRemoved.length > 0;
 
-  const dist = horse.rc_dist;
+  const dist = targetDist;
 
   return (
     <div className="p-2.5 flex flex-col gap-1 text-[12px]">
@@ -1192,6 +1196,7 @@ function HorseCard({
   jockeyHorseCombo,
   gateStats,
   prizeCondMap,
+  rcDist,
   viewMode,
   onViewModeChange,
 }: {
@@ -1206,6 +1211,7 @@ function HorseCard({
   jockeyHorseCombo: JockeyHorseComboStat | undefined;
   gateStats: Map<number, { total: number; wins: number }> | undefined;
   prizeCondMap: Map<string, string>;
+  rcDist: number | null;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
@@ -1240,6 +1246,7 @@ function HorseCard({
             history={history}
             trainerStat={trainerStat}
             gateStats={gateStats}
+            rcDist={rcDist}
           />
         </div>
         <div className="border-b border-[var(--color-bg-elevated)] md:border-b-0 md:border-r">
@@ -1462,6 +1469,7 @@ export function PredictionSheet() {
               jockeyHorseCombo={jockeyHorseComboMap?.get(`${horse.hr_name}:${horse.jcky_nm ?? ''}`)}
               gateStats={gateStatsMap?.get(horse.hr_name)}
               prizeCondMap={prizeCondMap}
+              rcDist={race?.rc_dist ?? null}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
