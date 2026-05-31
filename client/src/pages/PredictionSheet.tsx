@@ -775,8 +775,17 @@ function ColHistory({
                   <tr key={`sec-${h.race_date}-${h.pthr_no}`}>
                     <td
                       colSpan={9}
-                      className="px-2 pb-1.5 text-left border-b border-[var(--color-bg-elevated)]"
-                      style={{ background: rowBg, fontSize: '11px', color: 'var(--color-text-disabled)' }}
+                      className="text-left border-b border-[var(--color-bg-elevated)]"
+                      style={{
+                        background: rowBg,
+                        fontSize: '11px',
+                        color: 'var(--color-text-disabled)',
+                        paddingTop: '4px',
+                        paddingBottom: '4px',
+                        paddingLeft: '20px',
+                        borderLeft: '2px solid var(--color-accent-cyan)',
+                        opacity: 0.85,
+                      }}
                     >
                       {sec.cornerStr != null && (
                         <span style={{ color: 'var(--color-accent-cyan)' }}>코너 {sec.cornerStr}</span>
