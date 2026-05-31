@@ -664,7 +664,7 @@ function HorsePanel({
         {entry.sump_rcod_fplc != null && (
           <KV
             label="통산전적"
-            value={`${entry.sump_rcod_sum ?? '?'}전 / 1위 ${entry.sump_rcod_fplc} · 2위 ${entry.sump_rcod_splc} · 3위 ${entry.sump_rcod_tplc}`}
+            value={`${entry.sump_rcod_sum ?? '?'}전 ${entry.sump_rcod_fplc}/${entry.sump_rcod_splc}/${entry.sump_rcod_tplc}`}
           />
         )}
 
