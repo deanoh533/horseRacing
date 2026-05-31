@@ -19,6 +19,7 @@ import {
   useHorseSectionalAbilityByNames,
   useHorseRunningStyleByDistance,
   useHorseHistory,
+  useHistoryRacesPrizeCond,
   useHorseTraining,
   useJockeyStats,
   useHorseInfo,
@@ -645,6 +646,14 @@ function HorsePanel({
   const { data: horseInfo } = useHorseInfo(entry.hr_no ?? '');
 
   const { data: training } = useHorseTraining(entry.hr_no ?? '', 30);
+
+  // 최근 5경주 조건(prize_cond) 조회
+  const historyRaceKeys = useMemo(
+    () => (history ?? []).slice(0, 5).map((h) => ({ race_date: h.race_date, meet: h.meet, rc_no: h.rc_no })),
+    [history]
+  );
+  const { data: prizeCondMap = new Map<string, string>() } = useHistoryRacesPrizeCond(historyRaceKeys);
+
   const sameDistStats = useMemo(
     () => (rcDist != null ? computeSameDistStats(history ?? [], rcDist) : null),
     [history, rcDist]
@@ -813,6 +822,7 @@ function HorsePanel({
               <tr className="text-[11px] text-[var(--color-text-secondary)]">
                 <th className="text-left py-0.5">날짜</th>
                 <th className="text-right py-0.5">거리</th>
+                <th className="text-center py-0.5">조건</th>
                 <th className="text-center py-0.5">주로</th>
                 <th className="text-right py-0.5">착순</th>
                 <th className="text-right py-0.5">기록</th>
@@ -849,11 +859,14 @@ function HorsePanel({
                     : null,
                 ].filter(Boolean);
 
+                const prizeCond = prizeCondMap.get(`${h.race_date}-${h.meet}-${h.rc_no}`) ?? '-';
+
                 return (
                   <React.Fragment key={i}>
                     <tr className="border-t border-[var(--color-bg-elevated)] text-[11px]">
                       <td className="py-1">{formatShortDate(h.race_date)}</td>
                       <td className="py-1 text-right">{h.rc_dist ?? '-'}m</td>
+                      <td className="py-1 text-center text-[var(--color-text-disabled)]">{prizeCond}</td>
                       <td className="py-1 text-center text-[var(--color-text-disabled)]">{h.track_type ?? '-'}</td>
                       <td className="py-1 text-right">
                         <span className={ordBadgeClass(h.ord)}>{h.ord != null ? `${h.ord}위` : '-'}</span>
@@ -864,7 +877,7 @@ function HorsePanel({
                     </tr>
                     {hasSecData && (
                       <tr>
-                        <td colSpan={7} className="pb-1 text-[11px]" style={{ color: 'var(--color-text-disabled)', borderLeft: '2px solid var(--color-accent-cyan)', paddingLeft: '8px' }}>
+                        <td colSpan={8} className="pb-1 text-[11px]" style={{ color: 'var(--color-text-disabled)', borderLeft: '2px solid var(--color-accent-cyan)', paddingLeft: '8px' }}>
                           <span style={{ display: 'inline-block', minWidth: '18ch', color: hasAnyPos ? 'var(--color-accent-cyan)' : 'transparent' }}>
                             {hasAnyPos ? posStr : ''}
                           </span>
