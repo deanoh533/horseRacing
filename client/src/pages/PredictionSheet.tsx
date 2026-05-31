@@ -608,7 +608,7 @@ function ColHorseInfo({
                 className="font-mono-num mt-1 pt-1 border-t"
                 style={{ fontSize: '10px', color: 'var(--color-text-disabled)', borderColor: 'var(--color-bg-elevated)' }}
               >
-                <span style={{ color: 'var(--color-accent-cyan)' }}>{racePrizeCond} 특화</span>
+                <span style={{ color: 'var(--color-accent-cyan)' }}>{horse.rank_str ?? racePrizeCond} 특화</span>
                 {' '}
                 {gradeDistStat.total}전 {gradeDistStat.wins}승
                 {(gradeDistStat.places - gradeDistStat.wins > 0 || gradeDistStat.shows - gradeDistStat.places > 0) && (

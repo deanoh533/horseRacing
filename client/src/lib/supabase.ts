@@ -57,6 +57,7 @@ export interface RaceEntry {
   gndr: string | null;      // 성별
   burd_wgt: number | null;  // 부담중량
   ratg: number | null;      // 레이팅
+  rank_str: string | null;  // 한글 등급 (예: "국6등급")
   jcky_no: string | null;
   jcky_nm: string | null;
   trar_no: string | null;
