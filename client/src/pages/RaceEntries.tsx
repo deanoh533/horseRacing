@@ -491,7 +491,7 @@ function FragmentRow({ children }: { children: React.ReactNode }) {
 // ============================================================
 function DetailCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-[var(--color-bg-surface)] rounded-lg p-3 border border-[var(--color-bg-elevated)]">
+    <div className="bg-[var(--color-bg-surface)] rounded-lg p-3 border border-[var(--color-bg-elevated)] h-full">
       <div className="flex items-center gap-1.5 text-[var(--color-accent-cyan)] text-[12px] uppercase tracking-wider font-semibold mb-2">
         {icon}{title}
       </div>
@@ -654,10 +654,8 @@ function HorsePanel({
     entry.latst_trea1_txt || entry.latst_trea2_txt;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs items-start">
-      {/* 왼쪽 열: 기본 정보 + 혈통 */}
-      <div className="flex flex-col gap-3">
-      {/* 기본 정보 + 같은거리 기록 + 조교/진료 */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+      {/* 기본 정보 + 같은거리 기록 + 조교/진료 + 혈통 */}
       <DetailCard icon={<Award className="w-3.5 h-3.5" />} title="기본 정보">
         <KV label="출생지" value={entry.prds ?? '-'} />
         <KV label="마주" value={entry.owner_nm ?? '-'} />
@@ -752,28 +750,28 @@ function HorsePanel({
             </div>
           </div>
         )}
+
+        {/* 혈통 */}
+        <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
+          <div className="text-[10px] mb-0.5 flex items-center gap-1" style={{ color: 'var(--color-accent-cyan)' }}>
+            <Dna className="w-3 h-3" />혈통
+          </div>
+          {!entry.hr_no ? (
+            <div className="text-[var(--color-text-disabled)]">말 번호 없음</div>
+          ) : !horseInfo ? (
+            <div className="text-[var(--color-text-disabled)]">혈통 데이터 없음</div>
+          ) : (
+            <>
+              <KV label="부마" value={horseInfo.sire_hr_nm ?? '-'} />
+              <KV label="모마" value={horseInfo.dam_hr_nm ?? '-'} />
+              <KV label="모부마" value={horseInfo.dam_sire_hr_nm ?? '-'} />
+              {horseInfo.spcs_nm && <KV label="품종" value={horseInfo.spcs_nm} />}
+            </>
+          )}
+        </div>
       </DetailCard>
 
-      {/* 혈통 */}
-      <DetailCard icon={<Dna className="w-3.5 h-3.5" />} title="혈통">
-        {!entry.hr_no ? (
-          <div className="text-[var(--color-text-disabled)]">말 번호 없음</div>
-        ) : !horseInfo ? (
-          <div className="text-[var(--color-text-disabled)]">혈통 데이터 없음</div>
-        ) : (
-          <>
-            <KV label="부마" value={horseInfo.sire_hr_nm ?? '-'} />
-            <KV label="모마" value={horseInfo.dam_hr_nm ?? '-'} />
-            <KV label="모부마" value={horseInfo.dam_sire_hr_nm ?? '-'} />
-            {horseInfo.spcs_nm && <KV label="품종" value={horseInfo.spcs_nm} />}
-          </>
-        )}
-      </DetailCard>
-      </div>
-
-      {/* 오른쪽 열: 구간 능력치 + 최근 5경주 */}
-      <div className="flex flex-col gap-3">
-      {/* 구간 능력치 */}
+      {/* 구간 능력치 · 주행 성향 + 최근 5경주 */}
       <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="구간 능력치 · 주행 성향">
         {abLoading ? (
           <div className="text-[var(--color-text-disabled)]"><Loader2 className="w-3 h-3 animate-spin inline mr-1" />로딩…</div>
@@ -799,10 +797,12 @@ function HorsePanel({
             <KV label="막판 600m" value={ability.best_last_600m != null ? `${ability.best_last_600m}초 (avg ${ability.avg_last_600m})` : '-'} />
           </>
         )}
-      </DetailCard>
 
-      {/* 최근 5경주 + 구간기록 서브행 */}
-      <DetailCard icon={<History className="w-3.5 h-3.5" />} title="최근 5경주">
+        {/* 최근 5경주 + 구간기록 서브행 */}
+        <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
+          <div className="text-[10px] mb-1 flex items-center gap-1" style={{ color: 'var(--color-accent-cyan)' }}>
+            <History className="w-3 h-3" />최근 5경주
+          </div>
         {histLoading ? (
           <div className="text-[var(--color-text-disabled)]"><Loader2 className="w-3 h-3 animate-spin inline mr-1" />로딩…</div>
         ) : !history || history.length === 0 ? (
@@ -872,8 +872,8 @@ function HorsePanel({
             </tbody>
           </table>
         )}
+        </div>
       </DetailCard>
-      </div>
 
       <div className="md:col-span-2 text-center text-[12px] text-[var(--color-text-disabled)] pt-1">
         <Link
