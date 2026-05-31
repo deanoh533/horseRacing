@@ -708,7 +708,7 @@ function ColHistory({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
       <table className="w-full text-[12px] font-mono-num border-collapse">
         <thead>
           <tr style={{ background: 'var(--color-bg-primary)' }}>
