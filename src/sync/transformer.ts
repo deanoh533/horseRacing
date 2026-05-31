@@ -112,6 +112,7 @@ export interface RaceEntryRow {
   prds: string | null;
   burd_wgt: number | null;
   ratg: number | null;
+  rank_str: string | null;
   jcky_nm: string | null;
   jcky_no: string | null;
   trar_nm: string | null;
@@ -222,6 +223,7 @@ export function toRaceEntryRow(c: KRARaceCard, meet: number, rcDate: number, rcN
     prds: c.prds ?? null,
     burd_wgt: c.burdWgt ?? null,
     ratg: c.ratg && c.ratg > 0 ? c.ratg : null,
+    rank_str: null,
     jcky_nm: c.jckyNm ?? null,
     jcky_no: null,
     trar_nm: c.trarNm ?? null,
@@ -275,6 +277,7 @@ export function toRaceEntryRowFromEntrySheet(item: KRAEntrySheetItem): RaceEntry
     prds: item.prd ?? null,
     burd_wgt: item.wgBudam ?? null,
     ratg,
+    rank_str: item.rank || null,
     jcky_nm: item.jkName ?? null,
     jcky_no: item.jkNo || null,
     trar_nm: item.trName ?? null,
