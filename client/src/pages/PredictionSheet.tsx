@@ -348,8 +348,7 @@ function ColHorseInfo({
   const fplc = horse.sump_rcod_fplc ?? 0;
   const splc = horse.sump_rcod_splc ?? 0;
   const tplc = horse.sump_rcod_tplc ?? 0;
-  const rest = Math.max(total - fplc - splc - tplc, 0);
-  const careerStr = total > 0 ? `${total}전 ${fplc}/${splc}/${tplc}/${rest}` : null;
+  const careerStr = total > 0 ? `${total}전 ${fplc}/${splc}/${tplc}` : null;
 
   const trainerWinRate =
     trainerStat && trainerStat.total > 0
