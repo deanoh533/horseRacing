@@ -47,6 +47,8 @@ export interface SameDistStats {
   bestTrackType: string | null;
   bestOrd: number | null;
   bestPthrNo: number;
+  bestRaceDate: number;
+  bestJckyNm: string | null;
   avgTime: number;
   count: number;
   wins: number;
@@ -73,6 +75,8 @@ export function computeSameDistStats(
     bestTrackType: best.track_type,
     bestOrd: best.ord,
     bestPthrNo: best.pthr_no,
+    bestRaceDate: best.race_date,
+    bestJckyNm: best.jcky_nm,
     avgTime,
     count: valid.length,
     wins: valid.filter((h) => h.ord === 1).length,

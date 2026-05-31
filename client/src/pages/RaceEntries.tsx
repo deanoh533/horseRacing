@@ -689,6 +689,8 @@ function HorsePanel({
                   </div>
                   <div className="font-mono-num text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
                     {[
+                      formatShortDate(sameDistStats.bestRaceDate),
+                      sameDistStats.bestJckyNm,
                       sameDistStats.bestBurdWgt != null ? `${sameDistStats.bestBurdWgt}kg` : null,
                       sameDistStats.bestTrackType,
                       sameDistStats.bestOrd != null ? `${sameDistStats.bestOrd}위` : null,

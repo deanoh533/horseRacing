@@ -486,10 +486,11 @@ function ColHorseInfo({
             </div>
             <div className="font-mono-num" style={{ fontSize: '10px', color: 'var(--color-text-disabled)' }}>
               {[
+                formatDate(sameDistStats.bestRaceDate),
+                sameDistStats.bestJckyNm,
                 sameDistStats.bestBurdWgt != null ? `${sameDistStats.bestBurdWgt}kg` : null,
                 sameDistStats.bestTrackType,
                 sameDistStats.bestOrd != null ? `${sameDistStats.bestOrd}위` : null,
-                `${sameDistStats.bestPthrNo}번 게이트`,
               ].filter(Boolean).join(' · ')}
             </div>
           </div>
