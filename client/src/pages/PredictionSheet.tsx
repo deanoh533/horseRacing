@@ -788,25 +788,25 @@ function ColHistory({
                       }}
                     >
                       {sec.cornerStr != null && (
-                        <span style={{ color: 'var(--color-accent-cyan)' }}>코너 {sec.cornerStr}</span>
+                        <span style={{ color: 'var(--color-accent-cyan)' }}>{sec.cornerStr}</span>
                       )}
                       {(sec.s1fOrd != null || sec.s1fTime != null) && (
-                        <span> · 출발 {[
+                        <span>{sec.cornerStr != null ? ' · ' : ''}S1F {[
                           sec.s1fOrd != null ? `${sec.s1fOrd}위` : null,
-                          fmtSec(sec.s1fTime) != null ? `${fmtSec(sec.s1fTime)}s` : null,
-                        ].filter(Boolean).join(' ')}</span>
+                          fmtSec(sec.s1fTime) != null ? `(${fmtSec(sec.s1fTime)}초)` : null,
+                        ].filter(Boolean).join('')}</span>
                       )}
                       {(sec.g3fOrd != null || sec.g3fSplit != null) && (
-                        <span> · 막판600m {[
+                        <span> · S3F {[
                           sec.g3fOrd != null ? `${sec.g3fOrd}위` : null,
-                          fmtSec(sec.g3fSplit) != null ? `${fmtSec(sec.g3fSplit)}s` : null,
-                        ].filter(Boolean).join(' ')}</span>
+                          fmtSec(sec.g3fSplit) != null ? `(${fmtSec(sec.g3fSplit)}초)` : null,
+                        ].filter(Boolean).join('')}</span>
                       )}
                       {(sec.g1fOrd != null || sec.g1fSplit != null) && (
-                        <span> · 막판200m {[
+                        <span> · G1F {[
                           sec.g1fOrd != null ? `${sec.g1fOrd}위` : null,
-                          fmtSec(sec.g1fSplit) != null ? `${fmtSec(sec.g1fSplit)}s` : null,
-                        ].filter(Boolean).join(' ')}</span>
+                          fmtSec(sec.g1fSplit) != null ? `(${fmtSec(sec.g1fSplit)}초)` : null,
+                        ].filter(Boolean).join('')}</span>
                       )}
                     </td>
                   </tr>
