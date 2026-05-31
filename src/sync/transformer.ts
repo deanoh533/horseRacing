@@ -20,6 +20,7 @@ export interface RaceRow {
   weather: string | null;
   age_cond: string | null;
   prize_cond: string | null;
+  st_time: string | null;
   chaksun1: number | null;
   chaksun2: number | null;
   chaksun3: number | null;
@@ -53,6 +54,7 @@ export function toRaceRow(horse: KRARaceResult): RaceRow {
     weather: horse.weather ?? null,
     age_cond: horse.ageCond ?? null,
     prize_cond: horse.prizeCond ?? null,
+    st_time: null,
     chaksun1: horse.chaksun1 ?? null,
     chaksun2: horse.chaksun2 ?? null,
     chaksun3: horse.chaksun3 ?? null,
@@ -326,6 +328,7 @@ export function toRaceRowFromEntrySheet(item: KRAEntrySheetItem): RaceRow {
     weather: null,
     age_cond: item.ageCond ?? null,
     prize_cond: item.prizeCond ?? null,
+    st_time: item.stTime ?? null,
     chaksun1: item.chaksun1 ?? null,
     chaksun2: item.chaksun2 ?? null,
     chaksun3: item.chaksun3 ?? null,
