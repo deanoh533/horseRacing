@@ -816,15 +816,11 @@ function ColHistory({
 function Col5Items({
   itemScores,
   accentColor,
-  pRank,
-  pScore,
   viewMode,
   onViewModeChange,
 }: {
   itemScores: Record<string, ItemScore> | undefined;
   accentColor: string;
-  pRank: number;
-  pScore: number;
   viewMode: ViewMode;
   onViewModeChange: (m: ViewMode) => void;
 }) {
@@ -943,15 +939,6 @@ function Col5Items({
         </div>
       </div>
 
-      {/* 하단 AI 순위 + 총점 */}
-      {pRank < 999 && (
-        <div className="mt-auto pt-2 border-t border-[var(--color-bg-elevated)] text-center">
-          <div className="text-[18px]">{rankEmoji(pRank)}</div>
-          <div className="font-mono-num text-[12px] font-bold" style={{ color: accentColor }}>
-            {pScore.toFixed(1)}점
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1124,8 +1111,6 @@ function HorseCard({
           <Col5Items
             itemScores={prediction?.item_scores}
             accentColor={accent}
-            pRank={pRank}
-            pScore={prediction?.total_score ?? 0}
             viewMode={viewMode}
             onViewModeChange={onViewModeChange}
           />
