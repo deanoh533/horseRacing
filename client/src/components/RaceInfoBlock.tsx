@@ -144,6 +144,8 @@ export function RaceInfoBlock({
     race?.chaksun1 && `1위 ${formatErng(race.chaksun1)}`,
     race?.chaksun2 && `2위 ${formatErng(race.chaksun2)}`,
     race?.chaksun3 && `3위 ${formatErng(race.chaksun3)}`,
+    race?.chaksun4 && `4위 ${formatErng(race.chaksun4)}`,
+    race?.chaksun5 && `5위 ${formatErng(race.chaksun5)}`,
   ].filter(Boolean);
 
   const badgeBase = 'px-2 py-0.5 rounded text-sm';

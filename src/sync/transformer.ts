@@ -24,6 +24,8 @@ export interface RaceRow {
   chaksun1: number | null;
   chaksun2: number | null;
   chaksun3: number | null;
+  chaksun4: number | null;
+  chaksun5: number | null;
 }
 
 /**
@@ -58,6 +60,8 @@ export function toRaceRow(horse: KRARaceResult): RaceRow {
     chaksun1: horse.chaksun1 ?? null,
     chaksun2: horse.chaksun2 ?? null,
     chaksun3: horse.chaksun3 ?? null,
+    chaksun4: null,
+    chaksun5: null,
   };
 }
 
@@ -332,6 +336,8 @@ export function toRaceRowFromEntrySheet(item: KRAEntrySheetItem): RaceRow {
     chaksun1: item.chaksun1 ?? null,
     chaksun2: item.chaksun2 ?? null,
     chaksun3: item.chaksun3 ?? null,
+    chaksun4: item.chaksun4 ?? null,
+    chaksun5: item.chaksun5 ?? null,
   };
 }
 

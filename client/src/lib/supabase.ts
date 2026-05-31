@@ -45,6 +45,8 @@ export interface Race {
   chaksun1: number | null;
   chaksun2: number | null;
   chaksun3: number | null;
+  chaksun4: number | null;
+  chaksun5: number | null;
 }
 
 /** race_entries 통합 테이블 (사전 + 사후) */
