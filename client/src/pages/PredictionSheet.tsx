@@ -1388,9 +1388,6 @@ export function PredictionSheet() {
       {/* Top 3 포디엄 */}
       {top3.length > 0 && <PodiumCards top3={top3} pthrNoByName={pthrNoByName} />}
 
-      {/* F-002: 베팅 조합 추천 */}
-      {top3.length >= 2 && <ComboBetBox top3={top3} pthrNoByName={pthrNoByName} />}
-
       {/* 로딩 / 에러 */}
       {isLoading && (
         <div className="space-y-3">
