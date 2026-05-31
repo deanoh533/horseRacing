@@ -708,7 +708,7 @@ function ColHistory({
   }
 
   return (
-    <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
+    <div>
       <table className="w-full text-[12px] font-mono-num border-collapse">
         <thead>
           <tr style={{ background: 'var(--color-bg-primary)' }}>
@@ -767,7 +767,7 @@ function ColHistory({
                   <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={tdStyle}>
                     {h.burd_wgt ?? '-'}
                   </td>
-                  <td className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]" style={{ ...tdStyle, color: 'var(--color-text-disabled)' }}>
+                  <td className="px-1.5 py-1 text-center border-b border-[var(--color-bg-elevated)]" style={{ ...tdStyle, color: 'var(--color-text-disabled)', maxWidth: '4rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {h.jcky_nm ?? '-'}
                   </td>
                 </tr>
