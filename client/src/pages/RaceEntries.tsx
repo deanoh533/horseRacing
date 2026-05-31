@@ -493,7 +493,7 @@ function FragmentRow({ children }: { children: React.ReactNode }) {
 function DetailCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <div className="bg-[var(--color-bg-surface)] rounded-lg p-3 border border-[var(--color-bg-elevated)] h-full">
-      <div className="flex items-center gap-1.5 text-[var(--color-accent-cyan)] text-[12px] uppercase tracking-wider font-semibold mb-2">
+      <div className="flex items-center gap-1.5 text-[var(--color-accent-cyan)] text-[14px] uppercase tracking-wider font-semibold mb-2">
         {icon}{title}
       </div>
       <div className="space-y-1">{children}</div>
@@ -503,7 +503,7 @@ function DetailCard({ icon, title, children }: { icon: React.ReactNode; title: s
 
 function KV({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex justify-between gap-2 text-xs">
+    <div className="flex justify-between gap-2 text-[13px]">
       <span className="text-[var(--color-text-secondary)] flex-shrink-0">{label}:</span>
       <span className="font-mono-num text-right">{value}</span>
     </div>
@@ -525,7 +525,7 @@ function JockeyPanel({ entry, meet }: { entry: RaceEntry; meet: number }) {
   const { data: recentForm } = useJockeyRecentForm(entry.jcky_no ?? '', meet, 90);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[13px]">
       {/* 기수 통산 성적 */}
       <DetailCard icon={<Target className="w-3.5 h-3.5" />} title="기수 통산 성적">
         {!entry.jcky_no ? (
@@ -589,7 +589,7 @@ function TrainerPanel({ entry }: { entry: RaceEntry }) {
   const { data: training, isLoading: trLoading } = useHorseTraining(entry.hr_no ?? '', 30);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
       <DetailCard icon={<Target className="w-3.5 h-3.5" />} title="조교사 최근 2년 성적">
         {!trainerStat ? (
           <div className="text-[var(--color-text-disabled)]">집계 중…</div>
@@ -655,7 +655,7 @@ function HorsePanel({
     entry.latst_trea1_txt || entry.latst_trea2_txt;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
       {/* 기본 정보 + 같은거리 기록 + 조교/진료 + 혈통 */}
       <DetailCard icon={<Award className="w-3.5 h-3.5" />} title="기본 정보">
         <KV label="출생지" value={entry.prds ?? '-'} />
@@ -678,7 +678,7 @@ function HorsePanel({
                   className="rounded px-2 py-1.5"
                   style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-bg-elevated)' }}
                 >
-                  <div className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-accent-cyan)' }}>
+                  <div className="text-[11px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-accent-cyan)' }}>
                     ⚡ {rcDist}m 최고
                   </div>
                   <div className="font-mono-num font-bold text-[13px]" style={{ color: 'var(--color-text-primary)' }}>
@@ -688,7 +688,7 @@ function HorsePanel({
                       return m > 0 ? `${m}:${s.padStart(4, '0')}` : s;
                     })()}
                   </div>
-                  <div className="font-mono-num text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+                  <div className="font-mono-num text-[12px]" style={{ color: 'var(--color-text-disabled)' }}>
                     {[
                       formatShortDate(sameDistStats.bestRaceDate),
                       sameDistStats.bestJckyNm,
@@ -703,17 +703,17 @@ function HorsePanel({
                   className="rounded px-2 py-1.5"
                   style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-bg-elevated)' }}
                 >
-                  <div className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>
+                  <div className="text-[11px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-text-disabled)' }}>
                     — {rcDist}m 평균
                   </div>
-                  <div className="font-mono-num font-semibold text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+                  <div className="font-mono-num font-semibold text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
                     {(() => {
                       const m = Math.floor(sameDistStats.avgTime / 60);
                       const s = (sameDistStats.avgTime % 60).toFixed(1);
                       return m > 0 ? `${m}:${s.padStart(4, '0')}` : s;
                     })()}
                   </div>
-                  <div className="font-mono-num text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
+                  <div className="font-mono-num text-[12px]" style={{ color: 'var(--color-text-disabled)' }}>
                     {sameDistStats.count}전·{sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
                   </div>
                 </div>
@@ -727,8 +727,8 @@ function HorsePanel({
         {/* 최근 조교 */}
         {training && training.length > 0 && (
           <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
-            <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-accent-cyan)' }}>▸ 최근 조교</div>
-            <div className="font-mono-num text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+            <div className="text-[12px] mb-0.5" style={{ color: 'var(--color-accent-cyan)' }}>▸ 최근 조교</div>
+            <div className="font-mono-num text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
               {formatShortDate(training[0]!.train_date)}
               {training[0]!.chul_gubun && <span className="ml-1">{training[0]!.chul_gubun}</span>}
               {training[0]!.pr_gubun && <span className="ml-1 text-[var(--color-text-disabled)]">{training[0]!.pr_gubun}</span>}
@@ -742,8 +742,8 @@ function HorsePanel({
         {/* 진료내역 */}
         {hasHealth && (
           <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
-            <div className="text-[10px] mb-0.5" style={{ color: 'var(--color-accent-pink)' }}>▸ 진료내역</div>
-            <div className="text-[11px] space-y-0.5" style={{ color: 'var(--color-accent-pink)' }}>
+            <div className="text-[12px] mb-0.5" style={{ color: 'var(--color-accent-pink)' }}>▸ 진료내역</div>
+            <div className="text-[12px] space-y-0.5" style={{ color: 'var(--color-accent-pink)' }}>
               {entry.latst_bledg1 && <div>폐출혈: {entry.latst_bledg1}</div>}
               {entry.latst_bledg2 && <div>폐출혈2: {entry.latst_bledg2}</div>}
               {entry.latst_trea1_txt && <div>{entry.latst_trea1_txt}</div>}
@@ -754,7 +754,7 @@ function HorsePanel({
 
         {/* 혈통 */}
         <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
-          <div className="text-[10px] mb-0.5 flex items-center gap-1" style={{ color: 'var(--color-accent-cyan)' }}>
+          <div className="text-[12px] mb-0.5 flex items-center gap-1" style={{ color: 'var(--color-accent-cyan)' }}>
             <Dna className="w-3 h-3" />혈통
           </div>
           {!entry.hr_no ? (
@@ -801,7 +801,7 @@ function HorsePanel({
 
         {/* 최근 5경주 + 구간기록 서브행 */}
         <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)]">
-          <div className="text-[10px] mb-1 flex items-center gap-1" style={{ color: 'var(--color-accent-cyan)' }}>
+          <div className="text-[12px] mb-1 flex items-center gap-1" style={{ color: 'var(--color-accent-cyan)' }}>
             <History className="w-3 h-3" />최근 5경주
           </div>
         {histLoading ? (
@@ -811,7 +811,7 @@ function HorsePanel({
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="text-[11px] text-[var(--color-text-secondary)]">
+              <tr className="text-[12px] text-[var(--color-text-secondary)]">
                 <th className="text-left py-0.5">날짜</th>
                 <th className="text-right py-0.5">거리</th>
                 <th className="text-center py-0.5">조건</th>
@@ -855,7 +855,7 @@ function HorsePanel({
 
                 return (
                   <React.Fragment key={i}>
-                    <tr className="border-t border-[var(--color-bg-elevated)] text-[11px]">
+                    <tr className="border-t border-[var(--color-bg-elevated)] text-[12px]">
                       <td className="py-1">{formatShortDate(h.race_date)}</td>
                       <td className="py-1 text-right">{h.rc_dist ?? '-'}m</td>
                       <td className="py-1 text-center text-[var(--color-text-disabled)]">{prizeCond}</td>
@@ -869,7 +869,7 @@ function HorsePanel({
                     </tr>
                     {hasSecData && (
                       <tr>
-                        <td colSpan={8} className="pb-1 text-[11px]" style={{ color: 'var(--color-text-disabled)', borderLeft: '2px solid var(--color-accent-cyan)', paddingLeft: '8px' }}>
+                        <td colSpan={8} className="pb-1 text-[12px]" style={{ color: 'var(--color-text-disabled)', borderLeft: '2px solid var(--color-accent-cyan)', paddingLeft: '8px' }}>
                           <span style={{ display: 'inline-block', minWidth: '18ch', color: hasAnyPos ? 'var(--color-accent-cyan)' : 'transparent' }}>
                             {hasAnyPos ? posStr : ''}
                           </span>
