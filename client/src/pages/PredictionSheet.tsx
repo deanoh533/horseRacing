@@ -709,14 +709,14 @@ function ColHistory({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-[11px] font-mono-num border-collapse">
+      <table className="w-full text-[12px] font-mono-num border-collapse">
         <thead>
           <tr style={{ background: 'var(--color-bg-primary)' }}>
             {['날짜', '장소', '거리', '조건', '주로', '착순', '기록', '중량', '기수'].map((h) => (
               <th
                 key={h}
                 className="px-1.5 py-1 text-center whitespace-nowrap border-b border-[var(--color-bg-elevated)]"
-                style={{ color: 'var(--color-accent-cyan)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: 'inherit' }}
+                style={{ color: 'var(--color-accent-cyan)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: 'inherit' }}
               >
                 {h}
               </th>
@@ -776,7 +776,7 @@ function ColHistory({
                     <td
                       colSpan={9}
                       className="px-2 pb-1.5 text-left border-b border-[var(--color-bg-elevated)]"
-                      style={{ background: rowBg, fontSize: '9px', color: 'var(--color-text-disabled)' }}
+                      style={{ background: rowBg, fontSize: '11px', color: 'var(--color-text-disabled)' }}
                     >
                       {sec.cornerStr != null && (
                         <span style={{ color: 'var(--color-accent-cyan)' }}>코너 {sec.cornerStr}</span>
