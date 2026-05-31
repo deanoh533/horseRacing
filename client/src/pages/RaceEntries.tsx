@@ -694,7 +694,8 @@ function HorsePanel({
                       sameDistStats.bestBurdWgt != null ? `${sameDistStats.bestBurdWgt}kg` : null,
                       sameDistStats.bestTrackType,
                       sameDistStats.bestOrd != null ? `${sameDistStats.bestOrd}위` : null,
-                    ].filter(Boolean).join(' · ')}
+                      `${sameDistStats.bestPthrNo}번`,
+                    ].filter(Boolean).join('·')}
                   </div>
                 </div>
                 <div
