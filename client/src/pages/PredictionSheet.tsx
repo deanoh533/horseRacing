@@ -771,46 +771,48 @@ function ColHistory({
                     {h.jcky_nm ?? '-'}
                   </td>
                 </tr>
-                {hasSecData && (
-                  <tr key={`sec-${h.race_date}-${h.pthr_no}`}>
-                    <td
-                      colSpan={9}
-                      className="text-left border-b border-[var(--color-bg-elevated)]"
-                      style={{
-                        background: rowBg,
-                        fontSize: '11px',
-                        color: 'var(--color-text-disabled)',
-                        paddingTop: '4px',
-                        paddingBottom: '4px',
-                        paddingLeft: '20px',
-                        borderLeft: '2px solid var(--color-accent-cyan)',
-                        opacity: 0.85,
-                      }}
-                    >
-                      {sec.cornerStr != null && (
-                        <span style={{ color: 'var(--color-accent-cyan)' }}>{sec.cornerStr}</span>
-                      )}
-                      {(sec.s1fOrd != null || sec.s1fTime != null) && (
-                        <span>{sec.cornerStr != null ? ' · ' : ''}S1F {[
-                          sec.s1fOrd != null ? `${sec.s1fOrd}위` : null,
-                          fmtSec(sec.s1fTime) != null ? `(${fmtSec(sec.s1fTime)}초)` : null,
-                        ].filter(Boolean).join('')}</span>
-                      )}
-                      {(sec.g3fOrd != null || sec.g3fSplit != null) && (
-                        <span> · S3F {[
-                          sec.g3fOrd != null ? `${sec.g3fOrd}위` : null,
-                          fmtSec(sec.g3fSplit) != null ? `(${fmtSec(sec.g3fSplit)}초)` : null,
-                        ].filter(Boolean).join('')}</span>
-                      )}
-                      {(sec.g1fOrd != null || sec.g1fSplit != null) && (
-                        <span> · G1F {[
-                          sec.g1fOrd != null ? `${sec.g1fOrd}위` : null,
-                          fmtSec(sec.g1fSplit) != null ? `(${fmtSec(sec.g1fSplit)}초)` : null,
-                        ].filter(Boolean).join('')}</span>
-                      )}
-                    </td>
-                  </tr>
-                )}
+                {hasSecData && (() => {
+                  // 전체 순위 시퀀스: S1F - C1 - C2 - C3 - C4 - G1F
+                  const isSe = h.meet === 1;
+                  const cornerRanks: (number | null)[] = isSe
+                    ? [h.sj_1c_ord ?? null, h.sj_2c_ord ?? null, h.sj_3c_ord ?? null, h.sj_4c_ord ?? null]
+                    : [h.bu_g8f_ord ?? null, h.bu_g6f_ord ?? null, h.bu_g4f_ord ?? null, h.bu_g2f_ord ?? null];
+                  const allPositions = [sec.s1fOrd, ...cornerRanks, sec.g1fOrd];
+                  const hasAnyPos = allPositions.some(p => p != null);
+                  const posStr = allPositions.map(p => p != null ? String(p) : '·').join('-');
+
+                  const timeParts = [
+                    sec.s1fTime != null ? `S1F(${fmtSec(sec.s1fTime)}초)` : null,
+                    sec.g3fSplit != null ? `S3F(${fmtSec(sec.g3fSplit)}초)` : null,
+                    sec.g1fSplit != null ? `G1F(${fmtSec(sec.g1fSplit)}초)` : null,
+                  ].filter(Boolean);
+
+                  return (
+                    <tr key={`sec-${h.race_date}-${h.pthr_no}`}>
+                      <td
+                        colSpan={9}
+                        className="text-left border-b border-[var(--color-bg-elevated)]"
+                        style={{
+                          background: rowBg,
+                          fontSize: '11px',
+                          color: 'var(--color-text-disabled)',
+                          paddingTop: '4px',
+                          paddingBottom: '4px',
+                          paddingLeft: '20px',
+                          borderLeft: '2px solid var(--color-accent-cyan)',
+                          opacity: 0.85,
+                        }}
+                      >
+                        {hasAnyPos && (
+                          <span style={{ color: 'var(--color-accent-cyan)' }}>{posStr}</span>
+                        )}
+                        {timeParts.length > 0 && (
+                          <span>{hasAnyPos ? ' · ' : ''}{timeParts.join(' · ')}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })()}
               </>
             );
           })}
