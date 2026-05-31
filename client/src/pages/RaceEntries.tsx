@@ -525,7 +525,7 @@ function JockeyPanel({ entry, meet }: { entry: RaceEntry; meet: number }) {
   const { data: recentForm } = useJockeyRecentForm(entry.jcky_no ?? '', meet, 90);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
       {/* 기수 통산 성적 */}
       <DetailCard icon={<Target className="w-3.5 h-3.5" />} title="기수 통산 성적">
         {!entry.jcky_no ? (
@@ -544,11 +544,20 @@ function JockeyPanel({ entry, meet }: { entry: RaceEntry; meet: number }) {
         )}
       </DetailCard>
 
-      {/* 부담중량 */}
-      <DetailCard icon={<Award className="w-3.5 h-3.5" />} title="부담중량">
-        <KV label="이번 경주" value={entry.burd_wgt != null ? `${entry.burd_wgt}kg` : '-'} />
-        {entry.wg_hr_diff != null && entry.wg_hr_diff !== 0 && (
-          <KV label="전경주 대비" value={`${entry.wg_hr_diff > 0 ? '+' : ''}${entry.wg_hr_diff}kg`} />
+      {/* 최근 3개월 성적 */}
+      <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="최근 3개월 성적">
+        {recentForm == null ? (
+          <div className="text-[var(--color-text-disabled)]">최근 출주 없음</div>
+        ) : (
+          <>
+            <KV label="출주" value={`${recentForm.total}전`} />
+            <KV
+              label="단승률"
+              value={`${recentForm.wins}승 (${recentForm.total > 0 ? ((recentForm.wins / recentForm.total) * 100).toFixed(1) : 0}%)`}
+            />
+            <KV label="연승(~2위)" value={`${recentForm.places}회`} />
+            <KV label="복승(~3위)" value={`${recentForm.shows}회`} />
+          </>
         )}
       </DetailCard>
 
@@ -565,23 +574,6 @@ function JockeyPanel({ entry, meet }: { entry: RaceEntry; meet: number }) {
             />
             <KV label="연승(~2위)" value={`${combo.places}회`} />
             <KV label="복승(~3위)" value={`${combo.shows}회`} />
-          </>
-        )}
-      </DetailCard>
-
-      {/* 최근 3개월 성적 */}
-      <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="최근 3개월 성적">
-        {recentForm == null ? (
-          <div className="text-[var(--color-text-disabled)]">최근 출주 없음</div>
-        ) : (
-          <>
-            <KV label="출주" value={`${recentForm.total}전`} />
-            <KV
-              label="단승률"
-              value={`${recentForm.wins}승 (${recentForm.total > 0 ? ((recentForm.wins / recentForm.total) * 100).toFixed(1) : 0}%)`}
-            />
-            <KV label="연승(~2위)" value={`${recentForm.places}회`} />
-            <KV label="복승(~3위)" value={`${recentForm.shows}회`} />
           </>
         )}
       </DetailCard>
