@@ -71,7 +71,7 @@ function useMultipleHorseHistories(hrNames: string[], beforeDate: number) {
 // ============================================================
 // 정렬 키
 // ============================================================
-type SortKey = 'pthr_no' | 'hr_name' | 'ag' | 'burd_wgt' | 'ratg' | 'jcky_nm' | 'trar_nm' | 'predicted_rank';
+type SortKey = 'pthr_no' | 'hr_name' | 'ag' | 'burd_wgt' | 'ratg' | 'jcky_nm' | 'trar_nm' | 'predicted_rank' | 'ord';
 type SortDir = 'asc' | 'desc';
 type ExpandPanel = 'jockey' | 'trainer' | 'horse';
 type ExpandedCell = { pthr: number; panel: ExpandPanel } | null;
@@ -220,7 +220,7 @@ export function RaceEntries() {
                     <th className="hidden md:table-cell px-2 py-2 text-left whitespace-nowrap">최근 폼</th>
                     <SortHeader label="AI" k="predicted_rank" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" className="hidden md:table-cell" />
                     {isPostRace && (
-                      <th className="px-2 py-2 text-center whitespace-nowrap">결과</th>
+                      <SortHeader label="결과" k="ord" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
                     )}
                   </tr>
                 </thead>
