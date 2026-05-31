@@ -91,43 +91,44 @@ export function RaceInfoBlock({
     return { min: Math.min(...ratings), max: Math.max(...ratings) };
   }, [horses]);
 
-  /** 부담중량표 */
+  /** 부담중량표 — 핸디캡이면 (연령+성별)별 min~max 범위, 아니면 단일값 */
   const weightTable = useMemo(() => {
     if (!horses?.length) return null;
-    const seen = new Set<string>();
-    type Entry = { agLabel: string; agOrder: number; gndrLabel: string; wgt: number };
-    const entries: Entry[] = [];
+
+    type GroupKey = string; // `${agLabel}-${agOrder}-${gndrLabel}`
+    const groups = new Map<GroupKey, { agLabel: string; agOrder: number; gndrLabel: string; weights: number[] }>();
 
     horses.forEach((h) => {
       if (h.burd_wgt == null || h.ag == null || !h.gndr) return;
       const agLabel = h.ag <= 2 ? '2세' : '3세이상';
       const agOrder = h.ag <= 2 ? 0 : 1;
       const gndrLabel = h.gndr === '암' ? '암' : '수·거';
-      const key = `${agLabel}-${gndrLabel}-${h.burd_wgt}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        entries.push({ agLabel, agOrder, gndrLabel, wgt: h.burd_wgt });
-      }
+      const key: GroupKey = `${agLabel}-${agOrder}-${gndrLabel}`;
+      const g = groups.get(key) ?? { agLabel, agOrder, gndrLabel, weights: [] };
+      g.weights.push(h.burd_wgt);
+      groups.set(key, g);
     });
 
-    if (entries.length === 0) return null;
-    entries.sort((a, b) => {
+    if (groups.size === 0) return null;
+
+    const sorted = [...groups.values()].sort((a, b) => {
       if (a.agOrder !== b.agOrder) return a.agOrder - b.agOrder;
       return a.gndrLabel === '암' ? -1 : 1;
     });
 
-    const byAge = new Map<string, { gndrLabel: string; wgt: number }[]>();
-    entries.forEach((e) => {
-      const arr = byAge.get(e.agLabel) ?? [];
-      arr.push({ gndrLabel: e.gndrLabel, wgt: e.wgt });
-      byAge.set(e.agLabel, arr);
+    // (연령+성별)별로 묶어서 출력
+    const byAge = new Map<string, string[]>();
+    sorted.forEach(({ agLabel, gndrLabel, weights }) => {
+      const min = Math.min(...weights);
+      const max = Math.max(...weights);
+      const wgtStr = min === max ? `${gndrLabel} ${min}kg` : `${gndrLabel} ${min}~${max}kg`;
+      const arr = byAge.get(agLabel) ?? [];
+      arr.push(wgtStr);
+      byAge.set(agLabel, arr);
     });
 
     return [...byAge.entries()]
-      .map(([ag, items]) => {
-        const parts = items.map((i) => `${i.gndrLabel} ${i.wgt}kg`).join(', ');
-        return `${ag}(${parts})`;
-      })
+      .map(([ag, parts]) => `${ag}(${parts.join(', ')})`)
       .join(' · ');
   }, [horses]);
 
