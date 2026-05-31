@@ -654,7 +654,9 @@ function HorsePanel({
     entry.latst_trea1_txt || entry.latst_trea2_txt;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs items-start">
+      {/* 왼쪽 열: 기본 정보 + 혈통 */}
+      <div className="flex flex-col gap-3">
       {/* 기본 정보 + 같은거리 기록 + 조교/진료 */}
       <DetailCard icon={<Award className="w-3.5 h-3.5" />} title="기본 정보">
         <KV label="출생지" value={entry.prds ?? '-'} />
@@ -752,6 +754,25 @@ function HorsePanel({
         )}
       </DetailCard>
 
+      {/* 혈통 */}
+      <DetailCard icon={<Dna className="w-3.5 h-3.5" />} title="혈통">
+        {!entry.hr_no ? (
+          <div className="text-[var(--color-text-disabled)]">말 번호 없음</div>
+        ) : !horseInfo ? (
+          <div className="text-[var(--color-text-disabled)]">혈통 데이터 없음</div>
+        ) : (
+          <>
+            <KV label="부마" value={horseInfo.sire_hr_nm ?? '-'} />
+            <KV label="모마" value={horseInfo.dam_hr_nm ?? '-'} />
+            <KV label="모부마" value={horseInfo.dam_sire_hr_nm ?? '-'} />
+            {horseInfo.spcs_nm && <KV label="품종" value={horseInfo.spcs_nm} />}
+          </>
+        )}
+      </DetailCard>
+      </div>
+
+      {/* 오른쪽 열: 구간 능력치 + 최근 5경주 */}
+      <div className="flex flex-col gap-3">
       {/* 구간 능력치 */}
       <DetailCard icon={<Zap className="w-3.5 h-3.5" />} title="구간 능력치 · 주행 성향">
         {abLoading ? (
@@ -800,8 +821,31 @@ function HorsePanel({
               {history.slice(0, 5).map((h, i) => {
                 const sec = getSectionalInfo(h);
                 const hasSecData =
-                  sec.cornerStr != null || sec.s1fTime != null ||
-                  sec.g3fSplit != null || sec.g1fSplit != null;
+                  sec.cornerStr != null || sec.s1fOrd != null || sec.s1fTime != null ||
+                  sec.g3fOrd != null || sec.g3fSplit != null ||
+                  sec.g1fOrd != null || sec.g1fSplit != null;
+
+                // 위치 시퀀스: S1F - C1 - C2 - C3 - C4 - G1F
+                const isSe = h.meet === 1;
+                const cornerRanks: (number | null)[] = isSe
+                  ? [h.sj_1c_ord ?? null, h.sj_2c_ord ?? null, h.sj_3c_ord ?? null, h.sj_4c_ord ?? null]
+                  : [h.bu_g8f_ord ?? null, h.bu_g6f_ord ?? null, h.bu_g4f_ord ?? null, h.bu_g2f_ord ?? null];
+                const allPositions = [sec.s1fOrd, ...cornerRanks, sec.g1fOrd];
+                const hasAnyPos = allPositions.some(p => p != null);
+                const posStr = allPositions.map(p => p != null ? String(p) : '·').join('-');
+
+                const timeParts = [
+                  (sec.s1fOrd != null || sec.s1fTime != null)
+                    ? `S1F${sec.s1fOrd != null ? ` ${sec.s1fOrd}위` : ''}${sec.s1fTime != null ? `(${fmtSec(sec.s1fTime)}초)` : ''}`
+                    : null,
+                  (sec.g3fOrd != null || sec.g3fSplit != null)
+                    ? `S3F${sec.g3fOrd != null ? ` ${sec.g3fOrd}위` : ''}${sec.g3fSplit != null ? `(${fmtSec(sec.g3fSplit)}초)` : ''}`
+                    : null,
+                  (sec.g1fOrd != null || sec.g1fSplit != null)
+                    ? `G1F${sec.g1fOrd != null ? ` ${sec.g1fOrd}위` : ''}${sec.g1fSplit != null ? `(${fmtSec(sec.g1fSplit)}초)` : ''}`
+                    : null,
+                ].filter(Boolean);
+
                 return (
                   <React.Fragment key={i}>
                     <tr className="border-t border-[var(--color-bg-elevated)]">
@@ -814,13 +858,11 @@ function HorsePanel({
                     </tr>
                     {hasSecData && (
                       <tr>
-                        <td colSpan={4} className="pb-1 text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
-                          {sec.cornerStr != null && (
-                            <span style={{ color: 'var(--color-accent-cyan)' }}>코너 {sec.cornerStr}</span>
-                          )}
-                          {sec.s1fTime != null && <span> · 출발 {fmtSec(sec.s1fTime)}s</span>}
-                          {sec.g3fSplit != null && <span> · 막판600m {fmtSec(sec.g3fSplit)}s</span>}
-                          {sec.g1fSplit != null && <span> · 막판200m {fmtSec(sec.g1fSplit)}s</span>}
+                        <td colSpan={4} className="pb-1 text-[11px]" style={{ color: 'var(--color-text-disabled)', borderLeft: '2px solid var(--color-accent-cyan)', paddingLeft: '8px' }}>
+                          <span style={{ display: 'inline-block', minWidth: '18ch', color: hasAnyPos ? 'var(--color-accent-cyan)' : 'transparent' }}>
+                            {hasAnyPos ? posStr : ''}
+                          </span>
+                          {timeParts.length > 0 && <span>{timeParts.join(' · ')}</span>}
                         </td>
                       </tr>
                     )}
@@ -831,22 +873,7 @@ function HorsePanel({
           </table>
         )}
       </DetailCard>
-
-      {/* 혈통 */}
-      <DetailCard icon={<Dna className="w-3.5 h-3.5" />} title="혈통">
-        {!entry.hr_no ? (
-          <div className="text-[var(--color-text-disabled)]">말 번호 없음</div>
-        ) : !horseInfo ? (
-          <div className="text-[var(--color-text-disabled)]">혈통 데이터 없음</div>
-        ) : (
-          <>
-            <KV label="부마" value={horseInfo.sire_hr_nm ?? '-'} />
-            <KV label="모마" value={horseInfo.dam_hr_nm ?? '-'} />
-            <KV label="모부마" value={horseInfo.dam_sire_hr_nm ?? '-'} />
-            {horseInfo.spcs_nm && <KV label="품종" value={horseInfo.spcs_nm} />}
-          </>
-        )}
-      </DetailCard>
+      </div>
 
       <div className="md:col-span-2 text-center text-[12px] text-[var(--color-text-disabled)] pt-1">
         <Link
