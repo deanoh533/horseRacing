@@ -804,11 +804,15 @@ function ColHistory({
                           opacity: 0.85,
                         }}
                       >
-                        {hasAnyPos && (
-                          <span style={{ color: 'var(--color-accent-cyan)' }}>{posStr}</span>
-                        )}
+                        <span style={{
+                          display: 'inline-block',
+                          minWidth: '18ch',
+                          color: hasAnyPos ? 'var(--color-accent-cyan)' : 'transparent',
+                        }}>
+                          {hasAnyPos ? posStr : ''}
+                        </span>
                         {timeParts.length > 0 && (
-                          <span>{hasAnyPos ? ' · ' : ''}{timeParts.join(' · ')}</span>
+                          <span>{timeParts.join(' · ')}</span>
                         )}
                       </td>
                     </tr>
