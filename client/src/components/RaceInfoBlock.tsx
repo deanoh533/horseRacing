@@ -153,7 +153,7 @@ export function RaceInfoBlock({
       style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-bg-elevated)' }}
     >
       {/* ① 한 줄: 날짜·장소·경주번호·거리 + 조건 배지들 + 출발시간 */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
         <span className="font-mono-num text-sm" style={{ color: 'var(--color-text-disabled)' }}>
           {formatRcDate(rcDate)}
         </span>
