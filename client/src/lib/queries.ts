@@ -7,7 +7,6 @@ import {
   type Race,
   type RaceEntry,
   type Prediction,
-  type SectionalRecord,
   type TrainingLog,
   type JockeyStat,
   type HorseSectionalAbility,
