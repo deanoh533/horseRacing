@@ -509,7 +509,7 @@ function ColHorseInfo({
               {formatRcTime(sameDistStats.avgTime)}
             </div>
             <div className="font-mono-num" style={{ fontSize: '10px', color: 'var(--color-text-disabled)' }}>
-              {sameDistStats.count}전 기준 · 전적 {sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
+              {sameDistStats.count}전·{sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
             </div>
             {gradeDistStat != null && gradeDistStat.total >= 2 && racePrizeCond != null && (
               <div

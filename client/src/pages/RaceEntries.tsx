@@ -713,7 +713,7 @@ function HorsePanel({
                     })()}
                   </div>
                   <div className="font-mono-num text-[10px]" style={{ color: 'var(--color-text-disabled)' }}>
-                    {sameDistStats.count}전 기준 · {sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
+                    {sameDistStats.count}전·{sameDistStats.wins}/{sameDistStats.places - sameDistStats.wins}/{sameDistStats.shows - sameDistStats.places}
                   </div>
                 </div>
               </>
