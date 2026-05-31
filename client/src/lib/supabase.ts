@@ -169,41 +169,6 @@ export function isCancelled(ord: number | null): boolean {
   return ord === null;
 }
 
-// ============================================
-// 신규 API 테이블 타입 (P0b)
-// ============================================
-
-/**
- * sectional_records — 경주 후 구간별 통과기록
- * 출처: API37_1/sectionRecord_1 (data.go.kr #15057859)
- * [구독 필요 — 현재 403. 신청: https://www.data.go.kr/data/15057859/openapi.do]
- * ※ API214_1 응답에 seG1fAccTime 등 구간데이터가 이미 포함됨 (대안 활용 가능).
- */
-export interface SectionalRecord {
-  race_date: number;
-  meet: number;
-  rc_no: number;
-  hr_no: string;
-  hr_name: string | null;
-  chul_no: number | null;
-  ord: number | null;
-  bu_g1f_acc_time: number | null;
-  bu_g2f_acc_time: number | null;
-  bu_g3f_acc_time: number | null;
-  bu_g4f_acc_time: number | null;
-  bu_g6f_acc_time: number | null;
-  bu_g8f_acc_time: number | null;
-  bu_s1f_acc_time: number | null;
-  bu_g1f_ord: number | null;
-  bu_g2f_ord: number | null;
-  bu_g3f_ord: number | null;
-  bu_g4f_ord: number | null;
-  bu_g6f_ord: number | null;
-  bu_g8f_ord: number | null;
-  bu_s1f_ord: number | null;
-  fetched_at: string | null;
-}
-
 /**
  * training_logs — 일별 훈련 정보
  * (API18_1/dailyTraining_1 — 검증됨)

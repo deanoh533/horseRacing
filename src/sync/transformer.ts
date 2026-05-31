@@ -2,7 +2,7 @@
  * KRA API 응답 → Supabase DB 행 변환
  */
 import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@app-types/index.js';
-import type { KRARaceCard, KRAEntrySheetItem, KRASectionalRecord, KRATrainingRecord, KRAJockeyStat } from '@kra/client.js';
+import type { KRARaceCard, KRAEntrySheetItem, KRATrainingRecord, KRAJockeyStat } from '@kra/client.js';
 import { parseWgHr, extractTrackType } from '@utils/parsers.js';
 
 /**
@@ -23,54 +23,6 @@ export interface RaceRow {
   chaksun1: number | null;
   chaksun2: number | null;
   chaksun3: number | null;
-}
-
-/**
- * horse_results 테이블 행
- */
-export interface HorseResultRow {
-  race_date: number;
-  meet: number;
-  rc_no: number;
-  chul_no: number;
-  st_ord: number | null;
-  hr_no: string;
-  hr_name: string;
-  age: number | null;
-  sex: string | null;
-  rating: number | null;
-  rank_str: string | null;
-  rank_rise: number;
-  ord: number | null;
-  rc_time: number | null;
-  diff_unit: string | null;
-  rc_dist: number | null;
-  track: string | null;
-  track_type: string | null;
-  wg_budam: number | null; // DECIMAL(4,1) - 소수 허용 (예: 55.5)
-  wg_hr_str: string | null;
-  wg_hr: number | null;
-  wg_hr_diff: number | null;
-  wg_jk: number | null; // DECIMAL(4,1)
-  win_odds: number | null;
-  plc_odds: number | null;
-  popularity: number | null;
-  jk_no: string | null;
-  jk_name: string | null;
-  tr_no: string | null;
-  tr_name: string | null;
-  bu_g1f_acc_time: number | null;
-  bu_g2f_acc_time: number | null;
-  bu_g3f_acc_time: number | null;
-  bu_g4f_acc_time: number | null;
-  bu_g6f_acc_time: number | null;
-  bu_g8f_acc_time: number | null;
-  bu_s1f_acc_time: number | null;
-  bu_g1f_ord: number | null;
-  bu_g2f_ord: number | null;
-  bu_g3f_ord: number | null;
-  bu_g4f_ord: number | null;
-  bu_s1f_ord: number | null;
 }
 
 /**
@@ -104,58 +56,6 @@ export function toRaceRow(horse: KRARaceResult): RaceRow {
     chaksun1: horse.chaksun1 ?? null,
     chaksun2: horse.chaksun2 ?? null,
     chaksun3: horse.chaksun3 ?? null,
-  };
-}
-
-/**
- * KRARaceResult → horse_results 행
- */
-export function toHorseResultRow(horse: KRARaceResult): HorseResultRow {
-  const wgHrParsed = parseWgHr(horse.wgHr);
-  return {
-    race_date: horse.rcDate,
-    meet: meetNameToCode(horse.meet),
-    rc_no: horse.rcNo,
-    chul_no: horse.chulNo,
-    st_ord: null, // racedetailresult에서 별도 채움
-    hr_no: horse.hrNo,
-    hr_name: horse.hrName,
-    age: horse.age ?? null,
-    sex: horse.sex ?? null,
-    rating: horse.rating ?? null,
-    rank_str: horse.rank ?? null,
-    rank_rise: horse.rankRise ?? 0,
-    // ord ≥ 90 은 KRA의 비주파 코드 (취소/실격/사고로 미완주) → NULL
-    ord: horse.ord != null && horse.ord < 90 ? horse.ord : null,
-    rc_time: horse.rcTime && horse.rcTime > 0 ? horse.rcTime : null,
-    diff_unit: typeof horse.diffUnit === 'number' ? String(horse.diffUnit) : horse.diffUnit ?? null,
-    rc_dist: horse.rcDist ?? null,
-    track: horse.track ?? null,
-    track_type: horse.track ? extractTrackType(horse.track) : null,
-    wg_budam: horse.wgBudam ?? null,
-    wg_hr_str: horse.wgHr ?? null,
-    wg_hr: wgHrParsed?.weight ?? null,
-    wg_hr_diff: wgHrParsed?.diff ?? null,
-    wg_jk: horse.wgJk ?? null,
-    win_odds: horse.winOdds ?? null,
-    plc_odds: horse.plcOdds ?? null,
-    popularity: null, // 인기도는 계산 후 채움 (같은 경주 winOdds 정렬)
-    jk_no: horse.jkNo ?? null,
-    jk_name: horse.jkName ?? null,
-    tr_no: horse.trNo ?? null,
-    tr_name: horse.trName ?? null,
-    bu_g1f_acc_time: horse.buG1fAccTime ?? null,
-    bu_g2f_acc_time: horse.buG2fAccTime ?? null,
-    bu_g3f_acc_time: horse.buG3fAccTime ?? null,
-    bu_g4f_acc_time: horse.buG4fAccTime ?? null,
-    bu_g6f_acc_time: horse.buG6fAccTime ?? null,
-    bu_g8f_acc_time: horse.buG8fAccTime ?? null,
-    bu_s1f_acc_time: horse.buS1fAccTime ?? null,
-    bu_g1f_ord: horse.buG1fOrd ?? null,
-    bu_g2f_ord: horse.buG2fOrd ?? null,
-    bu_g3f_ord: horse.buG3fOrd ?? null,
-    bu_g4f_ord: horse.buG4fOrd ?? null,
-    bu_s1f_ord: horse.buS1fOrd ?? null,
   };
 }
 
@@ -498,35 +398,6 @@ function zeroToNull(v: number | undefined | null): number | null {
   return v;
 }
 
-// ============================================
-// 신규 API (P0b) 변환 함수
-// ============================================
-
-/**
- * sectional_records 테이블 행
- */
-export interface SectionalRecordRow {
-  race_date: number;
-  meet: number;
-  rc_no: number;
-  hr_no: string;
-  hr_name: string;
-  chul_no: number | null;
-  ord: number | null;
-  bu_g1f_acc_time: number | null;
-  bu_g2f_acc_time: number | null;
-  bu_g3f_acc_time: number | null;
-  bu_g4f_acc_time: number | null;
-  bu_g6f_acc_time: number | null;
-  bu_g8f_acc_time: number | null;
-  bu_s1f_acc_time: number | null;
-  bu_g1f_ord: number | null;
-  bu_g2f_ord: number | null;
-  bu_g3f_ord: number | null;
-  bu_g4f_ord: number | null;
-  bu_s1f_ord: number | null;
-}
-
 /**
  * training_logs 테이블 행
  */
@@ -562,36 +433,6 @@ export interface JockeyStatsRow {
   third_cnt: number | null;   // 통산 3위 횟수
   win_rate_t: number | null;  // 통산 단승률 (%)
   qu_rate_t: number | null;   // 통산 입상률 (%)
-}
-
-/**
- * KRASectionalRecord → sectional_records 행
- */
-export function toSectionalRow(
-  r: KRASectionalRecord,
-  meet: number,
-): SectionalRecordRow {
-  return {
-    race_date: r.rcDate,
-    meet,
-    rc_no: r.rcNo,
-    hr_no: r.hrNo,
-    hr_name: r.hrName,
-    chul_no: r.chulNo ?? null,
-    ord: r.ord != null && r.ord < 90 ? r.ord : null,
-    bu_g1f_acc_time: r.buG1fAccTime ?? null,
-    bu_g2f_acc_time: r.buG2fAccTime ?? null,
-    bu_g3f_acc_time: r.buG3fAccTime ?? null,
-    bu_g4f_acc_time: r.buG4fAccTime ?? null,
-    bu_g6f_acc_time: r.buG6fAccTime ?? null,
-    bu_g8f_acc_time: r.buG8fAccTime ?? null,
-    bu_s1f_acc_time: r.buS1fAccTime ?? null,
-    bu_g1f_ord: r.buG1fOrd ?? null,
-    bu_g2f_ord: r.buG2fOrd ?? null,
-    bu_g3f_ord: r.buG3fOrd ?? null,
-    bu_g4f_ord: r.buG4fOrd ?? null,
-    bu_s1f_ord: r.buS1fOrd ?? null,
-  };
 }
 
 /**

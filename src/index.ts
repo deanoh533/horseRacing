@@ -60,7 +60,7 @@ async function main() {
 
     const expectedTables = [
       'races',
-      'horse_results',
+      'race_entries',
       'horses',
       'jockeys',
       'trainers',

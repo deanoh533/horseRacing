@@ -19,16 +19,17 @@ async function main() {
   const sb = getSupabaseAdmin();
   const kra = getKRAClient();
 
-  console.log('[1/3] horse_results의 unique hr_no 수집...');
+  console.log('[1/3] race_entries의 unique hr_no 수집...');
   const hrNos = new Set<string>();
   for (let off = 0; ; off += 1000) {
     const { data } = await sb
-      .from('horse_results')
+      .from('race_entries')
       .select('hr_no')
+      .not('hr_no', 'is', null)
       .order('hr_no')
       .range(off, off + 999);
     if (!data || data.length === 0) break;
-    data.forEach((r) => hrNos.add(r.hr_no));
+    data.forEach((r) => { if (r.hr_no) hrNos.add(r.hr_no); });
     if (data.length < 1000) break;
   }
   console.log(`  unique: ${hrNos.size}`);

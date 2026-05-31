@@ -43,9 +43,9 @@ async function fetchAll<T>(
 async function main() {
   const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  console.log('[1/3] horses + horse_results 로드...');
+  console.log('[1/3] horses + race_entries 로드...');
   const horses = await fetchAll<HorseRow>(sb, 'horses', 'hr_no, hr_name, sire_hr_nm', ['hr_no']);
-  const results = await fetchAll<ResultRow>(sb, 'horse_results', 'hr_no, ord, rc_dist', ['race_date', 'meet', 'rc_no', 'chul_no']);
+  const results = await fetchAll<ResultRow>(sb, 'race_entries', 'hr_no, ord, rc_dist', ['race_date', 'meet', 'rc_no', 'pthr_no']);
   console.log(`  horses ${horses.length}, results ${results.length}`);
 
   // hr_no → sire_hr_nm 맵

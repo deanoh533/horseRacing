@@ -339,33 +339,6 @@ export function useRecentArchives(limit = 30) {
   });
 }
 
-// ============================================
-// 신규 API 훅 (P0b)
-// ============================================
-
-/**
- * 특정 경주의 구간별 통과기록
- * [TODO] sectional_records 테이블은 API37_1 구독 승인 후 데이터가 채워짐
- */
-export function useSectionalRecords(rcDate: number, meet: number, rcNo: number) {
-  return useQuery({
-    queryKey: ['sectional-records', rcDate, meet, rcNo],
-    queryFn: async (): Promise<SectionalRecord[]> => {
-      const { data, error } = await supabase
-        .from('sectional_records')
-        .select('*')
-        .eq('race_date', rcDate)
-        .eq('meet', meet)
-        .eq('rc_no', rcNo)
-        .order('chul_no');
-
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !!rcDate && !!meet && !!rcNo,
-    staleTime: 60 * 60 * 1000, // 경기 후 기록은 변하지 않으므로 1시간 캐시
-  });
-}
 
 /**
  * 특정 말의 최근 N일치 훈련 기록

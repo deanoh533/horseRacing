@@ -242,13 +242,13 @@ export function Statistics() {
       {/* 수득상금 구간별 적중률 */}
       <Card
         title="수득상금 구간별 단승 적중률"
-        subtitle="출주표(race_cards)와 예측 결과 join"
+        subtitle="race_entries와 예측 결과 join"
         icon={<DollarSign className="w-4 h-4 text-[var(--color-accent-gold)]" />}
       >
         {earnLoading ? (
           <LoadingBox />
         ) : !earningsBuckets ? (
-          <EmptyBox text="race_cards 데이터 없음" />
+          <EmptyBox text="수득상금 데이터 없음" />
         ) : (
           <>
             <div className="h-64">
@@ -297,9 +297,9 @@ export function Statistics() {
         )}
       </Card>
 
-      {/* race_cards 데이터 커버리지 */}
+      {/* 출마표 데이터 커버리지 */}
       <Card
-        title="race_cards 데이터 수집 현황"
+        title="출마표 데이터 수집 현황"
         icon={<Heart className="w-4 h-4 text-[var(--color-accent-pink)]" />}
       >
         {covLoading ? (
