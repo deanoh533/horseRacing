@@ -1025,7 +1025,7 @@ function CardHeader({
         </span>
       )}
 
-      {/* AI 점수바 + 총점 + 순위 이모지 */}
+      {/* AI 점수바 + 총점 + 순위 이모지 + 실제 결과 */}
       <div className="ml-auto flex items-center gap-2">
         {pRank < 999 && (
           <>
@@ -1040,6 +1040,12 @@ function CardHeader({
             </span>
             <span className="text-[17px]">{rankEmoji(pRank)}</span>
           </>
+        )}
+        {horse.ord != null && (
+          <span className="text-[13px] font-bold whitespace-nowrap flex items-center gap-0.5">
+            <span style={{ color: 'var(--color-text-disabled)' }}>→</span>
+            <span style={{ color: ordColor(horse.ord) }}>결과 {horse.ord}위</span>
+          </span>
         )}
       </div>
     </div>

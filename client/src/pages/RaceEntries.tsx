@@ -138,6 +138,9 @@ export function RaceEntries() {
     return [...(predictions ?? [])].sort((a, b) => a.predicted_rank - b.predicted_rank).slice(0, 3);
   }, [predictions]);
 
+  // 결과 도착 여부 (dailySync 후 ord 채워짐)
+  const isPostRace = useMemo(() => (horses ?? []).some((h) => h.ord != null), [horses]);
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(key); setSortDir('asc'); }
@@ -216,6 +219,9 @@ export function RaceEntries() {
                     <SortHeader label="조교사" k="trar_nm" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" className="hidden md:table-cell" />
                     <th className="hidden md:table-cell px-2 py-2 text-left whitespace-nowrap">최근 폼</th>
                     <SortHeader label="AI" k="predicted_rank" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" className="hidden md:table-cell" />
+                    {isPostRace && (
+                      <th className="px-2 py-2 text-center whitespace-nowrap">결과</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -358,12 +364,21 @@ export function RaceEntries() {
                               {formatPredRank(h.predicted_rank)}
                             </span>
                           </td>
+
+                          {/* 실제 결과 순위 */}
+                          {isPostRace && (
+                            <td className="px-2 py-2 text-center">
+                              <span className={ordBadgeClass(h.ord)}>
+                                {h.ord != null ? `${h.ord}위` : '-'}
+                              </span>
+                            </td>
+                          )}
                         </tr>
 
                         {/* 아코디언 패널 */}
                         {anyOpen && (
                           <tr className="bg-[var(--color-bg-primary)]/40">
-                            <td colSpan={9} className="p-4">
+                            <td colSpan={isPostRace ? 10 : 9} className="p-4">
                               {isJockeyOpen && (
                                 <JockeyPanel entry={h} meet={meet} />
                               )}
