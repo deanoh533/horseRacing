@@ -810,11 +810,14 @@ function HorsePanel({
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="text-[12px] text-[var(--color-text-secondary)]">
+              <tr className="text-[11px] text-[var(--color-text-secondary)]">
                 <th className="text-left py-0.5">날짜</th>
                 <th className="text-right py-0.5">거리</th>
+                <th className="text-center py-0.5">주로</th>
                 <th className="text-right py-0.5">착순</th>
                 <th className="text-right py-0.5">기록</th>
+                <th className="text-right py-0.5">중량</th>
+                <th className="text-left py-0.5 pl-1">기수</th>
               </tr>
             </thead>
             <tbody>
@@ -848,17 +851,20 @@ function HorsePanel({
 
                 return (
                   <React.Fragment key={i}>
-                    <tr className="border-t border-[var(--color-bg-elevated)]">
+                    <tr className="border-t border-[var(--color-bg-elevated)] text-[11px]">
                       <td className="py-1">{formatShortDate(h.race_date)}</td>
                       <td className="py-1 text-right">{h.rc_dist ?? '-'}m</td>
+                      <td className="py-1 text-center text-[var(--color-text-disabled)]">{h.track_type ?? '-'}</td>
                       <td className="py-1 text-right">
                         <span className={ordBadgeClass(h.ord)}>{h.ord != null ? `${h.ord}위` : '-'}</span>
                       </td>
                       <td className="py-1 text-right font-mono-num">{h.rc_time != null ? `${h.rc_time}s` : '-'}</td>
+                      <td className="py-1 text-right font-mono-num text-[var(--color-text-disabled)]">{h.burd_wgt ?? '-'}</td>
+                      <td className="py-1 pl-1 text-left text-[var(--color-text-disabled)] truncate" style={{ maxWidth: '4rem' }}>{h.jcky_nm ?? '-'}</td>
                     </tr>
                     {hasSecData && (
                       <tr>
-                        <td colSpan={4} className="pb-1 text-[11px]" style={{ color: 'var(--color-text-disabled)', borderLeft: '2px solid var(--color-accent-cyan)', paddingLeft: '8px' }}>
+                        <td colSpan={7} className="pb-1 text-[11px]" style={{ color: 'var(--color-text-disabled)', borderLeft: '2px solid var(--color-accent-cyan)', paddingLeft: '8px' }}>
                           <span style={{ display: 'inline-block', minWidth: '18ch', color: hasAnyPos ? 'var(--color-accent-cyan)' : 'transparent' }}>
                             {hasAnyPos ? posStr : ''}
                           </span>
