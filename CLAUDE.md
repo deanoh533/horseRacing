@@ -147,6 +147,7 @@ npm run test:run     # vitest 단위 테스트
 > **training_logs 주의:** `st_time`/`sp_time`은 YYYYMMDDHHmmss 타임스탬프 (훈련 시작/종료 시각). 실제 소요시간은 `tr_term`(초). `pr_gubun` 범례: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더.
 
 ### 운영·디버깅
+- [docs/api_spec.md](docs/api_spec.md) — **API 전체 명세 (SSOT)**: KRA 9개 엔드포인트·Supabase 스키마·React Query 훅·Claude API. ⚠️ **API 변경(엔드포인트·파라미터·필드·스키마) 시 이 문서를 함께 갱신**
 - [docs/kra_api_quirks.md](docs/kra_api_quirks.md) — KRA API 컬럼명 함정
 - [docs/troubleshooting.md](docs/troubleshooting.md) — 현재 발견된 의문·수정점
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — 배포 메모
