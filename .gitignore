@@ -60,3 +60,12 @@ logs/
 
 # 임시 응답 데이터
 /tmp/kra_*.json
+
+# Claude 로컬 설정 (개인 권한 허용목록 — 공유 X)
+.claude/settings.local.json
+
+# 브레인스토밍 스킬 산출물·작업 캐시
+.superpowers/
+
+# ad-hoc 참고 이미지·스크린샷
+image/
