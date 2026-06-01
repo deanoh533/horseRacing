@@ -14,6 +14,8 @@
     "sync:cards:bulk": "tsx scripts/backfill_race_cards.ts",
     "backfill": "tsx scripts/backfill_predictions.ts",
     "walkforward": "tsx scripts/walkforward_eval.ts",
+    "learn:candidate": "tsx scripts/learn_candidate.ts",
+    "promote": "tsx scripts/promote_version.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "lint": "eslint src --ext .ts",
