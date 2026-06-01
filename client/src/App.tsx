@@ -7,6 +7,7 @@ import { PredictionSheet } from './pages/PredictionSheet';
 import { HorseDetail } from './pages/HorseDetail';
 import { Statistics } from './pages/Statistics';
 import { Settings } from './pages/Settings';
+import { Lab } from './pages/Lab';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           />
           <Route path="/stats" element={<Statistics />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/lab" element={<Lab />} />
         </Route>
       </Routes>
     </BrowserRouter>

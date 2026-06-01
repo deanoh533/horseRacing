@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Settings as SettingsIcon, Moon } from 'lucide-react';
+import { NavLink, Outlet, Link } from 'react-router-dom';
+import { LayoutDashboard, BarChart3, Settings as SettingsIcon, FlaskConical } from 'lucide-react';
 
 export function Layout() {
   return (
@@ -12,10 +12,14 @@ export function Layout() {
             <span className="font-semibold tracking-tight">KRA Analyzer</span>
             <span className="text-xs text-[var(--color-text-disabled)]">v5.1</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Moon className="w-4 h-4 text-[var(--color-accent-cyan)]" />
-            <span className="text-xs text-[var(--color-text-secondary)]">개인 도구</span>
-          </div>
+          <Link
+            to="/lab"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors"
+            title="판단항목 가중치 실험"
+          >
+            <FlaskConical className="w-4 h-4" />
+            <span>실험실</span>
+          </Link>
         </div>
       </header>
 
