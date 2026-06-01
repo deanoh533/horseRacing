@@ -64,12 +64,14 @@ export const ITEM_NAMES: Record<string, string> = {
   '19_running_style_pace': '주행성향×페이스',
 };
 
-/** v1 기준선에서 가중치 0 (SEALED — 역상관/중립으로 봉인된 항목) */
-export const SEALED_ITEMS = new Set<string>([
-  '04_sectional_time',
-  '07_track_adaptation',
-  '13_age_distance_gender',
-]);
+/**
+ * v1 기준선에서 가중치 0인 항목(=비활성/봉인).
+ * 하드코딩 대신 V1_WEIGHTS===0에서 파생 → 기준선과 항상 일치(드리프트 방지).
+ * (활성 여부는 본래 "버전별 weight>0"이 단일 기준)
+ */
+export const SEALED_ITEMS = new Set<string>(
+  SCORE_ITEM_IDS.filter((id) => V1_WEIGHTS[id] === 0)
+);
 
 export interface RankedHorse {
   /** Σ(rawScore × weight) */

@@ -7,6 +7,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
+import { getActiveModelVersion } from './modelVersion.js';
 
 interface EntryRow {
   race_date: number;
@@ -37,9 +38,8 @@ export interface PredictionRow {
   predicted_rank: number;
   item_scores: HorseScoreResult['items'];
   actual_ord: number | null;
+  model_version: number | null;   // 이 예측을 만든 활성 버전 도장
 }
-
-const engine = new ScoreEngine();
 
 export async function predictRace(
   sb: SupabaseClient,
@@ -139,6 +139,10 @@ export async function predictRace(
   }
   const paceType = computePaceType(styleMap);
 
+  // 활성 모델 버전 가중치로 엔진 구성 (라이브 = 현재 버전)
+  const activeVersion = await getActiveModelVersion(sb);
+  const engine = new ScoreEngine(activeVersion.weights);
+
   const results = await Promise.all(
     entryList.map(async (e) => {
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
@@ -163,6 +167,7 @@ export async function predictRace(
     predicted_rank: rankMap.get(r.entry.pthr_no)!,
     item_scores: r.score.items,
     actual_ord: r.entry.ord,
+    model_version: activeVersion.id,
   }));
 }
 

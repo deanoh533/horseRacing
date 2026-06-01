@@ -215,6 +215,16 @@ export async function applyWeightsToPredictions(
   toDate?: number,
   onProgress?: (done: number, total: number) => void
 ): Promise<{ updated: number; races: number }> {
+  // ⚠️ 레거시 경로 가드: 이 함수는 predictions를 전기간 DELETE+INSERT로 덮어써
+  //    v1(및 모든 과거) 라이브 기록을 파괴한다. 버전관리 도입 후엔 Stage B 승격
+  //    플로우(새 model_version + 미확정 예측만 재생성)를 사용해야 한다.
+  if (process.env.ALLOW_LEGACY_OVERWRITE !== '1') {
+    throw new Error(
+      'applyWeightsToPredictions는 predictions 전기간을 덮어쓰는 레거시 경로입니다. ' +
+        'v1 기록 보존을 위해 비활성화되었습니다. Stage B 승격 플로우를 사용하세요. ' +
+        '(레거시 동작이 정말 필요하면 ALLOW_LEGACY_OVERWRITE=1 환경변수로 실행)'
+    );
+  }
   // 모든 predictions 가져오기 (페이지네이션 — order 필수: range는 정렬 없으면 페이지 경계 중복 발생)
   type PredApplyRow = {
     race_date: number;

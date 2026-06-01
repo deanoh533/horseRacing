@@ -224,9 +224,9 @@ export function Statistics() {
         )}
       </Card>
 
-      {/* 17개 항목 상관계수 */}
+      {/* 21개 항목 상관계수 */}
       <Card
-        title="17개 항목 예측력 (Spearman ρ)"
+        title="21개 항목 예측력 (Spearman ρ)"
         subtitle="값이 클수록 실제 결과와 일치 / 음수는 역효과"
         icon={<BarChart3 className="w-4 h-4 text-[var(--color-accent-pink)]" />}
       >

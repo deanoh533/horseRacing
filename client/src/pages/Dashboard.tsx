@@ -13,7 +13,7 @@ import {
   useRacesByDate,
   useAvailableDates,
   usePredictionsByDate,
-  useLatestWeights,
+  useActiveModelVersion,
   type PredictionPreview,
 } from '../lib/queries';
 import { isCancelled } from '../lib/supabase';
@@ -45,7 +45,7 @@ const ITEM_LABELS: Record<string, string> = {
 
 export function Dashboard() {
   const { data: availableDates } = useAvailableDates();
-  const { data: latestWeights } = useLatestWeights();
+  const { data: activeVersion } = useActiveModelVersion();
   // 사용자가 ◀▶ 또는 "최근 동기화" 클릭하면 override 저장
   // 그 외엔 availableDates 가장 최근 → 그것도 없으면 오늘 (derived state, useEffect 불필요)
   const [manualDate, setManualDate] = useState<number | null>(null);
@@ -86,14 +86,14 @@ export function Dashboard() {
   }, [races]);
 
   const top4Weights = useMemo(() => {
-    const weights = latestWeights?.weights as Record<string, number> | undefined;
+    const weights = activeVersion?.weights as Record<string, number> | undefined;
     if (!weights) return null;
     return Object.entries(weights)
       .filter(([, v]) => v > 0)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 4)
       .map(([id, value]) => ({ id, name: ITEM_LABELS[id] ?? id, value }));
-  }, [latestWeights]);
+  }, [activeVersion]);
 
   return (
     <div className="space-y-6">
@@ -136,9 +136,9 @@ export function Dashboard() {
             <span className="text-[var(--color-accent-gold)]">⭐</span>
             예측 핵심 지표 (가중치 상위 4)
           </h2>
-          {latestWeights && (
+          {activeVersion && (
             <span className="text-[10px] text-[var(--color-text-disabled)]">
-              학습일 {latestWeights.period_end}
+              적용 버전 {activeVersion.label}
             </span>
           )}
         </div>

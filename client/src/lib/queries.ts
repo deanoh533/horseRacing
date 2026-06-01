@@ -106,6 +106,30 @@ export function useLatestWeights() {
 }
 
 /**
+ * 현재 활성 모델 버전 (라이브 예측이 실제로 쓰는 가중치)
+ */
+export function useActiveModelVersion() {
+  return useQuery({
+    queryKey: ['active-model-version'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('model_versions')
+        .select('id, label, weights, source')
+        .eq('is_active', true)
+        .maybeSingle();
+      if (error) throw error;
+      return data as {
+        id: number;
+        label: string;
+        weights: Record<string, number>;
+        source: string;
+      } | null;
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+/**
  * 사용자 설정 (인사이트 지표 등)
  */
 export function useUserSettings() {

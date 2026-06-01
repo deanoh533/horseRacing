@@ -166,6 +166,11 @@ const EXPERT_PENDING = new Set<ItemId>([
  * 핵심 Score Engine
  */
 export class ScoreEngine {
+  /**
+   * @param weights 항목별 가중치 (활성 모델 버전). 미지정 시 코드 상수 ITEM_WEIGHTS.
+   */
+  constructor(private readonly weights: Record<string, number> = ITEM_WEIGHTS) {}
+
   calculateScores(input: ScoreEngineInput): HorseScoreResult {
     const items: Partial<Record<ItemId, ItemScore>> = {};
 
@@ -344,7 +349,7 @@ export class ScoreEngine {
   }
 
   private make(itemId: ItemId, rawScore: number): ItemScore {
-    const weight = ITEM_WEIGHTS[itemId];
+    const weight = this.weights[itemId] ?? 0;
     const clamped = Math.max(0, Math.min(1, rawScore));
     return {
       itemId,
