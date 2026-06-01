@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
 import { getActiveModelVersion } from './modelVersion.js';
+import { fetchAsOfHorseStats, distCategoryOf, type AsOfHorseStats } from './asOfHorseStats.js';
 
 interface EntryRow {
   race_date: number;
@@ -117,25 +118,19 @@ export async function predictRace(
     trackType = race?.track_type ?? null;
   }
 
-  // 주행성향 배치 fetch (⑲용) — horse_running_style_by_distance 뷰
-  const distCat = getRcDistCategory(rcDist ?? 1600);
-  const hrNames = entryList.map(e => e.hr_name);
-  const { data: styleRows } = await sb
-    .from('horse_running_style_by_distance')
-    .select('hr_name, avg_position_ratio, stddev_position_ratio')
-    .in('hr_name', hrNames)
-    .eq('dist_category', distCat);
-
+  // ⑤⑥⑫⑲ 통계: 누수 방지 as-of(말별 과거 경주만) 사전 패스 — 전역 뷰 미사용
+  const distCat = distCategoryOf(rcDist ?? 1600);
+  const asOfMap = new Map<string, AsOfHorseStats>();
+  await Promise.all(
+    entryList.map(async (e) => {
+      asOfMap.set(e.hr_name, await fetchAsOfHorseStats(sb, e.hr_name, rcDate, distCat));
+    })
+  );
+  // paceType(⑲)도 as-of position_ratio 기반 → 누수 제거
   const styleMap = new Map<string, { avg: number | null; std: number | null }>();
-  for (const row of (styleRows ?? []) as {
-    hr_name: string;
-    avg_position_ratio: number | null;
-    stddev_position_ratio: number | null;
-  }[]) {
-    styleMap.set(row.hr_name, {
-      avg: row.avg_position_ratio,
-      std: row.stddev_position_ratio,
-    });
+  for (const e of entryList) {
+    const s = asOfMap.get(e.hr_name);
+    styleMap.set(e.hr_name, { avg: s?.avgPositionRatio ?? null, std: s?.stddevPositionRatio ?? null });
   }
   const paceType = computePaceType(styleMap);
 
@@ -146,7 +141,7 @@ export async function predictRace(
   const results = await Promise.all(
     entryList.map(async (e) => {
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
-      const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType);
+      const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType, asOfMap.get(e.hr_name)!);
       input.erngSump = e.erng_sump ?? undefined;
       input.allRaceRatings = allRaceRatings;
       const score = engine.calculateScores(input);
@@ -180,7 +175,8 @@ async function buildEngineInput(
   jockeyRecentMap: Map<string, number[]>,
   trainerRecentMap: Map<string, number[]>,
   styleMap: Map<string, { avg: number | null; std: number | null }>,
-  paceType: 'HOT' | 'NORMAL' | 'SLOW'
+  paceType: 'HOT' | 'NORMAL' | 'SLOW',
+  asOf: AsOfHorseStats
 ): Promise<ScoreEngineInput> {
   const rcDate = e.race_date;
 
@@ -253,31 +249,21 @@ async function buildEngineInput(
 
   // 통산 선행 성공률 + 거리별 결승 비율 (horse_sectional_ability / horse_running_style_by_distance)
   // + 혈통 DSA 지수 (horses 테이블)
-  const distCategory = rcDistToCategory(e.rc_dist);
-  const [abilityResult, distStyleResult, pedigreeResult] = await Promise.all([
-    sb.from('horse_sectional_ability')
-      .select('front_run_success_rate, avg_position_ratio, stddev_position_ratio')
-      .eq('hr_name', e.hr_name)
-      .maybeSingle(),
-    distCategory
-      ? sb.from('horse_running_style_by_distance')
-          .select('avg_finish_ratio')
-          .eq('hr_name', e.hr_name)
-          .eq('dist_category', distCategory)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    e.hr_no
-      ? sb.from('horses')
-          .select('dsa_bri_vl, dsa_clc_vl, dsa_ier_vl, dsa_prf_vl, dsidx_vl')
-          .eq('hr_no', e.hr_no)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  const frontRunSuccessRate = abilityResult.data?.front_run_success_rate ?? undefined;
-  const distFinishRatio: number | null = (distStyleResult.data as { avg_finish_ratio?: number | null } | null)?.avg_finish_ratio ?? null;
-  const avgPositionRatio: number | null = (abilityResult.data as { avg_position_ratio?: number | null } | null)?.avg_position_ratio ?? null;
-  const stddevPositionRatio: number | null = (abilityResult.data as { stddev_position_ratio?: number | null } | null)?.stddev_position_ratio ?? null;
-  const pedigreeRow = pedigreeResult.data as {
+  // ⑤⑥⑫: 누수 방지 as-of 통계를 사전 패스에서 주입받음 (전역 뷰 미사용)
+  const frontRunSuccessRate = asOf.frontRunSuccessRate;
+  const distFinishRatio: number | null = asOf.distFinishRatio;
+  const avgPositionRatio: number | null = asOf.avgPositionRatio;
+  const stddevPositionRatio: number | null = asOf.stddevPositionRatio;
+
+  // 혈통 (horses 테이블 — 정적 정보, 누수 아님)
+  const { data: pedigreeData } = e.hr_no
+    ? await sb
+        .from('horses')
+        .select('dsa_bri_vl, dsa_clc_vl, dsa_ier_vl, dsa_prf_vl, dsidx_vl')
+        .eq('hr_no', e.hr_no)
+        .maybeSingle()
+    : { data: null };
+  const pedigreeRow = pedigreeData as {
     dsa_bri_vl?: number | null;
     dsa_clc_vl?: number | null;
     dsa_ier_vl?: number | null;
@@ -427,13 +413,6 @@ async function buildBurdenHistory(
   return results;
 }
 
-function rcDistToCategory(dist: number | null): 'short' | 'middle' | 'long' | null {
-  if (dist == null) return null;
-  if (dist < 1400) return 'short';
-  if (dist <= 1800) return 'middle';
-  return 'long';
-}
-
 function monthToSeason(month: number): 'spring' | 'summer' | 'autumn' | 'winter' {
   if (month >= 3 && month <= 5) return 'spring';
   if (month >= 6 && month <= 8) return 'summer';
@@ -460,12 +439,6 @@ function rcDateToDate(rcDate: number): Date {
 
 function dateToRcDate(d: Date): number {
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-}
-
-function getRcDistCategory(rcDist: number): 'short' | 'middle' | 'long' {
-  if (rcDist < 1400) return 'short';
-  if (rcDist <= 1800) return 'middle';
-  return 'long';
 }
 
 function computePaceType(
