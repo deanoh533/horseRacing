@@ -1,15 +1,15 @@
 /**
  * Score Engine - 메인
  *
- * 17개 항목 모두 알고리즘 구현 완료 (commit 21f752d 이후)
- * - 핵심 항목 정식 알고리즘 14개
- * - 전문가 자문 대기 3개 (⑧, ⑬, ⑭): 임시 알고리즘
+ * 21개 항목 모두 알고리즘 구현 완료 (01~19 + 09b·10b)
+ * - SEALED·weight=0 항목(④⑦⑬ 등) 포함 — 실제 가중치는 학습으로 결정
+ * - 항목별 ρ·가중치·상태: docs/score_roadmap.md §1 마스터 상태표
  *
  * 사용법:
  *   const engine = new ScoreEngine();
  *   const score = engine.calculateScores(input);
  *   → score.total: 0-100
- *   → score.items: 17개 항목 상세
+ *   → score.items: 21개 항목 상세
  */
 import {
   ITEM_WEIGHTS,
@@ -143,7 +143,7 @@ export interface ItemScore {
   itemId: ItemId;
   itemName: string;
   rawScore: number; // 0-1.0
-  weight: number; // 비중 (17개 합계 = 100)
+  weight: number; // 비중 (21개 합계 = 100)
   weightedScore: number; // rawScore * weight
   status: 'implemented' | 'expert_pending';
 }

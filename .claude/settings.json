@@ -1,11 +1,23 @@
 {
   "permissions": {
+    "deny": [
+      "Read(./KRA PRD v2.3 최종.docx)",
+      "Read(./KRA Score v1.docx)",
+      "Read(./kra_prd_extracted/**)",
+      "Read(./docs/_archive/**)"
+    ],
     "allow": [
       "PowerShell(npx tsc *)",
       "PowerShell(npm run lint)",
       "PowerShell(npm run test:run)",
       "PowerShell(npm run build)",
-      "PowerShell(Get-ChildItem *)"
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Set-Location \"C:\\Users\\mjy76\\Documents\\projectFolder\"; git status *)",
+      "PowerShell(Set-Location \"C:\\Users\\mjy76\\Documents\\projectFolder\"; git diff *)",
+      "PowerShell(Set-Location \"C:\\Users\\mjy76\\Documents\\projectFolder\"; git log *)",
+      "PowerShell(Set-Location \"C:\\Users\\mjy76\\Documents\\projectFolder\\client\"; npx tsc *)",
+      "PowerShell(Set-Location \"C:\\Users\\mjy76\\Documents\\projectFolder\"; npm run test:run *)",
+      "PowerShell(netstat -an *)"
     ]
   }
 }

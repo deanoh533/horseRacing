@@ -1,7 +1,7 @@
 # KRA 경마 분석 도구 — Claude 컨텍스트
 
 > 새 세션에서 이 파일을 가장 먼저 읽습니다.
-> 마지막 업데이트: 2026-05-30 (부경 구간 개별 타임 8개 컬럼 추가 + backfill 완료)
+> 마지막 업데이트: 2026-06-01 (핵심 이슈 섹션 SSOT 링크화 — 항목 상태는 TODO.md·score_roadmap.md 단일 출처)
 
 ---
 
@@ -19,7 +19,7 @@ KRA(한국마사회) 출마정보를 한 화면에 비교하고, 21개 항목 �
    ① 수집              ② 점수화           ③ 학습              ④ 검증
 ┌─────────────┐    ┌─────────────┐   ┌─────────────┐    ┌─────────────┐
 │  KRA Open   │ →  │ ScoreEngine │ → │WeightLearner│ →  │  적중률 통계 │
-│    API      │    │ 18 항목     │   │ Spearman ρ  │    │ 단/연/복승, │
+│    API      │    │ 21 항목     │   │ Spearman ρ  │    │ 단/연/복승, │
 │             │    │ raw 0~1     │   │ → 가중치    │    │ TOP3 교집합 │
 └─────────────┘    └─────────────┘   └─────────────┘    └─────────────┘
        ↓                 ↓                  ↓                  ↑
@@ -129,7 +129,7 @@ npm run test:run     # vitest 단위 테스트
 - [docs/data_lifecycle.md](docs/data_lifecycle.md) — 출마표 발표·결과 도착 시점
 
 ### 알고리즘·예측
-- [docs/score_algorithm.md](docs/score_algorithm.md) — 18 항목 알고리즘 + 수정 가이드
+- [docs/score_algorithm.md](docs/score_algorithm.md) — 알고리즘 흐름 + **수정 가이드** (항목 목록·비중·산식은 roadmap·score_items 위임)
 - [docs/score_roadmap.md](docs/score_roadmap.md) — **평가항목 고도화 로드맵** (클린 슬레이트 비교·변경 이력 Living Doc)
 - [docs/prediction_mode.md](docs/prediction_mode.md) — 사전/사후 데이터 소스 차이
 - [docs/accuracy_metrics.md](docs/accuracy_metrics.md) — 적중률 4개 지표 정의
@@ -163,39 +163,15 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
-> **2026-05-28 T-016 가중치 재학습 완료** → 단승 32.5% / 연승 52.8% / 복승 65.9% (⑲ SEALED + ⑨b⑩b 반영)
+> **최신 적중률 (2026-05-28 T-016 재학습 기준):** 단승 32.5% / 연승 52.8% / 복승 65.9%
 
-**완료된 작업 (2026-05-30~31):**
-- ✅ 예상지 로딩 스켈레톤 (U-001) — Loader2 스피너 → 4열 구조 HorseCardSkeleton 8개 (데스크탑 2fr/1.2fr/3fr/2fr, 모바일 막대형)
-- ✅ RaceEntries JockeyPanel 개선 — 조합이력·최근 3개월 단승/연/복 성적
-- ✅ RaceEntries HorsePanel 개선 — 구간기록 서브행·같은거리기록·조교·진료 표시
-- ✅ `lib/sectional.ts` 공통 유틸 분리 — getSectionalInfo·fmtSec·computeSameDistStats (PredictionSheet·RaceEntries 공유)
-- ✅ API4_3 vs API214_1 전수 비교 — API214_1이 필드 더 많음 (교체 불필요). 상세: docs/kra_api_quirks.md Quirk 8
-- ✅ 부경 구간 개별 타임 8개 컬럼 신설 (`bu_s1f_time`, `bu_1fg_time`~`bu_10_8f_time`) + backfill 완료
+항목별 상태(완료/진행/ρ 값/개선 후보)는 아래 문서가 **단일 출처(SSOT)**입니다. 여기에 중복 기재하지 않습니다.
 
-**완료된 작업 (2026-05-28):**
-- ✅ ①레이팅 경주 내 percentile 재설계 (T-015)
-- ✅ ⑦④ SEALED (ρ 역상관), blendWeights alpha=1.0 직접 매핑
-- ✅ ⑨b 기수 최근 3개월 단승률 (ρ=0.201), ⑩b 조교사 최근 3개월 복승률 (ρ=0.144) 신규
-- ✅ ⑲ 주행성향×페이스 구현 완료 — 단, 실측 ρ=-0.010 (weight=0). 스코어맵이 한국 실측과 역전됨. 데이터 50k+ 후 재설계 예정.
+- **할일·우선순위** → [TODO.md](TODO.md) (P0~P3 + 런치 게이팅 + 의문 Q)
+- **21항목 ρ·가중치·개선 상태** → [docs/score_roadmap.md](docs/score_roadmap.md) (Living Doc, §1 마스터 상태표)
+- **의문·검토 중** → [docs/troubleshooting.md](docs/troubleshooting.md)
 
-**현재 주요 ρ (2026-05-28 측정, n=37k+):**
-
-| 항목 | ρ | 비고 |
-|---|---|---|
-| ⑥ 거리적성 | 0.565 | 1위 |
-| ⑤ 후반순위 | 0.347 | 2위 |
-| ⑧ 부담중량 | 0.316 | 핸디캡=능력proxy, 산식 개선 여지 |
-| ③ 최근형 | 0.290 | |
-| ⑱ 수득상금 | 0.256 | |
-| ⑨b 기수 최근폼 | 0.201 | 신규, 통산(0.137)보다 강함 |
-| ⑲ 주행성향×페이스 | -0.010 | weight=0, 스코어맵 재설계 대기 |
-
-**다음 개선 후보:**
-- ⑧ 부담중량 산식 고도화 (ρ=0.316, 전문가 자문 대기)
-- ⑲ 스코어맵 재설계 (도주+HOT 실측 21%, 추입+HOT 실측 4% — 서양 이론과 역전)
-
-→ 자세한 건 [TODO.md](TODO.md) P0 섹션 / [docs/troubleshooting.md](docs/troubleshooting.md)
+> 현재 최우선 개선 후보: ⑧ 부담중량 산식(ρ=0.316, 자문 대기) · ⑲ 스코어맵 재설계(한국 실측 역전). 상세는 위 문서 참조.
 
 ---
 

@@ -114,7 +114,7 @@ CLAUDE.md에 명시된 규칙 + 이번 세션에서 확인된 패턴.
 - 작업 단위(Step 1, Phase 1, Step 2 등) 끝나면 즉시 커밋·푸쉬.
 - 커밋 메시지: 한국어, scope 포함 (`feat(score)`, `fix(score)`, `docs:`, `feat(view)`, `feat(ui)`).
 - 커밋 메시지에 **변경 의도 + 다음 단계** 적기 (히스토리에서 맥락 보이도록).
-- 커밋 끝: `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`
+- 커밋 끝: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 
 ### SQL 협업
 

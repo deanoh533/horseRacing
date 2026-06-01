@@ -170,7 +170,7 @@ export interface ParsedWeight {
 }
 
 // ============================================
-// 20개 항목 ID
+// 21개 항목 ID
 // ============================================
 
 export const SCORE_ITEM_IDS = [
@@ -202,7 +202,7 @@ export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
 /** 별칭 (간결한 이름) */
 export type ItemId = ScoreItemId;
 
-/** 20개 항목 비중 (총 100점) — 2026-05-28 Spearman ρ 기반 재조정 + ⑨b⑩b + ⑲ 추가 */
+/** 21개 항목 비중 (총 100점) — 2026-05-28 Spearman ρ 기반 재조정 + ⑨b⑩b + ⑲ 추가 */
 export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '01_rating': 6.00,           // ratg 17.8% 공백 → 데이터 복구 후 재측정 예정
   '02_weight_change': 0.50,    // 1.00 → 0.50 (⑲ 신설 재원 조정)
@@ -227,7 +227,7 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '19_running_style_pace': 3.50, // ⑲ 주행성향×페이스 신규 (한국경마 최대 미반영 신호)
 };
 
-/** 20개 항목 한국어 이름 */
+/** 21개 항목 한국어 이름 */
 export const ITEM_NAMES: Record<ScoreItemId, string> = {
   '01_rating': '레이팅',
   '02_weight_change': '마체중 변화',

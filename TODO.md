@@ -94,7 +94,7 @@
 
 ## 🟢 P2 — 정리·기술 부채
 
-- [ ] **T-004 "17개" 주석 → "18개"** (index.ts, types/index.ts)
+- [x] **T-004 항목 수 주석 통일 → "21개"** — 2026-06-01 완료. 정본=전체 스코러 21개(01~19+09b+10b). index.ts(17개)·types/index.ts(20개) 3중 불일치 해소. CLAUDE.md·troubleshooting.md 정합.
 - [x] **T-006 race_cards, horse_results, sectional_records DROP** — 2026-05-31 완료. 마이그레이션 009 + 코드 정리 (sectionalSync 삭제, transformer/queries/supabase 타입 제거, scripts race_entries 교체).
 - [x] **T-007 scripts/probe_*.ts 정리** — 2026-05-30 완료. probe 결과 → docs/kra_api_quirks.md Quirk 6·7 추가. 스크립트 삭제.
 - [ ] **T-009 적중률 분리 (출전마수·경마장·등급별)**

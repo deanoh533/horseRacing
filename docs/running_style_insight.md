@@ -225,14 +225,16 @@ multiplier = 0.7 + frontRunSuccessRate × 0.6  // 0.7 ~ 1.3
 
 ---
 
-## ⏭ 다음 작업 (새 세션 인계용)
+## ⏭ 다음 작업 (당시 계획 기록 — 史料)
 
-**현재 위치:** Step 2 검증 완료. 옵션 C 평가 요소 반영 계획에서 ⑤ 끝남. 다음은 ⑥부터.
+> ✅ **2026-05-28 이후 업데이트:** 아래 ⑤⑥⑫⑲ 모두 **완료**됐습니다. ⑲는 구현됐으나 실측 ρ=-0.010으로 weight=0 (스코어맵 재설계만 대기 — [project_running_style_pace_map] 참조). probe 스크립트 정리(T-007)도 완료. 이 섹션은 당시 진행 계획을 남긴 사료이며, 현재 상태는 [TODO.md](../TODO.md)·[score_roadmap.md](score_roadmap.md)가 SSOT.
 
-1. **⑥ 거리 적성 확장** (1순위) — `horse_running_style_by_distance` 활용
-2. **⑫ 출발번호 보강** (2순위) — 성향별 multiplier 차등
-3. **⑲ 신규 항목** (3순위) — 경주 페이스 vs 말 성향 매칭. **가중치 재정규화 필요**
-4. **probe 스크립트 정리** (T-007): scripts/probe_*.ts 10개 → `scripts/probes/` 이동 또는 .gitignore
+**당시(2026-05-27) 위치:** Step 2 검증 완료. 옵션 C 평가 요소 반영 계획에서 ⑤ 끝남. 다음은 ⑥부터.
+
+1. **⑥ 거리 적성 확장** (1순위) — `horse_running_style_by_distance` 활용 → ✅ 완료
+2. **⑫ 출발번호 보강** (2순위) — 성향별 multiplier 차등 → ✅ 완료
+3. **⑲ 신규 항목** (3순위) — 경주 페이스 vs 말 성향 매칭 → ✅ 구현 완료 (weight=0, 스코어맵 재설계 대기)
+4. **probe 스크립트 정리** (T-007) → ✅ 완료
 
 각 작업의 사이클: 알고리즘 변경 → 테스트 → 커밋·푸쉬 → 사용자 `npm run backfill` → 검증 SQL → 다음.
 
