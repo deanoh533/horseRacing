@@ -105,6 +105,7 @@ async function fetchTestPredictions(sb: SupabaseClient): Promise<PredRow[]> {
       .select('race_date, meet, rc_no, hr_name, item_scores, actual_ord')
       .gte('race_date', qStart(FIRST_TEST.year, FIRST_TEST.q))
       .not('actual_ord', 'is', null)
+      .order('race_date').order('meet').order('rc_no').order('hr_name') // 페이지 경계 누락/중복 방지
       .range(off, off + PAGE - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -124,6 +125,7 @@ async function fetchWinOddsMap(sb: SupabaseClient): Promise<Map<string, number>>
       .select('race_date, meet, rc_no, hr_name, win_odds')
       .gte('race_date', qStart(FIRST_TEST.year, FIRST_TEST.q))
       .not('ord', 'is', null)
+      .order('race_date').order('meet').order('rc_no').order('hr_name') // 페이지 경계 누락/중복 방지
       .range(off, off + PAGE - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
