@@ -164,7 +164,11 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
-> **최신 적중률 (2026-05-28 T-016 재학습 기준):** 단승 32.5% / 연승 52.8% / 복승 65.9%
+> **2026-06-02 — 가중치 버전관리 도입 + 치팅 누수 수정 완료** (main 배포)
+> - ⑤⑥⑫⑲가 전역 뷰로 "예측 대상 경주 결과"까지 평균에 넣던 **look-ahead 누수** 수정(`src/engine/asOfHorseStats.ts`, as-of 재계산). **옛 적중률(단32.5/연52.8/복65.9)은 누수 포함 거짓** — 정직값 복승 ~58%.
+> - 라이브 예측은 코드 상수가 아니라 **`model_versions` 활성행 가중치** 사용, predictions에 `model_version` 도장(결과 확정 후 동결). v1=기준선(활성)·v2=2024학습 후보.
+> - 도구: `npm run walkforward`(검증)·`learn:candidate`(후보)·`promote`(승격)·`build:rho-history`(ρ이력). **`npm run backfill`(전체)는 과거 동결 무시 덮어쓰기 주의.**
+> - 상세·다음단계(미완: v2 승격, Stage C Phase 2b, 새 항목): 메모리 [[weight-versioning-design]] + `~/.claude/plans/reflective-honking-brooks.md`
 
 항목별 상태(완료/진행/ρ 값/개선 후보)는 아래 문서가 **단일 출처(SSOT)**입니다. 여기에 중복 기재하지 않습니다.
 
