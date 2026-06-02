@@ -129,6 +129,34 @@ export function useActiveModelVersion() {
   });
 }
 
+export interface ModelVersion {
+  id: number;
+  label: string;
+  weights: Record<string, number>;
+  source: string;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+}
+
+/**
+ * 모든 모델 버전 (버전 비교 화면용)
+ */
+export function useModelVersions() {
+  return useQuery({
+    queryKey: ['model-versions'],
+    queryFn: async (): Promise<ModelVersion[]> => {
+      const { data, error } = await supabase
+        .from('model_versions')
+        .select('id, label, weights, source, is_active, notes, created_at')
+        .order('id');
+      if (error) throw error;
+      return (data ?? []) as ModelVersion[];
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 /**
  * 사용자 설정 (인사이트 지표 등)
  */

@@ -8,6 +8,7 @@ import { HorseDetail } from './pages/HorseDetail';
 import { Statistics } from './pages/Statistics';
 import { Settings } from './pages/Settings';
 import { Lab } from './pages/Lab';
+import { VersionCompare } from './pages/VersionCompare';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="/stats" element={<Statistics />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/lab" element={<Lab />} />
+          <Route path="/versions" element={<VersionCompare />} />
         </Route>
       </Routes>
     </BrowserRouter>

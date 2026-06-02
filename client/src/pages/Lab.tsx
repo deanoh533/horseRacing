@@ -8,6 +8,7 @@
  * 진입점: 헤더 "개인 도구" → /lab
  */
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { FlaskConical, RotateCcw, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { useAvailableDates, useRacesByDate, usePredictionsByRace, useHorsesByRace } from '../lib/queries';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
@@ -108,12 +109,17 @@ export function Lab() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center gap-2">
-        <FlaskConical className="w-5 h-5 text-[var(--color-accent-cyan)]" />
-        <h1 className="text-lg font-semibold">실험실</h1>
-        <span className="text-xs text-[var(--color-text-disabled)]">
-          판단항목 가중치 실험 · v1 비교
-        </span>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <FlaskConical className="w-5 h-5 text-[var(--color-accent-cyan)]" />
+          <h1 className="text-lg font-semibold">실험실</h1>
+          <span className="text-xs text-[var(--color-text-disabled)]">
+            판단항목 가중치 실험 · v1 비교
+          </span>
+        </div>
+        <Link to="/versions" className="text-xs text-[var(--color-accent-cyan)] hover:underline">
+          버전 비교 →
+        </Link>
       </div>
 
       {/* 경주 선택 */}
