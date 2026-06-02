@@ -164,6 +164,12 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
+> **2026-06-03 — ⑳ 속도능력지수 신규 + 시장 벤치마크** (브랜치 `feat/speed-figure`, 미승격)
+> - **시장 벤치마크 발견:** 모델이 인기1위(win_odds 최저)에 복승 11%p 뒤지고, 엇갈릴 때 22%p 더 틀림(부가가치 음). `walkforward_eval`에 시장·불일치·순위별·묶음 비교 추가.
+> - **⑳ 속도능력지수**(par-time 절대 능력지수, `20_speed_figure`) 추가 → ρ=0.271(정직 4위). 후보 v3: 복승 57.7→61.2(+3.6%p, 6분기 전부 우세), **시장 격차 -11.1→-7.5%p**, 3순위는 시장 추월. **append-only**(v1 weight 0이라 backfill이 기존 점수 불변).
+> - 도구: `npm run walkforward -- --candidate 3`(검증), `scripts/probe_speed_figure.ts`(분포), `backfill_speed_figure.ts`(키-추가). 상세: `docs/superpowers/specs/2026-06-03-speed-figure-design.md` + 메모리 [[project-market-benchmark]]·[[project-speed-figure]].
+> - **다음 결정:** v3 승격 여부(사람 판단). 미완: 함수율·날씨 보정, ⑲ 재설계, 더 강한 항목 탐색.
+>
 > **2026-06-02 — 가중치 버전관리 도입 + 치팅 누수 수정 완료** (main 배포)
 > - ⑤⑥⑫⑲가 전역 뷰로 "예측 대상 경주 결과"까지 평균에 넣던 **look-ahead 누수** 수정(`src/engine/asOfHorseStats.ts`, as-of 재계산). **옛 적중률(단32.5/연52.8/복65.9)은 누수 포함 거짓** — 정직값 복승 ~58%.
 > - 라이브 예측은 코드 상수가 아니라 **`model_versions` 활성행 가중치** 사용, predictions에 `model_version` 도장(결과 확정 후 동결). v1=기준선(활성)·v2=2024학습 후보.
