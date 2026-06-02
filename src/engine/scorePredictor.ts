@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
 import { getActiveModelVersion } from './modelVersion.js';
 import { fetchAsOfHorseStats, distCategoryOf, type AsOfHorseStats } from './asOfHorseStats.js';
+import { loadParMap } from './speedFigure.js';
 
 interface EntryRow {
   race_date: number;
@@ -118,12 +119,13 @@ export async function predictRace(
     trackType = race?.track_type ?? null;
   }
 
-  // ⑤⑥⑫⑲ 통계: 누수 방지 as-of(말별 과거 경주만) 사전 패스 — 전역 뷰 미사용
+  // ⑤⑥⑫⑲⑳ 통계: 누수 방지 as-of(말별 과거 경주만) 사전 패스 — 전역 뷰 미사용
   const distCat = distCategoryOf(rcDist ?? 1600);
+  const parMap = await loadParMap(sb); // ⑳ par-time 기준표 (1회 로드)
   const asOfMap = new Map<string, AsOfHorseStats>();
   await Promise.all(
     entryList.map(async (e) => {
-      asOfMap.set(e.hr_name, await fetchAsOfHorseStats(sb, e.hr_name, rcDate, distCat));
+      asOfMap.set(e.hr_name, await fetchAsOfHorseStats(sb, e.hr_name, rcDate, distCat, parMap));
     })
   );
   // paceType(⑲)도 as-of position_ratio 기반 → 누수 제거
@@ -378,6 +380,7 @@ async function buildEngineInput(
     runningStyleAvgRatio: styleMap.get(e.hr_name)?.avg ?? null,
     runningStyleStddev: styleMap.get(e.hr_name)?.std ?? null,
     paceType,
+    speedFigureAbilityRaw: asOf.speedFigureAbilityRaw,
   };
 }
 
