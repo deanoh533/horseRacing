@@ -9,10 +9,10 @@
 
 /** 최근 N경주 figure 평균 윈도우 (튜닝 대상) */
 export const SPEED_FIGURE_N = 5;
-/** 매핑 하한 (probe p5로 확정 예정 — 임시값) */
-export const SPEED_FIGURE_LO = 0.93;
-/** 매핑 상한 (probe p95로 확정 예정 — 임시값) */
-export const SPEED_FIGURE_HI = 1.02;
+/** 매핑 하한 = 전역 abilityRaw p5 (probe 2026-06-03, n=4318) */
+export const SPEED_FIGURE_LO = 0.939;
+/** 매핑 상한 = 전역 abilityRaw p95 (probe 2026-06-03, n=4318) */
+export const SPEED_FIGURE_HI = 1.005;
 
 export interface SpeedFigureInput {
   /** 최근 N경주 figure 평균 (as-of). null = 이력 없음 */
