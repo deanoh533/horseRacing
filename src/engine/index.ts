@@ -42,6 +42,7 @@ import {
   calculateRunningStylePaceScore,
   type PaceType,
 } from './scoreItems/19_running_style_pace.js';
+import { calculateSpeedFigureScore } from './scoreItems/20_speed_figure.js';
 
 /**
  * 점수 계산을 위한 입력 데이터
@@ -134,6 +135,9 @@ export interface ScoreEngineInput {
   runningStyleAvgRatio?: number | null;
   runningStyleStddev?: number | null;
   paceType?: PaceType;
+
+  // ⑳ 속도능력지수 (as-of figure 평균)
+  speedFigureAbilityRaw?: number | null;
 }
 
 /**
@@ -333,6 +337,12 @@ export class ScoreEngine {
         stddevPositionRatio: input.runningStyleStddev ?? null,
         paceType: input.paceType ?? 'NORMAL',
       })
+    );
+
+    // ⑳ 속도능력지수
+    items['20_speed_figure'] = this.make(
+      '20_speed_figure',
+      calculateSpeedFigureScore({ abilityRaw: input.speedFigureAbilityRaw ?? null })
     );
 
     // 종합 점수
