@@ -5,7 +5,8 @@
  * 나은가"를 후보가 안 본 구간에서 채점한다.
  *
  * 블록: 2024 = 부트스트랩(학습 전용, 테스트 안 함), 2025-Q1부터 분기별 테스트.
- * 지표: 1순위 예측마의 단/연/복 (apply_learned_weights와 동일 정의, 복승 우선).
+ * 지표: 1순위 예측마의 단승(1착)·연승(3착 내). 연승(ord≤3) 우선.
+ *   (주의: 단일마 지표라 "연승"이 맞다. 진짜 복승/복연승/삼복승은 2~3마리 다마리 베팅 → 묶음 분석 참고)
  *
  * 사용:
  *   npm run walkforward                  # 경우 A: 분기마다 ρ 재학습 후보 vs 챔피언
@@ -177,7 +178,8 @@ async function main() {
       `${fixedCandidate ? `, 후보=${fixedCandidate.label}(고정)` : ', 후보=ρ재학습(블록별)'}`
   );
   console.log('='.repeat(76));
-  console.log('블록      | 복승 챔/후       | 단승 챔/후       | 연승 챔/후       | 경주');
+  // 단일마 1순위 픽 기준: 연승=3착 내(ord≤3), 단승=1착(ord==1), 2착내=ord≤2(참고, 단일마 베팅명 없음)
+  console.log('블록      | 연승 챔/후       | 단승 챔/후       | 2착내 챔/후      | 경주');
   console.log('-'.repeat(76));
 
   const cumChamp = emptyTally();
@@ -187,7 +189,7 @@ async function main() {
   // 불일치 구간(챔피언 1순위 ≠ 인기1위)에서 챔피언픽 vs 인기픽
   const disModel = emptyTally();
   const disFav = emptyTally();
-  // ① 순위별 복승: 모델/시장의 1·2·3순위 픽이 실제 top3에 든 횟수 (챔피언 기준)
+  // ① 순위별 연승: 모델/시장의 1·2·3순위 픽이 실제 top3(3착 내)에 든 횟수 (챔피언 기준)
   const rankModel = [0, 0, 0].map(() => ({ hit: 0, n: 0 }));
   const rankMkt = [0, 0, 0].map(() => ({ hit: 0, n: 0 }));
   // ② 상위3 묶음 교집합: 모델/시장 상위3마리가 실제 top3를 몇 마리 잡나 (합산 / 경주수)
@@ -226,7 +228,7 @@ async function main() {
         addRace(disModel, champPick.actual_ord);
         addRace(disFav, favPick.actual_ord);
       }
-      // ① 순위별 복승 (1·2·3순위 픽이 실제 top3에 들었나)
+      // ① 순위별 연승 (1·2·3순위 픽이 실제 top3=3착 내에 들었나)
       for (let k = 0; k < 3; k++) {
         const mh = champOrder[k];
         if (mh) { rankModel[k].n++; if (isShow(mh.actual_ord)) rankModel[k].hit++; }
@@ -263,33 +265,33 @@ async function main() {
   );
   if (v1 && v1.id !== champion.id) {
     console.log(
-      `(v1 추세) 복승 ${pct(cumV1.show, cumV1.n)} / 단승 ${pct(cumV1.win, cumV1.n)} / 연승 ${pct(cumV1.place, cumV1.n)}`
+      `(v1 추세) 연승 ${pct(cumV1.show, cumV1.n)} / 단승 ${pct(cumV1.win, cumV1.n)} / 2착내 ${pct(cumV1.place, cumV1.n)}`
     );
   }
 
   // ① 시장 벤치마크 (인기1위 = win_odds 최저) — 같은 경주 집합, 상시 잣대
   console.log('-'.repeat(76));
   console.log(
-    `[시장] 인기1위 — 복승 ${pct(cumMkt.show, cumMkt.n)} / 단승 ${pct(cumMkt.win, cumMkt.n)} / 연승 ${pct(cumMkt.place, cumMkt.n)}  (n=${cumMkt.n})`
+    `[시장] 인기1위 — 연승 ${pct(cumMkt.show, cumMkt.n)} / 단승 ${pct(cumMkt.win, cumMkt.n)} / 2착내 ${pct(cumMkt.place, cumMkt.n)}  (n=${cumMkt.n})`
   );
   if (cumChamp.n > 0 && cumMkt.n > 0) {
     const d = ((cumChamp.show / cumChamp.n) - (cumMkt.show / cumMkt.n)) * 100;
-    console.log(`  → 챔피언 복승 − 시장 복승 = ${d >= 0 ? '+' : ''}${d.toFixed(1)}%p  ${d >= 0 ? '(시장 우위)' : '(시장에 뒤짐)'}`);
+    console.log(`  → 챔피언 연승 − 시장 연승 = ${d >= 0 ? '+' : ''}${d.toFixed(1)}%p  ${d >= 0 ? '(시장 우위)' : '(시장에 뒤짐)'}`);
   }
 
   // ② 불일치 구간 — "군중과 다르게 갈 때 맞히나"
   console.log('-'.repeat(76));
   console.log(`[불일치] 챔피언 1순위 ≠ 인기1위인 경주: ${disModel.n}건 (전체 ${cumChamp.n}건 중 ${pct(disModel.n, cumChamp.n)}%)`);
   if (disModel.n > 0) {
-    console.log(`  챔피언픽  복승 ${pct(disModel.show, disModel.n)} / 단승 ${pct(disModel.win, disModel.n)} / 연승 ${pct(disModel.place, disModel.n)}`);
-    console.log(`  인기픽    복승 ${pct(disFav.show, disFav.n)} / 단승 ${pct(disFav.win, disFav.n)} / 연승 ${pct(disFav.place, disFav.n)}`);
+    console.log(`  챔피언픽  연승 ${pct(disModel.show, disModel.n)} / 단승 ${pct(disModel.win, disModel.n)} / 2착내 ${pct(disModel.place, disModel.n)}`);
+    console.log(`  인기픽    연승 ${pct(disFav.show, disFav.n)} / 단승 ${pct(disFav.win, disFav.n)} / 2착내 ${pct(disFav.place, disFav.n)}`);
     const edge = ((disModel.show / disModel.n) - (disFav.show / disFav.n)) * 100;
-    console.log(`  → 엇갈릴 때 복승 우위: ${edge >= 0 ? '+' : ''}${edge.toFixed(1)}%p  ${edge >= 0 ? '(모델이 시장보다 나음 = 부가가치 O)' : '(모델이 시장보다 못함 = 부가가치 X)'}`);
+    console.log(`  → 엇갈릴 때 연승 우위: ${edge >= 0 ? '+' : ''}${edge.toFixed(1)}%p  ${edge >= 0 ? '(모델이 시장보다 나음 = 부가가치 O)' : '(모델이 시장보다 못함 = 부가가치 X)'}`);
   }
 
-  // ① 순위별 복승 — 1·2·3순위 픽이 실제 top3에 들 확률 (챔피언 기준)
+  // ① 순위별 연승 — 1·2·3순위 픽이 실제 top3(3착 내)에 들 확률 (챔피언 기준)
   console.log('-'.repeat(76));
-  console.log('[순위별 복승] 1·2·3순위 픽이 실제 3등 안에 든 비율 (챔피언 기준)');
+  console.log('[순위별 연승] 1·2·3순위 픽이 실제 3등 안에 든 비율 (챔피언 기준)');
   console.log(`         | 1순위  | 2순위  | 3순위`);
   console.log(`  모델   | ${pct(rankModel[0].hit, rankModel[0].n).padStart(5)} | ${pct(rankModel[1].hit, rankModel[1].n).padStart(5)} | ${pct(rankModel[2].hit, rankModel[2].n).padStart(5)}`);
   console.log(`  시장   | ${pct(rankMkt[0].hit, rankMkt[0].n).padStart(5)} | ${pct(rankMkt[1].hit, rankMkt[1].n).padStart(5)} | ${pct(rankMkt[2].hit, rankMkt[2].n).padStart(5)}`);
@@ -305,12 +307,12 @@ async function main() {
     console.log(`  → 묶음 우위: ${d >= 0 ? '+' : ''}${d.toFixed(2)}마리  ${d >= 0 ? '(모델이 시장보다 잘 잡음)' : '(시장이 더 잘 잡음)'}`);
   }
 
-  // 노이즈 경고 (복승 기준, 대략 95% 신뢰구간)
+  // 노이즈 경고 (연승=ord≤3 기준, 대략 95% 신뢰구간)
   if (cumCand.n > 0 && cumChamp.n > 0) {
     const diff = ((cumCand.show / cumCand.n) - (cumChamp.show / cumChamp.n)) * 100;
     const p = cumChamp.show / cumChamp.n;
     const se = Math.sqrt((p * (1 - p)) / cumCand.n) * 100 * 1.96;
-    console.log(`\n복승 차이(후보-챔피언): ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%p  |  대략 95% 표본오차 ±${se.toFixed(1)}%p`);
+    console.log(`\n연승 차이(후보-챔피언): ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%p  |  대략 95% 표본오차 ±${se.toFixed(1)}%p`);
     console.log(
       Math.abs(diff) > se
         ? '→ 오차 범위 밖: 유의미할 수 있음 (그래도 사람이 최종 판단)'
