@@ -9,6 +9,8 @@
  *    현재 경주가 자동 제외되어 누수가 사라진다.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { parBucketKey, raceSpeedFigure, computeAbilityRaw } from './speedFigure.js';
+import { SPEED_FIGURE_N } from './scoreItems/20_speed_figure.js';
 
 export type DistCategory = 'short' | 'middle' | 'long';
 
@@ -24,6 +26,7 @@ export interface AsOfHorseStats {
   stddevPositionRatio: number | null; // ⑫⑲
   frontRunSuccessRate: number | undefined; // ⑤
   distFinishRatio: number | null; // ⑥ (현재 경주 거리 카테고리 한정)
+  speedFigureAbilityRaw: number | null; // ⑳ 최근 N경주 figure 평균
 }
 
 // 뷰의 HAVING 임계와 동일
@@ -35,6 +38,7 @@ const EMPTY: AsOfHorseStats = {
   stddevPositionRatio: null,
   frontRunSuccessRate: undefined,
   distFinishRatio: null,
+  speedFigureAbilityRaw: null,
 };
 
 export function distCategoryOf(dist: number | null | undefined): DistCategory | null {
@@ -87,7 +91,7 @@ export function computeAsOfHorseStats(
     if (fins.length >= MIN_RACES_DIST) distFinishRatio = mean(fins);
   }
 
-  return { avgPositionRatio, stddevPositionRatio, frontRunSuccessRate, distFinishRatio };
+  return { avgPositionRatio, stddevPositionRatio, frontRunSuccessRate, distFinishRatio, speedFigureAbilityRaw: null };
 }
 
 function mean(a: number[]): number {
@@ -108,11 +112,12 @@ export async function fetchAsOfHorseStats(
   sb: SupabaseClient,
   hrName: string,
   beforeDate: number,
-  currentDistCategory: DistCategory | null
+  currentDistCategory: DistCategory | null,
+  parMap: Map<string, number>
 ): Promise<AsOfHorseStats> {
   const { data: pastRaw } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, ord, rc_dist, sj_s1f_ord, bu_s1f_ord')
+    .select('race_date, meet, rc_no, ord, rc_dist, track_type, rc_time, sj_s1f_ord, bu_s1f_ord')
     .eq('hr_name', hrName)
     .lt('race_date', beforeDate)
     .not('ord', 'is', null)
@@ -120,7 +125,8 @@ export async function fetchAsOfHorseStats(
     .limit(60);
   const past = (pastRaw ?? []) as Array<{
     race_date: number; meet: number; rc_no: number; ord: number | null;
-    rc_dist: number | null; sj_s1f_ord: number | null; bu_s1f_ord: number | null;
+    rc_dist: number | null; track_type: string | null; rc_time: number | null;
+    sj_s1f_ord: number | null; bu_s1f_ord: number | null;
   }>;
   if (past.length === 0) return { ...EMPTY };
 
@@ -148,5 +154,16 @@ export async function fetchAsOfHorseStats(
     fieldSize: fsMap.get(`${r.race_date}-${r.meet}-${r.rc_no}`) ?? 0,
     distCategory: distCategoryOf(r.rc_dist),
   }));
-  return computeAsOfHorseStats(races, currentDistCategory);
+  const base = computeAsOfHorseStats(races, currentDistCategory);
+
+  // ⑳ 속도능력지수: par 조인 → 최신순 figure → 최근 N평균 (past는 race_date desc 정렬)
+  const figs: number[] = [];
+  for (const r of past) {
+    if (r.rc_time == null || r.rc_dist == null || r.track_type == null) continue;
+    const par = parMap.get(parBucketKey(r.meet, r.rc_dist, r.track_type));
+    if (par == null) continue;
+    const f = raceSpeedFigure(r.rc_time, par);
+    if (f != null) figs.push(f);
+  }
+  return { ...base, speedFigureAbilityRaw: computeAbilityRaw(figs, SPEED_FIGURE_N) };
 }
