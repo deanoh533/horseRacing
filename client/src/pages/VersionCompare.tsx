@@ -17,6 +17,11 @@ export function VersionCompare() {
   const { data: correlations } = useLatestCorrelations();
 
   const v1 = useMemo(() => versions?.find((v) => v.label === 'v1') ?? null, [versions]);
+  // 비교 대상 = v1이 아닌 버전 중 가장 최신(id 최대). Δ = 이 후보 − v1.
+  const compareVer = useMemo(() => {
+    const cands = (versions ?? []).filter((v) => v.label !== 'v1');
+    return cands.length ? cands.reduce((a, b) => (b.id > a.id ? b : a)) : null;
+  }, [versions]);
 
   // 항목 목록 = 표준 21개 ∪ 버전들이 쓰는 항목(미래 새 항목 대비), ρ 내림차순
   const itemIds = useMemo(() => {
@@ -92,16 +97,17 @@ export function VersionCompare() {
                   {v.label}
                 </th>
               ))}
-              {v1 && <th className="text-right font-medium px-2 py-2">Δ(활성−v1)</th>}
+              {v1 && compareVer && (
+                <th className="text-right font-medium px-2 py-2">Δ({compareVer.label}−v1)</th>
+              )}
             </tr>
           </thead>
           <tbody className="font-mono-num">
             {itemIds.map((id) => {
               const r = rho[id];
-              const active = versions.find((v) => v.is_active);
               const v1w = v1?.weights?.[id] ?? 0;
-              const activeW = active?.weights?.[id] ?? 0;
-              const delta = activeW - v1w;
+              const cmpW = compareVer?.weights?.[id] ?? 0;
+              const delta = cmpW - v1w;
               const bigDiff = Math.abs(delta) >= 3;
               return (
                 <tr key={id} className="border-b border-[var(--color-bg-elevated)]/40">
@@ -131,7 +137,7 @@ export function VersionCompare() {
                       {fmtW(v.weights?.[id])}
                     </td>
                   ))}
-                  {v1 && (
+                  {v1 && compareVer && (
                     <td
                       className={`text-right px-2 py-1.5 ${
                         delta > 0
