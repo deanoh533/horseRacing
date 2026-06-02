@@ -195,6 +195,7 @@ export const SCORE_ITEM_IDS = [
   '17_market_odds',
   '18_earnings',
   '19_running_style_pace',
+  '20_speed_figure',
 ] as const;
 
 export type ScoreItemId = typeof SCORE_ITEM_IDS[number];
@@ -225,6 +226,7 @@ export const ITEM_WEIGHTS: Record<ScoreItemId, number> = {
   '17_market_odds': 3.00,       // ρ=0.109, 순환참조 이슈
   '18_earnings': 3.00,          // erng_sump 공백 → 데이터 복구 후 재측정 예정
   '19_running_style_pace': 3.50, // ⑲ 주행성향×페이스 신규 (한국경마 최대 미반영 신호)
+  '20_speed_figure': 0,          // v1 미적용. 후보 버전에서 ρ로 가중치 결정
 };
 
 /** 21개 항목 한국어 이름 */
@@ -250,6 +252,7 @@ export const ITEM_NAMES: Record<ScoreItemId, string> = {
   '17_market_odds': '배당률',
   '18_earnings': '수득상금',
   '19_running_style_pace': '주행성향×페이스',
+  '20_speed_figure': '속도능력지수',
 };
 
 /** 본인이 평소 중시하는 4대 핵심 분석 영역 (UI 강조용) */
