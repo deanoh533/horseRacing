@@ -44,3 +44,22 @@ describe('buildFeatures — 연속형 raw', () => {
     expect(val({ ...base, intervalDays: 21 }, 'interval_days')).toBe(21);
   });
 });
+
+describe('buildFeatures — count·missing·one-hot', () => {
+  it('표본수 feature를 동반한다', () => {
+    expect(val({ rating: 0, jockeyRecentOrds: [1, 2, 3] }, 'jockey_recent_n')).toBe(3);
+  });
+  it('거리적성 결측이면 missing 플래그=1', () => {
+    expect(val({ rating: 0 }, 'dist_finish_ratio__missing')).toBe(1);
+  });
+  it('거리적성 있으면 missing 플래그=0', () => {
+    expect(val({ rating: 0, distFinishRatio: 0.3 }, 'dist_finish_ratio__missing')).toBe(0);
+  });
+  it('성별 one-hot', () => {
+    expect(val({ rating: 0, sex: '암' }, 'sex_mare')).toBe(1);
+    expect(val({ rating: 0, sex: '수' }, 'sex_mare')).toBe(0);
+  });
+  it('페이스 one-hot', () => {
+    expect(val({ rating: 0, paceType: 'HOT' }, 'pace_hot')).toBe(1);
+  });
+});
