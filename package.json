@@ -27,7 +27,8 @@
     "client:build": "cd client && npm run build",
     "sync:sectional": "tsx src/sync/sectionalSync.ts",
     "sync:training": "tsx src/sync/trainingSync.ts",
-    "sync:jockey": "tsx src/sync/jockeySync.ts"
+    "sync:jockey": "tsx src/sync/jockeySync.ts",
+    "extract:matrix": "tsx scripts/extract_training_matrix.ts"
   },
   "engines": {
     "node": ">=20.0.0"

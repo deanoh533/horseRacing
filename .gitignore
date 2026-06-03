@@ -69,3 +69,6 @@ logs/
 
 # ad-hoc 참고 이미지·스크린샷
 image/
+
+# 학습행렬 추출 결과 (대용량 JSONL)
+data/*.jsonl
