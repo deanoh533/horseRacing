@@ -34,8 +34,9 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   add('rating_abs', input.rating ?? 0);
   if (input.allRaceRatings && input.allRaceRatings.length >= 2 && (input.rating ?? 0) > 0) {
     const rated = input.allRaceRatings.filter((r) => r > 0);
-    const worse = rated.filter((r) => r < input.rating).length;
-    add('rating_rel', rated.length > 1 ? worse / (rated.length - 1) : 0.5);
+    // 01_rating.ts와 동일 의미(동점 포함): 1 - (나보다 높은 비율)
+    const better = rated.filter((r) => r > input.rating).length;
+    add('rating_rel', rated.length > 1 ? 1 - better / (rated.length - 1) : 0.5);
   }
 
   // ③ 착순 추세 (ord5: 과거→최근)
@@ -110,13 +111,13 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   if (input.intervalDays != null) add('interval_days', input.intervalDays);
 
   // ⑫ 출발번호 상대위치 (raw, ⓑ multiplier 제거)
-  if (input.stOrd && input.totalHorses && input.totalHorses > 1) {
+  if (input.stOrd != null && input.totalHorses != null && input.totalHorses > 1) {
     add('gate_relative', (input.totalHorses - input.stOrd) / (input.totalHorses - 1));
   }
-  if (input.rcDist) add('rc_dist', input.rcDist);
+  if (input.rcDist != null) add('rc_dist', input.rcDist);
 
   // ⑬ 나이
-  if (input.age) add('age', input.age);
+  if (input.age != null) add('age', input.age);
 
   // ⑭ 혈통 (raw 평균)
   const ped = input.pedigree ?? {};
@@ -165,6 +166,7 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   missingFlag('speed_ability_raw', input.speedFigureAbilityRaw != null);
   missingFlag('pedigree_dsa_mean', dsa.length > 0);
   missingFlag('style_avg_ratio', input.runningStyleAvgRatio != null);
+  missingFlag('style_stddev', input.runningStyleStddev != null);
 
   // --- 카테고리 one-hot ---
   add('sex_mare', input.sex === '암' ? 1 : 0);

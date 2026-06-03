@@ -43,6 +43,19 @@ describe('buildFeatures — 연속형 raw', () => {
   it('⑪ 경주간격 raw 일수', () => {
     expect(val({ ...base, intervalDays: 21 }, 'interval_days')).toBe(21);
   });
+  it('⑦ track_improvement: 같은 주로에서 더 좋으면(착순 작음) 양수', () => {
+    const input: ScoreEngineInput = { ...base, overallOrds: [5, 6], sameTrackOrds: [2, 3] };
+    // mean(overall)=5.5, mean(sameTrack)=2.5 → +3
+    expect(val(input, 'track_improvement')).toBeCloseTo(3, 5);
+  });
+  it('⑤ late_gain_mean: 출발보다 결승서 전진하면 양수', () => {
+    const input: ScoreEngineInput = {
+      ...base,
+      positions: [{ startOrd: 8, finishOrd: 2, fieldSize: 10 }],
+    };
+    // startRatio=7/9, finishRatio=1/9, gain=6/9>0
+    expect(val(input, 'late_gain_mean')!).toBeGreaterThan(0);
+  });
 });
 
 describe('buildFeatures — count·missing·one-hot', () => {
