@@ -56,6 +56,15 @@ describe('buildFeatures — 연속형 raw', () => {
     // startRatio=7/9, finishRatio=1/9, gain=6/9>0
     expect(val(input, 'late_gain_mean')!).toBeGreaterThan(0);
   });
+  it('② 마체중: 최근 변화량(last)과 기울기 (weightDiffs는 과거→최근)', () => {
+    const input: ScoreEngineInput = { ...base, weightDiffs: [-2, 0, 4] };
+    expect(val(input, 'weight_diff_last')).toBe(4);
+    expect(val(input, 'weight_diff_slope')).toBeGreaterThan(0); // 증가 추세
+  });
+  it('② weightDiffs 없으면 last/slope 미출력, n=0', () => {
+    expect(val({ rating: 0 }, 'weight_diff_last')).toBeUndefined();
+    expect(val({ rating: 0 }, 'weight_diff_n')).toBe(0);
+  });
 });
 
 describe('buildFeatures — count·missing·one-hot', () => {

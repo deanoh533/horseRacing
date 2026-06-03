@@ -39,6 +39,14 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
     add('rating_rel', rated.length > 1 ? 1 - better / (rated.length - 1) : 0.5);
   }
 
+  // ② 마체중 변화 (raw; U자 비단조 버킷은 계획 B)
+  const wd = input.weightDiffs ?? [];
+  if (wd.length > 0) {
+    add('weight_diff_last', wd[wd.length - 1]!);   // 최근 변화량(kg), oldest→recent
+    add('weight_diff_slope', slope(wd));           // 추세 기울기
+  }
+  add('weight_diff_n', (input.weightDiffs ?? []).length);
+
   // ③ 착순 추세 (ord5: 과거→최근)
   const ord5 = input.ord5 ?? [];
   if (ord5.length > 0) {
