@@ -43,12 +43,19 @@ export interface PredictionRow {
   model_version: number | null;   // 이 예측을 만든 활성 버전 도장
 }
 
-export async function predictRace(
+export interface RaceInputRow {
+  hr_name: string;
+  pthr_no: number;
+  ord: number | null;
+  input: ScoreEngineInput;
+}
+
+export async function gatherRaceInputs(
   sb: SupabaseClient,
   rcDate: number,
   meet: number,
   rcNo: number
-): Promise<PredictionRow[]> {
+): Promise<RaceInputRow[]> {
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
@@ -136,34 +143,50 @@ export async function predictRace(
   }
   const paceType = computePaceType(styleMap);
 
-  // 활성 모델 버전 가중치로 엔진 구성 (라이브 = 현재 버전)
-  const activeVersion = await getActiveModelVersion(sb);
-  const engine = new ScoreEngine(activeVersion.weights);
-
-  const results = await Promise.all(
+  const rows = await Promise.all(
     entryList.map(async (e) => {
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
       const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType, asOfMap.get(e.hr_name)!);
       input.erngSump = e.erng_sump ?? undefined;
       input.allRaceRatings = allRaceRatings;
-      const score = engine.calculateScores(input);
-      return { entry: e, score };
+      return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: e.ord, input };
     })
   );
 
+  return rows;
+}
+
+export async function predictRace(
+  sb: SupabaseClient,
+  rcDate: number,
+  meet: number,
+  rcNo: number
+): Promise<PredictionRow[]> {
+  const rows = await gatherRaceInputs(sb, rcDate, meet, rcNo);
+  if (rows.length === 0) return [];
+
+  // 활성 모델 버전 가중치로 엔진 구성 (라이브 = 현재 버전)
+  const activeVersion = await getActiveModelVersion(sb);
+  const engine = new ScoreEngine(activeVersion.weights);
+
+  const results = rows.map((row) => ({
+    row,
+    score: engine.calculateScores(row.input),
+  }));
+
   const sorted = [...results].sort((a, b) => b.score.total - a.score.total);
   const rankMap = new Map<number, number>();
-  sorted.forEach((r, idx) => rankMap.set(r.entry.pthr_no, idx + 1));
+  sorted.forEach((r, idx) => rankMap.set(r.row.pthr_no, idx + 1));
 
   return results.map((r) => ({
     race_date: rcDate,
     meet,
     rc_no: rcNo,
-    hr_name: r.entry.hr_name,
+    hr_name: r.row.hr_name,
     total_score: r.score.total,
-    predicted_rank: rankMap.get(r.entry.pthr_no)!,
+    predicted_rank: rankMap.get(r.row.pthr_no)!,
     item_scores: r.score.items,
-    actual_ord: r.entry.ord,
+    actual_ord: r.row.ord,
     model_version: activeVersion.id,
   }));
 }
