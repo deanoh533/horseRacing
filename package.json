@@ -31,7 +31,9 @@
     "extract:matrix": "tsx scripts/extract_training_matrix.ts",
     "exp:logistic": "tsx scripts/experiment_logistic.ts",
     "probe:edge": "tsx scripts/probe_market_edge.ts",
-    "backtest:value": "tsx scripts/backtest_value_betting.ts"
+    "backtest:value": "tsx scripts/backtest_value_betting.ts",
+    "collect:combo": "tsx scripts/collect_combo_dividends.ts",
+    "backtest:combo": "tsx scripts/backtest_combo_betting.ts"
   },
   "engines": {
     "node": ">=20.0.0"
