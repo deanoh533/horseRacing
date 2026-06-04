@@ -17,8 +17,8 @@ export function itemContributions(
   const byItem: Record<string, number> = {};
   let total = model.intercept;
   model.features.forEach((name, j) => {
-    if (!valByName.has(name)) return;
-    const raw = valByName.get(name)!;
+    // toVector 패리티: 입력에 없는 피처는 raw=0 (학습/오프라인과 동일 처리). skip 금지.
+    const raw = valByName.get(name) ?? 0;
     const z = (raw - model.means[j]!) / model.stds[j]!;
     const contrib = (model.coef[name] ?? 0) * z;
     total += contrib;

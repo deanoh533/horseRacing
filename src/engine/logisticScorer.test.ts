@@ -24,8 +24,10 @@ describe('itemContributions', () => {
     expect(byItem['08_burden_weight']).toBeCloseTo(-0.3, 6);
     expect(byItem['context']).toBeCloseTo(0.1, 6);
   });
-  it('모델에 없는 피처는 무시(스키마=model.features)', () => {
+  it('입력에 없는 모델 피처는 raw=0 처리(toVector 패리티), 스키마 밖 피처는 무시', () => {
+    // 엉뚱(스키마 밖)=무시. rating_abs=80=mean→z0→0.
+    // burden_over_avg 누락→raw0→z=(0-0)/2=0→0. rc_dist 누락→raw0→z=(0-1400)/200=-7→0.1*-7=-0.7.
     const { total } = itemContributions(model, [{ name: '엉뚱', value: 9 }, { name: 'rating_abs', value: 80 }]);
-    expect(total).toBeCloseTo(0.2, 6);
+    expect(total).toBeCloseTo(0.2 - 0.7, 6); // intercept 0.2 + rc_dist 기여 -0.7 = -0.5
   });
 });
