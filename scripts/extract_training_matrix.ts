@@ -43,10 +43,19 @@ async function main() {
   for (const key of races) {
     const [d, m, n] = key.split('-').map(Number);
     const inputs = await gatherRaceInputs(sb, d!, m!, n!);
+    const { data: oddsRows } = await sb
+      .from('race_entries')
+      .select('hr_name, win_odds')
+      .eq('race_date', d!).eq('meet', m!).eq('rc_no', n!);
+    const oddsMap = new Map<string, number | null>(
+      (oddsRows ?? []).map((o: { hr_name: string; win_odds: number | null }) => [o.hr_name, o.win_odds])
+    );
     const lines = inputs
       .filter((r) => r.ord != null && r.ord <= 50)
       .map((r) => JSON.stringify({
         race_date: d, meet: m, rc_no: n, hr_name: r.hr_name,
+        ord: r.ord,
+        win_odds: oddsMap.get(r.hr_name) ?? null,
         top3: (r.ord as number) <= 3 ? 1 : 0,
         features: buildFeatures(r.input),
       }));
