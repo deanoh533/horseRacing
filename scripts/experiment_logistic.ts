@@ -148,6 +148,7 @@ async function main(): Promise<void> {
 
   // ── 2. 스키마 + 행렬 구성 (학습) ─────────────────────────────────────────
   const schema = buildSchema(trainRows.map((r) => r.features));
+  if (schema.length === 0) throw new Error('피처 스키마가 비었습니다 (train 행렬 확인)');
   const Xtr = trainRows.map((r) => toVector(r.features, schema));
   const ytr = trainRows.map((r) => r.top3);
 
@@ -335,7 +336,7 @@ async function main(): Promise<void> {
       ((cumModel.show / cumModel.n) - (cumMkt.show / cumMkt.n)) * 100;
     console.log(
       `[시장] 모델연승 − 시장연승 = ${dMkt >= 0 ? '+' : ''}${dMkt.toFixed(1)}%p  ` +
-      `${dMkt >= 0 ? '(시장 우세 — 부가가치 O)' : '(시장에 뒤짐 — 부가가치 X)'}`
+      `${dMkt >= 0 ? '(모델 우세 — 부가가치 O)' : '(시장에 뒤짐 — 부가가치 X)'}  (모델 n=${cumModel.n}, 시장 n=${cumMkt.n})`
     );
   }
 
@@ -378,7 +379,7 @@ async function main(): Promise<void> {
     const se = Math.sqrt((p * (1 - p)) / cumModel.n) * 100 * 1.96;
     console.log(
       `[노이즈 마진] 모델연승 − v1연승 = ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%p  ` +
-      `|  대략 95% 표본오차 ±${se.toFixed(1)}%p`
+      `|  대략 95% 표본오차 ±${se.toFixed(1)}%p  (v1 n=${cumV1.n})`
     );
     console.log(
       Math.abs(diff) > se
