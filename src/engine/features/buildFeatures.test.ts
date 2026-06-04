@@ -85,3 +85,23 @@ describe('buildFeatures — count·missing·one-hot', () => {
     expect(val({ rating: 0, paceType: 'HOT' }, 'pace_hot')).toBe(1);
   });
 });
+
+describe('buildFeatures — 버킷·교차항', () => {
+  it('⑪ 간격 버킷: 28-35일이면 interval_b_28_35=1, 나머지=0', () => {
+    const fs = buildFeatures({ rating: 0, intervalDays: 30 });
+    expect(fs.find((f) => f.name === 'interval_b_28_35')?.value).toBe(1);
+    expect(fs.find((f) => f.name === 'interval_b_lt14')?.value).toBe(0);
+    expect(fs.find((f) => f.name === 'interval_b_90p')?.value).toBe(0);
+  });
+  it('⑪ raw interval_days도 계속 출력 (버킷과 병존)', () => {
+    expect(buildFeatures({ rating: 0, intervalDays: 30 }).find((f) => f.name === 'interval_days')?.value).toBe(30);
+  });
+  it('⑲ 성향×페이스 교차: 도주(avg<=0.15)×HOT', () => {
+    const fs = buildFeatures({ rating: 0, runningStyleAvgRatio: 0.1, paceType: 'HOT' });
+    expect(fs.find((f) => f.name === 'x_front_hot')?.value).toBe(1);
+  });
+  it('⑬ 나이×거리 교차: 노령(age>=6)×장거리(rcDist>=1800)', () => {
+    const fs = buildFeatures({ rating: 0, age: 6, rcDist: 1800 });
+    expect(fs.find((f) => f.name === 'x_old_long')?.value).toBe(1);
+  });
+});

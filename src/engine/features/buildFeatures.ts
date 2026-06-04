@@ -156,6 +156,45 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   // ⑳ 속도능력지수 raw
   if (input.speedFigureAbilityRaw != null) add('speed_ability_raw', input.speedFigureAbilityRaw);
 
+  // ⑪ 경주간격 버킷 (실측 ∩자: 정점 28-35일)
+  if (input.intervalDays != null) {
+    const dd = input.intervalDays;
+    const inB = (lo: number, hi: number) => (dd >= lo && dd < hi ? 1 : 0);
+    add('interval_b_lt14', dd < 14 ? 1 : 0);
+    add('interval_b_14_20', inB(14, 21));
+    add('interval_b_21_27', inB(21, 28));
+    add('interval_b_28_35', inB(28, 36));
+    add('interval_b_36_45', inB(36, 46));
+    add('interval_b_46_60', inB(46, 61));
+    add('interval_b_61_90', inB(61, 91));
+    add('interval_b_90p', dd >= 91 ? 1 : 0);
+  }
+
+  // ⑲ 주행성향 × 페이스 교차 (SCORE_MAP 대체 — 모델이 맵을 학습)
+  const xAvg = input.runningStyleAvgRatio;
+  const xFree = input.runningStyleStddev != null && input.runningStyleStddev >= 0.35;
+  const xStyle = xAvg == null ? 'unknown'
+    : xFree ? 'free'
+    : xAvg <= 0.15 ? 'front'
+    : xAvg <= 0.35 ? 'pace'
+    : xAvg <= 0.65 ? 'stalker' : 'closer';
+  const xPace = input.paceType ?? 'NORMAL';
+  for (const s of ['front', 'pace', 'stalker', 'closer'] as const) {
+    for (const p of ['HOT', 'NORMAL', 'SLOW'] as const) {
+      add(`x_${s}_${p.toLowerCase()}`, xStyle === s && xPace === p ? 1 : 0);
+    }
+  }
+
+  // ⑬ 나이 × 거리 교차 (AGE_DIST_MATRIX 대체)
+  if (input.age != null && input.rcDist != null) {
+    const young = input.age <= 4 ? 1 : 0;
+    const old = input.age >= 6 ? 1 : 0;
+    const short = input.rcDist <= 1300 ? 1 : 0;
+    const long = input.rcDist >= 1800 ? 1 : 0;
+    add('x_young_short', young && short ? 1 : 0);
+    add('x_old_long', old && long ? 1 : 0);
+  }
+
   // --- 표본수 (작은표본 할인용) ---
   add('jockey_recent_n', (input.jockeyRecentOrds ?? []).length);
   add('trainer_recent_n', (input.trainerRecentOrds ?? []).length);
