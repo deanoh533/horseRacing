@@ -42,3 +42,44 @@ describe('isBet', () => {
     expect(isBet(1.5, 0.99, { '4-7': 0.5 })).toBe(false);
   });
 });
+
+import { roi, summarize, type Bet } from './valueBacktest.js';
+
+describe('roi', () => {
+  it('정액 베팅 ROI = Σ입상배당/nBets − 1 (입상=plcOdds!=null)', () => {
+    // 1픽 배당 3.0 1회 적중, 3베팅 → (3+0+0)/3 - 1 = 0 (본전)
+    const bets: Bet[] = [
+      { band: '4-7', plcOdds: 3 }, { band: '4-7', plcOdds: null }, { band: '4-7', plcOdds: null },
+    ];
+    expect(roi(bets)).toBeCloseTo(0, 5);
+  });
+  it('양의 ROI', () => {
+    const bets: Bet[] = [{ band: '4-7', plcOdds: 2 }, { band: '4-7', plcOdds: 2 }, { band: '4-7', plcOdds: null }];
+    expect(roi(bets)).toBeCloseTo(4 / 3 - 1, 5); // 0.333
+  });
+  it('빈 베팅은 0', () => {
+    expect(roi([])).toBe(0);
+  });
+});
+
+describe('summarize', () => {
+  it('배당구간별 베팅수·적중수·적중율·평균배당·ROI', () => {
+    const bets: Bet[] = [
+      { band: '4-7', plcOdds: 2.5 }, { band: '4-7', plcOdds: null },
+      { band: '7-15', plcOdds: 5 }, { band: '7-15', plcOdds: null }, { band: '7-15', plcOdds: null },
+    ];
+    const out = summarize(bets);
+    const b47 = out.find((b) => b.band === '4-7')!;
+    expect(b47.nBets).toBe(2);
+    expect(b47.nHits).toBe(1);
+    expect(b47.hitRate).toBeCloseTo(0.5, 5);
+    expect(b47.avgOdds).toBeCloseTo(2.5, 5);
+    expect(b47.roi).toBeCloseTo(2.5 / 2 - 1, 5); // 0.25
+    const b715 = out.find((b) => b.band === '7-15')!;
+    expect(b715.roi).toBeCloseTo(5 / 3 - 1, 5); // 0.667
+  });
+  it('배당구간 순서대로 정렬, 빈 구간 제외', () => {
+    const bets: Bet[] = [{ band: '7-15', plcOdds: 4 }, { band: '4-7', plcOdds: 2 }];
+    expect(summarize(bets).map((b) => b.band)).toEqual(['4-7', '7-15']);
+  });
+});

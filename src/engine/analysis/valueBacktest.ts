@@ -34,3 +34,35 @@ export function isBet(odds: number, score: number, cutoffs: Record<string, numbe
   const c = cutoffs[b];
   return c != null && score >= c;
 }
+
+export interface Bet { band: string; plcOdds: number | null }
+export interface BandSummary {
+  band: string; nBets: number; nHits: number; hitRate: number; avgOdds: number; roi: number;
+}
+
+/** 정액 베팅 ROI. 입상(plcOdds!=null) 시 회수=plcOdds, 미입상 0. ROI=Σ회수/nBets−1. */
+export function roi(bets: Bet[]): number {
+  if (bets.length === 0) return 0;
+  const ret = bets.reduce((s, b) => s + (b.plcOdds != null ? b.plcOdds : 0), 0);
+  return ret / bets.length - 1;
+}
+
+const BAND_ORDER = ['<2', '2-4', '4-7', '7-15', '15-30', '30+'];
+
+/** 배당구간별 집계(고정 순서, 빈 구간 제외). */
+export function summarize(bets: Bet[]): BandSummary[] {
+  const byBand = new Map<string, Bet[]>();
+  for (const b of bets) {
+    if (!byBand.has(b.band)) byBand.set(b.band, []);
+    byBand.get(b.band)!.push(b);
+  }
+  const out: BandSummary[] = [];
+  for (const band of BAND_ORDER) {
+    const rows = byBand.get(band);
+    if (!rows || rows.length === 0) continue;
+    const hits = rows.filter((r) => r.plcOdds != null);
+    const avgOdds = hits.length ? hits.reduce((s, r) => s + (r.plcOdds as number), 0) / hits.length : 0;
+    out.push({ band, nBets: rows.length, nHits: hits.length, hitRate: hits.length / rows.length, avgOdds, roi: roi(rows) });
+  }
+  return out;
+}
