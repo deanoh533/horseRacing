@@ -33,7 +33,9 @@
     "probe:edge": "tsx scripts/probe_market_edge.ts",
     "backtest:value": "tsx scripts/backtest_value_betting.ts",
     "collect:combo": "tsx scripts/collect_combo_dividends.ts",
-    "backtest:combo": "tsx scripts/backtest_combo_betting.ts"
+    "backtest:combo": "tsx scripts/backtest_combo_betting.ts",
+    "learn:logistic": "tsx scripts/learn_logistic.ts",
+    "verify:logistic": "tsx scripts/verify_logistic.ts"
   },
   "engines": {
     "node": ">=20.0.0"
