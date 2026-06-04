@@ -1,16 +1,17 @@
 /**
- * 활성 모델 버전 조회
- *
- * 라이브 예측은 model_versions 테이블의 is_active=true 행의 가중치를 사용한다.
- * (코드 상수 ITEM_WEIGHTS는 마이그레이션 전/활성 버전 부재 시 fallback일 뿐)
+ * 활성 모델 버전 조회. 라이브 예측은 is_active=true 행을 사용.
+ * model_type='logistic'이면 artifact(LogisticModel)로 라이브 스코어링.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ITEM_WEIGHTS } from '../types/index.js';
+import type { LogisticModel } from './models/logistic.js';
 
 export interface ActiveModelVersion {
-  id: number | null;            // predictions.model_version 도장용 (fallback이면 null)
+  id: number | null;
   label: string;
+  model_type: string;                 // 'rho-legacy' | 'logistic'
   weights: Record<string, number>;
+  artifact: LogisticModel | null;
 }
 
 export async function getActiveModelVersion(
@@ -18,7 +19,7 @@ export async function getActiveModelVersion(
 ): Promise<ActiveModelVersion> {
   const { data, error } = await sb
     .from('model_versions')
-    .select('id, label, weights')
+    .select('id, label, model_type, weights, artifact')
     .eq('is_active', true)
     .maybeSingle();
   if (error) throw error;
@@ -26,9 +27,10 @@ export async function getActiveModelVersion(
     return {
       id: data.id as number,
       label: data.label as string,
-      weights: data.weights as Record<string, number>,
+      model_type: (data.model_type as string) ?? 'rho-legacy',
+      weights: (data.weights as Record<string, number>) ?? {},
+      artifact: (data.artifact as LogisticModel | null) ?? null,
     };
   }
-  // 활성 버전 없음 → 코드 상수로 fallback (도장은 null)
-  return { id: null, label: 'v1-fallback', weights: { ...ITEM_WEIGHTS } };
+  return { id: null, label: 'v1-fallback', model_type: 'rho-legacy', weights: { ...ITEM_WEIGHTS }, artifact: null };
 }
