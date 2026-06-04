@@ -41,18 +41,20 @@ Phase 0(엣지 probe)에서 **같은 win_odds 구간 안에서 모델 상위터�
 
 > 배당 구간은 4~15를 **주 타깃**으로 보되, 백테스트는 **모든 구간**(`<2 / 2-4 / 4-7 / 7-15 / 15-30 / 30+`)을 쪼개 출력 — 어디가 +인지 데이터가 말하게 함(정직성).
 
-### 터셀 정의
+### 터셀 정의 (Phase 0과 동일 — 배당구간 풀 기준)
 
-- 경주 내에서 각 말의 모델 P(top3)로 순위 → 상위 1/3 = "상위터셀".
-- 베팅 조건은 **(win_odds 중배당) AND (상위터셀)** 둘 다 만족.
+- Phase 0의 엣지는 **배당구간 풀 전체**에서 모델 점수 터셀로 측정됐다(경주 내가 아님). 백테스트도 **검증된 그 엣지를 그대로** 화폐화하려면 같은 정의를 쓴다.
+- **컷오프는 train 데이터로 결정**(look-ahead 회피): 각 배당구간에서 train 말들의 모델 점수 상위 1/3 경계(2/3 분위)를 컷오프로 잡고, test 말의 점수가 그 컷오프 이상이면 "상위터셀".
+- 베팅 조건 = **(win_odds 중배당) AND (점수 ≥ 해당 구간 train 컷오프)**.
+- (참고: Phase 0 probe는 test 풀에서 터셀을 냈으나, 베팅 주장엔 train 컷오프가 정직 — 숫자가 미세하게 다를 수 있음.)
 
 ---
 
 ## 3. 데이터·구현
 
 - **모델 점수 산출:** 기존 `data/training_matrix.jsonl`(모델 feature·ord·win_odds·race_date·meet·rc_no 포함) + Stage-1 로지스틱(`src/engine/models/logistic.ts`의 `fitLogistic`, `alignFeatures`)으로 테스트셋 P(top3) 산출. Phase 0 `probe_market_edge.ts`와 동일 파이프라인.
-- **추가 조인 1개:** `race_entries`에서 `plc_odds`를 `(race_date, meet, rc_no, pthr_no)` 키로 1회 로드해 조인. (입상마만 non-null = 정확히 필요한 값. 가벼운 단일 로드.)
-  - 행렬에 `pthr_no`가 없으면 추출 스크립트에 키 추가 또는 `(race_date,meet,rc_no,ord)` 매칭 검토 — 구현 계획에서 확정.
+- **추가 조인 1개:** `race_entries`에서 `plc_odds`를 **`(race_date, meet, rc_no, hr_name)`** 키로 페이지 로드해 조인. (입상마만 non-null = 정확히 필요한 값.)
+  - 행렬은 경주 내 말을 `hr_name`으로 식별하고 `extract_training_matrix.ts`가 이미 `win_odds`를 `hr_name`으로 조인하는 검증된 패턴 → 동일 키 재사용. `pthr_no` 불필요.
 - **학습/테스트 분할:** `train < 2025` / 테스트 `2025~` (look-ahead 없음). Phase 0과 동일.
 - **산출물:**
   - 읽기 전용 스크립트 `scripts/backtest_value_betting.ts`
