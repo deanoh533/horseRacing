@@ -1,11 +1,11 @@
 /**
- * 오프라인 로지스틱 실험 — 훈련 행렬 JSONL 기반
+ * 오프라인 로지스틱 + GBDT 실험 — 훈련 행렬 JSONL 기반
  *
  * 시간 분할 (train < --split, test >= --split) 후
- * 로지스틱 모델을 학습하고 테스트셋에서 지표를 측정한다.
+ * 로지스틱·GBDT 모델을 학습하고 테스트셋에서 지표를 측정한다.
  *
  * 지표: 연승(3착내)·단승(1착)·묶음(상위3 교집합)·ROI(단승 배당)
- * 비교: MODEL vs MARKET(win_odds 최저) vs v1(predictions.predicted_rank=1)
+ * 비교: 로지스틱 vs GBDT vs MARKET(win_odds 최저) vs v1(predictions.predicted_rank=1)
  *
  * 사용:
  *   npm run exp:logistic
@@ -17,6 +17,7 @@ import * as readline from 'readline';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fitLogistic, predictLogit } from '../src/engine/models/logistic.js';
+import { fitGBDT, predictGBDT } from '../src/engine/models/gbdt.js';
 import { buildSchema, toVector } from '../src/engine/features/alignFeatures.js';
 import type { Feature } from '../src/engine/features/types.js';
 
@@ -161,6 +162,17 @@ async function main(): Promise<void> {
     lr: 0.2,
   });
 
+  // ── 3-b. GBDT 학습 (동일 Xtr/ytr/schema) ─────────────────────────────────
+  const gbdt = fitGBDT(Xtr, ytr as number[], schema, {
+    rounds: 120,
+    maxDepth: 4,
+    lr: 0.2,
+    lambda: 1,
+    minChild: 30,
+    bins: 64,
+  });
+  console.log(`GBDT 학습 완료 (트리 ${gbdt.trees.length}개)`);
+
   // ── 4. v1 베이스라인 로드 ─────────────────────────────────────────────────
   const sb = getSupabaseAdmin();
   const testDates = new Set(testRows.map((r) => r.race_date));
@@ -189,35 +201,53 @@ async function main(): Promise<void> {
   const cumModel = emptyTally();
   const cumMkt = emptyTally();
   const cumV1 = emptyTally();
+  const cumGbdt = emptyTally();
 
   // ROI (모델 단승 배당 기반)
   let roiSum = 0;
   let roiN = 0;
 
+  // ROI GBDT
+  let gbdtRoiSum = 0;
+  let gbdtRoiN = 0;
+
   // 묶음 (상위3 교집합)
   let setModelSum = 0;
   let setMktSum = 0;
+  let setGbdtSum = 0;
   let setN = 0;
 
   // 불일치(모델 1픽 ≠ 시장 1픽) 구간
   const disModel = emptyTally();
   const disFav = emptyTally();
 
-  // 출력 헤더
+  // 출력 헤더 (로지스틱 블록)
   console.log(
-    '\n' +
+    '\n[로지스틱]\n' +
     '분기      | 모델연승 | 시장연승 | v1연승 | 모델단승 | 모델묶음 | 시장묶음 | 모델ROI%  |   n'
   );
   console.log('-'.repeat(90));
+
+  // GBDT 분기별 집계를 위한 버퍼 (출력 시 별도 블록으로 표시)
+  interface QGbdtBuf {
+    tally: Tally;
+    roiSum: number; roiN: number;
+    setSum: number; setN: number;
+  }
+  const gbdtQuarterBufs = new Map<string, QGbdtBuf>();
 
   for (const qk of quarters) {
     const qModel = emptyTally();
     const qMkt = emptyTally();
     const qV1 = emptyTally();
+    const qGbdt = emptyTally();
     let qRoiSum = 0;
     let qRoiN = 0;
+    let qGbdtRoiSum = 0;
+    let qGbdtRoiN = 0;
     let qSetModelSum = 0;
     let qSetMktSum = 0;
+    let qSetGbdtSum = 0;
     let qSetN = 0;
 
     for (const [rk, horses] of byQuarter.get(qk)!) {
@@ -230,6 +260,14 @@ async function main(): Promise<void> {
       scored.sort((a, b) => b.logit - a.logit);
       const modelPick = scored[0]?.row ?? null;
 
+      // ── GBDT 픽 (동일 schema로 toVector — 학습 스키마 일치 보장) ──────────
+      const gbdtScored = horses.map((h) => ({
+        row: h,
+        score: predictGBDT(gbdt, toVector(h.features, schema)),
+      }));
+      gbdtScored.sort((a, b) => b.score - a.score);
+      const gbdtPick = gbdtScored[0]?.row ?? null;
+
       // ── 시장 픽 (win_odds 최소, 유효 배당만) ──────────────────────────────
       const validOdds = horses.filter(
         (h) => h.win_odds != null && h.win_odds > 0
@@ -240,6 +278,7 @@ async function main(): Promise<void> {
       // ── 단승/연승 집계 ────────────────────────────────────────────────────
       addRace(qModel, modelPick?.ord);
       addRace(qMkt, mktPick?.ord);
+      addRace(qGbdt, gbdtPick?.ord);
 
       // v1
       const v1Pick = v1Picks.get(rk);
@@ -253,6 +292,12 @@ async function main(): Promise<void> {
         qRoiN++;
       }
 
+      // ── ROI GBDT ─────────────────────────────────────────────────────────
+      if (gbdtPick && gbdtPick.win_odds != null && gbdtPick.win_odds > 0) {
+        qGbdtRoiSum += gbdtPick.ord === 1 ? gbdtPick.win_odds : 0;
+        qGbdtRoiN++;
+      }
+
       // ── 묶음 교집합 (상위3 vs 실제 top3) ──────────────────────────────────
       const actualTop3 = new Set(
         horses.filter((h) => isShow(h.ord)).map((h) => h.hr_name)
@@ -262,12 +307,16 @@ async function main(): Promise<void> {
         setN++;
         const modelTop3 = scored.slice(0, 3).map((s) => s.row.hr_name);
         const mktTop3 = validOdds.slice(0, 3).map((h) => h.hr_name);
+        const gbdtTop3 = gbdtScored.slice(0, 3).map((s) => s.row.hr_name);
         const mHit = modelTop3.filter((n) => actualTop3.has(n)).length;
         const fHit = mktTop3.filter((n) => actualTop3.has(n)).length;
+        const gHit = gbdtTop3.filter((n) => actualTop3.has(n)).length;
         qSetModelSum += mHit;
         qSetMktSum += fHit;
+        qSetGbdtSum += gHit;
         setModelSum += mHit;
         setMktSum += fHit;
+        setGbdtSum += gHit;
       }
 
       // ── 불일치 구간 ───────────────────────────────────────────────────────
@@ -286,9 +335,21 @@ async function main(): Promise<void> {
       cumModel[k] += qModel[k];
       cumMkt[k] += qMkt[k];
       cumV1[k] += qV1[k];
+      cumGbdt[k] += qGbdt[k];
     });
     roiSum += qRoiSum;
     roiN += qRoiN;
+    gbdtRoiSum += qGbdtRoiSum;
+    gbdtRoiN += qGbdtRoiN;
+
+    // GBDT 분기 버퍼 저장
+    gbdtQuarterBufs.set(qk, {
+      tally: qGbdt,
+      roiSum: qGbdtRoiSum,
+      roiN: qGbdtRoiN,
+      setSum: qSetGbdtSum,
+      setN: qSetN,
+    });
 
     const qRoi =
       qRoiN > 0
@@ -310,7 +371,7 @@ async function main(): Promise<void> {
     );
   }
 
-  // ── 7. 누적 결과 출력 ─────────────────────────────────────────────────────
+  // ── 7. 누적 결과 출력 (로지스틱) ─────────────────────────────────────────
   console.log('-'.repeat(90));
   const cumRoi =
     roiN > 0
@@ -388,7 +449,40 @@ async function main(): Promise<void> {
     );
   }
 
-  // ── 12. 최종 판정 ─────────────────────────────────────────────────────────
+  // ── 12. GBDT 블록 출력 ────────────────────────────────────────────────────
+  console.log('\n\n[GBDT]\n분기      | GBDT연승 | GBDT단승 | GBDT묶음 | GBDTROI%  |   n');
+  console.log('-'.repeat(60));
+
+  for (const qk of quarters) {
+    const buf = gbdtQuarterBufs.get(qk)!;
+    const qGbdtRoi =
+      buf.roiN > 0
+        ? (((buf.roiSum / buf.roiN) - 1) * 100).toFixed(1) + '%'
+        : '-';
+    const qGbundle =
+      buf.setN > 0 ? (buf.setSum / buf.setN).toFixed(2) : '-';
+    console.log(
+      `${qk.padEnd(9)} | ${pct(buf.tally.show, buf.tally.n).padStart(8)} | ` +
+      `${pct(buf.tally.win, buf.tally.n).padStart(8)} | ` +
+      `${qGbundle.padStart(8)} | ` +
+      `${qGbdtRoi.padStart(9)} | ${buf.tally.n}`
+    );
+  }
+
+  console.log('-'.repeat(60));
+  const cumGbdtRoi =
+    gbdtRoiN > 0
+      ? (((gbdtRoiSum / gbdtRoiN) - 1) * 100).toFixed(1) + '%'
+      : '-';
+  const cumGbundle = setN > 0 ? (setGbdtSum / setN).toFixed(2) : '-';
+  console.log(
+    `${'누적'.padEnd(9)} | ${pct(cumGbdt.show, cumGbdt.n).padStart(8)} | ` +
+    `${pct(cumGbdt.win, cumGbdt.n).padStart(8)} | ` +
+    `${cumGbundle.padStart(8)} | ` +
+    `${cumGbdtRoi.padStart(9)} | ${cumGbdt.n}`
+  );
+
+  // ── 13. 최종 판정 ─────────────────────────────────────────────────────────
   console.log('\n' + '='.repeat(80));
   const modelBeatsMkt =
     cumModel.n > 0 && cumMkt.n > 0
@@ -399,13 +493,62 @@ async function main(): Promise<void> {
       ? cumModel.show / cumModel.n > cumV1.show / cumV1.n
       : null;
 
-  console.log('【최종 판정】');
+  const gbdtBeatsLogistic =
+    cumGbdt.n > 0 && cumModel.n > 0
+      ? cumGbdt.show / cumGbdt.n > cumModel.show / cumModel.n
+      : null;
+  const gbdtBeatsV1 =
+    cumGbdt.n > 0 && cumV1.n > 0
+      ? cumGbdt.show / cumGbdt.n > cumV1.show / cumV1.n
+      : null;
+  const gbdtBeatsMkt =
+    cumGbdt.n > 0 && cumMkt.n > 0
+      ? cumGbdt.show / cumGbdt.n > cumMkt.show / cumMkt.n
+      : null;
+
+  const gbdtVsLogisticDelta =
+    cumGbdt.n > 0 && cumModel.n > 0
+      ? ((cumGbdt.show / cumGbdt.n) - (cumModel.show / cumModel.n)) * 100
+      : null;
+
+  console.log('【최종 판정 — 로지스틱】');
   console.log(
     `  모델 연승 vs v1  : ${modelBeatsV1 == null ? 'N/A' : modelBeatsV1 ? '✓ 모델 > v1' : '✗ 모델 ≤ v1'}`
   );
   console.log(
     `  모델 연승 vs 시장: ${modelBeatsMkt == null ? 'N/A' : modelBeatsMkt ? '✓ 모델 > 시장' : '✗ 모델 ≤ 시장'}`
   );
+  console.log('');
+
+  console.log('【최종 판정 — GBDT】');
+  console.log(
+    `  GBDT 연승 vs 로지스틱: ${gbdtBeatsLogistic == null ? 'N/A' : gbdtBeatsLogistic ? '✓' : '✗'}` +
+    (gbdtVsLogisticDelta != null
+      ? `  Δ${gbdtVsLogisticDelta >= 0 ? '+' : ''}${gbdtVsLogisticDelta.toFixed(1)}%p`
+      : '')
+  );
+  console.log(
+    `  GBDT 연승 vs v1      : ${gbdtBeatsV1 == null ? 'N/A' : gbdtBeatsV1 ? '✓' : '✗'}`
+  );
+  console.log(
+    `  GBDT 연승 vs 시장    : ${gbdtBeatsMkt == null ? 'N/A' : gbdtBeatsMkt ? '✓' : '✗'}`
+  );
+
+  // ── 노이즈 마진 (GBDT연승 − 로지스틱연승) ────────────────────────────────
+  if (gbdtVsLogisticDelta != null && cumModel.n > 0) {
+    const pBase = cumModel.show / cumModel.n;
+    const se = Math.sqrt((pBase * (1 - pBase)) / cumModel.n) * 100 * 1.96;
+    console.log(
+      `  [노이즈 마진] GBDT연승 − 로지스틱연승 = ${gbdtVsLogisticDelta >= 0 ? '+' : ''}${gbdtVsLogisticDelta.toFixed(1)}%p` +
+      `  |  대략 95% 표본오차 ±${se.toFixed(1)}%p`
+    );
+    console.log(
+      '  ' + (Math.abs(gbdtVsLogisticDelta) > se
+        ? '→ 오차 범위 밖: 유의미할 수 있음 (그래도 사람이 최종 판단)'
+        : '→ 오차 범위 안: 노이즈일 수 있음 (신중히)')
+    );
+  }
+
   console.log('  (사람이 최종 판단 — 노이즈 마진 확인 필수)\n');
 }
 
