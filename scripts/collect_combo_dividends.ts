@@ -13,6 +13,26 @@ const ENDPOINT = 'https://apis.data.go.kr/B551015/API160_1/integratedInfo_1';
 
 interface DivItem { chulNo: number; chulNo2: number; chulNo3: number; odds: number; pool: string; rcNo: number; }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** 1페이지 호출 + 일시오류(502/비JSON) 재시도(backoff). 성공 시 파싱된 JSON 반환. */
+async function fetchPage(qs: URLSearchParams, tag: string, attempts = 4): Promise<any> {
+  let lastErr = '';
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const r = await fetch(`${ENDPOINT}?${qs}`);
+      const txt = await r.text();
+      const j = JSON.parse(txt); // 비JSON(502 게이트웨이 등)이면 throw → 재시도
+      if (j.response?.header?.resultCode !== '00') throw new Error(`API에러 ${j.response?.header?.resultMsg}`);
+      return j;
+    } catch (e) {
+      lastErr = (e as Error).message.slice(0, 120);
+      if (i < attempts - 1) await sleep(500 * 2 ** i); // 0.5s→1s→2s
+    }
+  }
+  throw new Error(`${tag} ${attempts}회 실패: ${lastErr}`);
+}
+
 async function fetchRace(meet: number, rcDate: number, rcNo: number): Promise<DivItem[]> {
   const out: DivItem[] = [];
   for (let pageNo = 1; pageNo <= 5; pageNo++) {
@@ -20,11 +40,7 @@ async function fetchRace(meet: number, rcDate: number, rcNo: number): Promise<Di
       serviceKey: KEY, pageNo: String(pageNo), numOfRows: '1000', _type: 'json',
       rc_date: String(rcDate), meet: String(meet), rc_no: String(rcNo),
     });
-    const r = await fetch(`${ENDPOINT}?${qs}`);
-    const txt = await r.text();
-    let j: any;
-    try { j = JSON.parse(txt); } catch { throw new Error(`비JSON 응답 ${meet}/${rcDate}/${rcNo}: ${txt.slice(0, 120)}`); }
-    if (j.response?.header?.resultCode !== '00') throw new Error(`API에러 ${j.response?.header?.resultMsg}`);
+    const j = await fetchPage(qs, `${meet}/${rcDate}/${rcNo}`);
     let items = j.response?.body?.items?.item ?? [];
     if (!Array.isArray(items)) items = [items];
     out.push(...items);
