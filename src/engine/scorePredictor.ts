@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
 import { getActiveModelVersion } from './modelVersion.js';
+import { scoreLogistic } from './logisticScorer.js';
 import { fetchAsOfHorseStats, distCategoryOf, type AsOfHorseStats } from './asOfHorseStats.js';
 import { loadParMap } from './speedFigure.js';
 
@@ -165,14 +166,13 @@ export async function predictRace(
   const rows = await gatherRaceInputs(sb, rcDate, meet, rcNo);
   if (rows.length === 0) return [];
 
-  // 활성 모델 버전 가중치로 엔진 구성 (라이브 = 현재 버전)
+  // 활성 모델 버전으로 스코어링 (rho-legacy=ScoreEngine / logistic=logisticScorer)
   const activeVersion = await getActiveModelVersion(sb);
-  const engine = new ScoreEngine(activeVersion.weights);
+  const scoreOne = activeVersion.model_type === 'logistic' && activeVersion.artifact
+    ? (input: ScoreEngineInput) => scoreLogistic(activeVersion.artifact!, input)
+    : (() => { const engine = new ScoreEngine(activeVersion.weights); return (input: ScoreEngineInput) => engine.calculateScores(input); })();
 
-  const results = rows.map((row) => ({
-    row,
-    score: engine.calculateScores(row.input),
-  }));
+  const results = rows.map((row) => ({ row, score: scoreOne(row.input) }));
 
   const sorted = [...results].sort((a, b) => b.score.total - a.score.total);
   const rankMap = new Map<number, number>();
