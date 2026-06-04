@@ -47,6 +47,13 @@ export function roi(bets: Bet[]): number {
   return ret / bets.length - 1;
 }
 
+/** KRA 연승식 입상 판정: 8두↑ 3착내 / 5~7두 2착내 / 4두↓ 미발매(false). */
+export function placePaid(ord: number, fieldSize: number): boolean {
+  if (fieldSize >= 8) return ord <= 3;
+  if (fieldSize >= 5) return ord <= 2;
+  return false;
+}
+
 const BAND_ORDER = ['<2', '2-4', '4-7', '7-15', '15-30', '30+'];
 
 /** 배당구간별 집계(고정 순서, 빈 구간 제외). */

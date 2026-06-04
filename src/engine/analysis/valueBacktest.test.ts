@@ -83,3 +83,22 @@ describe('summarize', () => {
     expect(summarize(bets).map((b) => b.band)).toEqual(['4-7', '7-15']);
   });
 });
+
+import { placePaid } from './valueBacktest.js';
+
+describe('placePaid (KRA 연승 입상 규칙)', () => {
+  it('8두 이상은 3착 이내', () => {
+    expect(placePaid(3, 8)).toBe(true);
+    expect(placePaid(4, 8)).toBe(false);
+    expect(placePaid(1, 12)).toBe(true);
+  });
+  it('5~7두는 2착 이내', () => {
+    expect(placePaid(2, 7)).toBe(true);
+    expect(placePaid(3, 7)).toBe(false);
+    expect(placePaid(2, 5)).toBe(true);
+  });
+  it('4두 이하는 연승 미발매 → 항상 false', () => {
+    expect(placePaid(1, 4)).toBe(false);
+    expect(placePaid(1, 1)).toBe(false);
+  });
+});

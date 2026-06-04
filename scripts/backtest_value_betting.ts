@@ -10,7 +10,7 @@ import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fitLogistic, predictLogit } from '../src/engine/models/logistic.js';
 import { buildSchema, toVector } from '../src/engine/features/alignFeatures.js';
 import { oddsBand } from '../src/engine/analysis/edgeProbe.js';
-import { topTercileCutoffs, isBet, summarize, roi, type Bet } from '../src/engine/analysis/valueBacktest.js';
+import { topTercileCutoffs, isBet, summarize, roi, placePaid, type Bet } from '../src/engine/analysis/valueBacktest.js';
 import type { Feature } from '../src/engine/features/types.js';
 
 interface Row { race_date: number; meet: number; rc_no: number; hr_name: string; ord: number | null; win_odds: number | null; top3: number; features: Feature[]; }
@@ -63,6 +63,7 @@ async function main() {
   // 3) plc_odds 조인 맵: (race_date,meet,rc_no,hr_name) → plc_odds (입상마만 non-null)
   const sb = getSupabaseAdmin();
   const plcMap = new Map<string, number | null>();
+  const fieldSize = new Map<string, number>(); // (race_date-meet-rc_no) → 유효 출주두수(plc_odds non-null 행 수)
   const PAGE = 1000;
   for (let off = 0; ; off += PAGE) {
     const { data, error } = await sb.from('race_entries')
@@ -74,6 +75,10 @@ async function main() {
     if (!data || data.length === 0) break;
     for (const r of data as { race_date: number; meet: number; rc_no: number; hr_name: string; plc_odds: number | null }[]) {
       plcMap.set(`${r.race_date}-${r.meet}-${r.rc_no}-${r.hr_name}`, r.plc_odds);
+      if (r.plc_odds != null) {
+        const rk = `${r.race_date}-${r.meet}-${r.rc_no}`;
+        fieldSize.set(rk, (fieldSize.get(rk) ?? 0) + 1);
+      }
     }
     if (data.length < PAGE) break;
   }
@@ -82,18 +87,25 @@ async function main() {
   interface QBet extends Bet { quarter: string }
   const bets: QBet[] = [];      // 전략: 컷오프 통과(상위터셀)
   const baseline: QBet[] = [];  // 베이스라인: 같은 구간 전 마필 무조건 베팅
+  let skippedSmallField = 0;
   for (const r of test) {
+    if (r.ord == null) continue;
     if (!(r.win_odds && r.win_odds > 0)) continue;
     if (oddsBand(r.win_odds) === 'na') continue;
+    const rk = `${r.race_date}-${r.meet}-${r.rc_no}`;
+    const fs = fieldSize.get(rk) ?? 0;
+    if (fs < 5) { skippedSmallField++; continue; } // 연승 미발매(4두 이하)
     const score = predictLogit(model, toVector(r.features, schema));
-    const plc = plcMap.get(`${r.race_date}-${r.meet}-${r.rc_no}-${r.hr_name}`) ?? null;
+    const quote = plcMap.get(`${rk}-${r.hr_name}`) ?? null;
+    const placed = placePaid(r.ord, fs);
+    const plc = placed ? quote : null; // 입상 시에만 payout, 아니면 손실(null)
     const band = oddsBand(r.win_odds);
     const q = quarter(r.race_date);
     baseline.push({ band, plcOdds: plc, quarter: q });
     if (isBet(r.win_odds, score, cutoffs)) bets.push({ band, plcOdds: plc, quarter: q });
   }
 
-  console.log(`\n테스트 ${test.length}행 / 유효배당 베팅후보 ${baseline.length} / 전략 베팅 ${bets.length}`);
+  console.log(`\n테스트 ${test.length}행 / 유효배당 베팅후보 ${baseline.length} / 전략 베팅 ${bets.length} / 소두수(4두↓) 제외 ${skippedSmallField}`);
 
   printSummary('전략: 중배당 × 모델 상위터셀 (구간별 ROI)', summarize(bets));
   printSummary('베이스라인: 구간 전 마필 무조건 연승 (시장 takeout 손실 기준선)', summarize(baseline));
