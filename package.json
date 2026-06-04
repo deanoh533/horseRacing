@@ -29,7 +29,8 @@
     "sync:training": "tsx src/sync/trainingSync.ts",
     "sync:jockey": "tsx src/sync/jockeySync.ts",
     "extract:matrix": "tsx scripts/extract_training_matrix.ts",
-    "exp:logistic": "tsx scripts/experiment_logistic.ts"
+    "exp:logistic": "tsx scripts/experiment_logistic.ts",
+    "probe:edge": "tsx scripts/probe_market_edge.ts"
   },
   "engines": {
     "node": ">=20.0.0"
