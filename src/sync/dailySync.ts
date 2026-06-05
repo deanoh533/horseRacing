@@ -93,6 +93,10 @@ async function syncMeet(
 
         // 4. race_entries 결과 컬럼 UPDATE (hr_name 기준)
         for (const horse of horses) {
+          if (!horse.hrName) {
+            console.warn(`    [meet=${meet}, rcNo=${rcNo}] hrName 없는 항목 스킵 (chulNo=${horse.chulNo})`);
+            continue;
+          }
           const resultRow = toRaceEntryResultRow(horse);
           resultRow.popularity = popMap.get(horse.hrNo) ?? null;
 

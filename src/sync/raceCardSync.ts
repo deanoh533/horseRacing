@@ -75,7 +75,14 @@ async function syncOneMeet(
     for (const [rcNo, raceItems] of byRcNo) {
       try {
         // race_entries upsert
-        const entryRows = raceItems.map(toRaceEntryRowFromEntrySheet);
+        const validItems = raceItems.filter((it) => {
+          if (!it.hrName) {
+            console.warn(`    rc_no=${rcNo} hrName 없는 항목 스킵 (chulNo=${it.chulNo})`);
+            return false;
+          }
+          return true;
+        });
+        const entryRows = validItems.map(toRaceEntryRowFromEntrySheet);
         const { error: entryError } = await sb.from('race_entries').upsert(entryRows, {
           onConflict: 'race_date,meet,rc_no,pthr_no',
         });
@@ -109,7 +116,7 @@ async function syncOneMeet(
         }
 
         result.racesSynced++;
-        result.horsesSynced += raceItems.length;
+        result.horsesSynced += validItems.length;
         console.log(`    rc_no=${rcNo} ✓ ${raceItems.length}마 + 예측`);
       } catch (e) {
         const msg = (e as Error).message;
