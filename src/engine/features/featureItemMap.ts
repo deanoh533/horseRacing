@@ -24,7 +24,7 @@ const MAP: Record<string, string> = {
   season_top3: '15_seasonal_pattern', season_n: '15_seasonal_pattern',
   chemistry_improvement: '16_jockey_horse_chemistry', combo_n: '16_jockey_horse_chemistry',
   recent_pop_top2: '17_market_odds',
-  earnings_log: '18_earnings',
+  career_finish_ratio: '18_earnings', career_place_rate: '18_earnings', career_n: '18_earnings',
   style_avg_ratio: '19_running_style_pace', style_stddev: '19_running_style_pace', pace_hot: '19_running_style_pace', pace_slow: '19_running_style_pace',
   speed_ability_raw: '20_speed_figure',
 };

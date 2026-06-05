@@ -20,4 +20,13 @@ describe('featureToItem', () => {
     expect(featureToItem('rc_dist')).toBe('context');
     expect(featureToItem('완전모르는피처')).toBe('context');
   });
+  it('통산 클래스 신호는 ⑱로 매핑 (earnings 대체)', () => {
+    expect(featureToItem('career_finish_ratio')).toBe('18_earnings');
+    expect(featureToItem('career_place_rate')).toBe('18_earnings');
+    expect(featureToItem('career_n')).toBe('18_earnings');
+    expect(featureToItem('career_finish_ratio__missing')).toBe('18_earnings');
+  });
+  it('제거된 earnings_log는 미매핑(context)', () => {
+    expect(featureToItem('earnings_log')).toBe('context');
+  });
 });
