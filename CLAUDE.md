@@ -1,7 +1,7 @@
 # KRA 경마 분석 도구 — Claude 컨텍스트
 
 > 새 세션에서 이 파일을 가장 먼저 읽습니다.
-> 마지막 업데이트: 2026-06-01 (핵심 이슈 섹션 SSOT 링크화 — 항목 상태는 TODO.md·score_roadmap.md 단일 출처)
+> 마지막 업데이트: 2026-06-06 (earnings as-of 정화 완료 + 재설계 최종값 확정)
 
 ---
 
@@ -164,6 +164,17 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
+> **2026-06-06 — 재설계 최종값 확정 + earnings 트랙 종결** (브랜치 `feat/score-learning-redesign`, 미머지)
+> - **최종 walkforward 결과:** 로지스틱 **연승 59.0%** / v1 57.6% / 시장 68.8%. 모델−v1 = **+1.4%p (±1.9%p 노이즈)**. 모델−시장 = **-9.8%p** (불일치 시 -20.8%p). GBDT 59.2%(로지스틱과 동률). ROI 전부 음수.
+> - **★ 음성지식 확정:** earnings 누수→클래스→진짜as-of(API156) 순서로 정화했으나 수득상금 차원 자체가 예측력 없음. 재설계 "+5.2%p"는 전부 earnings 미래누수였음 — 1b·1a로 이중 확인.
+> - **DB 상태:** 마이그012(model_type/artifact)·013(rk_purse/erng_sump_asof) 적용 완료. erng_sump_asof 38,627행 채워짐. 학습행렬 37,992행(`data/training_matrix.jsonl`) 재추출 완료.
+> - **sync 버그 수정:** raceCardSync·dailySync에서 hrName 없는 API 항목 스킵 처리 (main 커밋 05342f8).
+> - **다음 결정 (3択):**
+>   - A) **B3 승격** — `npm run learn:logistic -- --label v4-logit` → `verify:logistic` → `promote`. 시장 못 이기지만 v1보다 나음(노이즈 범위, 방향은 맞음).
+>   - B) **복연승 백테스트** — API160 복구됨. `npm run collect:combo -- --from 20250101` → `npm run backtest:combo -- --split 20250101`. ROI 양수 구간 있으면 Stage2 value 화폐화.
+>   - C) **새 항목/신호 탐색** — 시장 격차 -9.8%p 좁히기. ⑧ 부담중량 산식(ρ=0.316) 또는 신규 항목.
+> - 상세: 메모리 [[project-score-learning-redesign]] · [[reference-earnings-asof-leak]]
+>
 > **2026-06-03 — ⑳ 속도능력지수 신규 + 시장 벤치마크** (브랜치 `feat/speed-figure`, 미승격)
 > - **시장 벤치마크 발견:** 모델이 인기1위(win_odds 최저)에 연승 11%p 뒤지고, 엇갈릴 때 22%p 더 틀림(부가가치 음). `walkforward_eval`에 시장·불일치·순위별·묶음 비교 추가. (용어: "1순위 3착내"=**연승**, 복승 아님 → `docs/score_items/20_speed_figure.md` §0)
 > - **⑳ 속도능력지수**(par-time 절대 능력지수, `20_speed_figure`) 추가 → ρ=0.271(정직 4위). 후보 v3: 연승 57.7→61.2(+3.6%p, 6분기 전부 우세), **시장 격차 -11.1→-7.5%p**, 3순위는 시장 추월. **append-only**(v1 weight 0이라 backfill이 기존 점수 불변).
