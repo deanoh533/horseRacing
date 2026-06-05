@@ -150,6 +150,7 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   if (input.careerFinishRatio != null) add('career_finish_ratio', input.careerFinishRatio);
   if (input.careerPlaceRate != null) add('career_place_rate', input.careerPlaceRate);
   add('career_n', input.careerN ?? 0);
+  if (input.earningsAsof != null) add('earnings_asof_log', Math.log1p(input.earningsAsof));
 
   // ⑲ 주행성향 raw (페이스 교차는 계획 B)
   if (input.runningStyleAvgRatio != null) add('style_avg_ratio', input.runningStyleAvgRatio);
@@ -215,6 +216,7 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   missingFlag('speed_ability_raw', input.speedFigureAbilityRaw != null);
   missingFlag('career_finish_ratio', input.careerFinishRatio != null);
   missingFlag('career_place_rate', input.careerPlaceRate != null);
+  missingFlag('earnings_asof_log', input.earningsAsof != null);
   missingFlag('pedigree_dsa_mean', dsa.length > 0);
   missingFlag('style_avg_ratio', input.runningStyleAvgRatio != null);
   missingFlag('style_stddev', input.runningStyleStddev != null);

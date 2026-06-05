@@ -30,6 +30,7 @@ interface EntryRow {
   trar_no: string | null;
   popularity: number | null;
   erng_sump: number | null;
+  erng_sump_asof: number | null;
 }
 
 export interface PredictionRow {
@@ -60,7 +61,7 @@ export async function gatherRaceInputs(
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, jcky_no, trar_no, popularity, erng_sump')
+    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
     .eq('race_date', rcDate)
     .eq('meet', meet)
     .eq('rc_no', rcNo)
@@ -149,6 +150,7 @@ export async function gatherRaceInputs(
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
       const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType, asOfMap.get(e.hr_name)!);
       input.erngSump = e.erng_sump ?? undefined;
+      input.earningsAsof = e.erng_sump_asof ?? undefined;
       input.allRaceRatings = allRaceRatings;
       return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: e.ord, input };
     })

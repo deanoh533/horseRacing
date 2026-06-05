@@ -143,6 +143,7 @@ export interface ScoreEngineInput {
   careerFinishRatio?: number | null;
   careerPlaceRate?: number | null;
   careerN?: number;
+  earningsAsof?: number | null;  // ⑱ 진짜 as-of 누적 수득상금(API156 rk_purse 합)
 }
 
 /**

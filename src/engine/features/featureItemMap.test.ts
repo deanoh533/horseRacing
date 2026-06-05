@@ -26,6 +26,10 @@ describe('featureToItem', () => {
     expect(featureToItem('career_n')).toBe('18_earnings');
     expect(featureToItem('career_finish_ratio__missing')).toBe('18_earnings');
   });
+  it('진짜 as-of 수득상금도 ⑱로 매핑', () => {
+    expect(featureToItem('earnings_asof_log')).toBe('18_earnings');
+    expect(featureToItem('earnings_asof_log__missing')).toBe('18_earnings');
+  });
   it('제거된 earnings_log는 미매핑(context)', () => {
     expect(featureToItem('earnings_log')).toBe('context');
   });

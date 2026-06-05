@@ -42,6 +42,14 @@ describe('buildFeatures — 연속형 raw', () => {
     expect(val(input, 'career_place_rate')).toBeCloseTo(0.6, 5);
     expect(val(input, 'career_n')).toBe(5);
   });
+  it('⑱ 진짜 as-of 수득상금 log1p (클래스 신호와 병존)', () => {
+    const input = { ...base, earningsAsof: 100_000_000, careerFinishRatio: 0.2 };
+    expect(val(input, 'earnings_asof_log')).toBeCloseTo(Math.log1p(100_000_000), 5);
+    expect(val(input, 'career_finish_ratio')).toBeCloseTo(0.2, 5); // 병존 확인
+  });
+  it('⑱ earnings_asof 결측이면 missing=1', () => {
+    expect(val({ ...base }, 'earnings_asof_log__missing')).toBe(1);
+  });
   it('⑱ earnings_log는 더 이상 출력 안 함 (누수 제거)', () => {
     expect(val({ ...base, erngSump: 100_000_000 }, 'earnings_log')).toBeUndefined();
   });
