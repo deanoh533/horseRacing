@@ -36,9 +36,19 @@ describe('buildFeatures — 연속형 raw', () => {
     expect(val(input, 'burden_over_avg')).toBeCloseTo(2, 5);
     expect(val(input, 'burden_ord_mean')).toBeCloseTo(2, 5);
   });
-  it('⑱ 수득상금은 log1p로', () => {
-    const v = val({ ...base, erngSump: 100_000_000 }, 'earnings_log');
-    expect(v).toBeCloseTo(Math.log1p(100_000_000), 5);
+  it('⑱ 통산 클래스: finish_ratio·place_rate raw 통과, career_n 동반', () => {
+    const input = { ...base, careerFinishRatio: 0.2, careerPlaceRate: 0.6, careerN: 5 };
+    expect(val(input, 'career_finish_ratio')).toBeCloseTo(0.2, 5);
+    expect(val(input, 'career_place_rate')).toBeCloseTo(0.6, 5);
+    expect(val(input, 'career_n')).toBe(5);
+  });
+  it('⑱ earnings_log는 더 이상 출력 안 함 (누수 제거)', () => {
+    expect(val({ ...base, erngSump: 100_000_000 }, 'earnings_log')).toBeUndefined();
+  });
+  it('⑱ 통산 클래스 결측이면 missing=1, career_n=0', () => {
+    expect(val({ ...base }, 'career_finish_ratio__missing')).toBe(1);
+    expect(val({ ...base }, 'career_place_rate__missing')).toBe(1);
+    expect(val({ ...base }, 'career_n')).toBe(0);
   });
   it('⑪ 경주간격 raw 일수', () => {
     expect(val({ ...base, intervalDays: 21 }, 'interval_days')).toBe(21);

@@ -146,8 +146,10 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   const pop = input.recent5Popularities ?? [];
   if (pop.length > 0) add('recent_pop_top2', pop.filter((p) => p <= 2).length / pop.length);
 
-  // ⑱ 수득상금 log
-  if (input.erngSump != null) add('earnings_log', Math.log1p(input.erngSump));
+  // ⑱ 통산 클래스 신호 (earnings 누수 대체 — as-of 과거 ord 이력)
+  if (input.careerFinishRatio != null) add('career_finish_ratio', input.careerFinishRatio);
+  if (input.careerPlaceRate != null) add('career_place_rate', input.careerPlaceRate);
+  add('career_n', input.careerN ?? 0);
 
   // ⑲ 주행성향 raw (페이스 교차는 계획 B)
   if (input.runningStyleAvgRatio != null) add('style_avg_ratio', input.runningStyleAvgRatio);
@@ -211,6 +213,8 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   };
   missingFlag('dist_finish_ratio', input.distFinishRatio != null);
   missingFlag('speed_ability_raw', input.speedFigureAbilityRaw != null);
+  missingFlag('career_finish_ratio', input.careerFinishRatio != null);
+  missingFlag('career_place_rate', input.careerPlaceRate != null);
   missingFlag('pedigree_dsa_mean', dsa.length > 0);
   missingFlag('style_avg_ratio', input.runningStyleAvgRatio != null);
   missingFlag('style_stddev', input.runningStyleStddev != null);
