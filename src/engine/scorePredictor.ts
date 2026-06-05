@@ -404,6 +404,9 @@ async function buildEngineInput(
     runningStyleStddev: styleMap.get(e.hr_name)?.std ?? null,
     paceType,
     speedFigureAbilityRaw: asOf.speedFigureAbilityRaw,
+    careerFinishRatio: asOf.careerFinishRatio,
+    careerPlaceRate: asOf.careerPlaceRate,
+    careerN: asOf.careerN,
   };
 }
 

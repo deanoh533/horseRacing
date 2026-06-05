@@ -138,6 +138,11 @@ export interface ScoreEngineInput {
 
   // ⑳ 속도능력지수 (as-of figure 평균)
   speedFigureAbilityRaw?: number | null;
+
+  // ⑱ 통산 클래스 신호 (earnings 누수 대체 — as-of 과거 ord 이력)
+  careerFinishRatio?: number | null;
+  careerPlaceRate?: number | null;
+  careerN?: number;
 }
 
 /**
