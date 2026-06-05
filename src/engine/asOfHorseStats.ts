@@ -27,6 +27,9 @@ export interface AsOfHorseStats {
   frontRunSuccessRate: number | undefined; // ⑤
   distFinishRatio: number | null; // ⑥ (현재 경주 거리 카테고리 한정)
   speedFigureAbilityRaw: number | null; // ⑳ 최근 N경주 figure 평균
+  careerFinishRatio: number | null;     // ⑱ 통산 평균착순율 (earnings 대체)
+  careerPlaceRate: number | null;       // ⑱ 통산 입상율 (KRA 연승규칙)
+  careerN: number;                      // ⑱ 유효 과거 경주 수
 }
 
 // 뷰의 HAVING 임계와 동일
@@ -39,6 +42,9 @@ const EMPTY: AsOfHorseStats = {
   frontRunSuccessRate: undefined,
   distFinishRatio: null,
   speedFigureAbilityRaw: null,
+  careerFinishRatio: null,
+  careerPlaceRate: null,
+  careerN: 0,
 };
 
 export function distCategoryOf(dist: number | null | undefined): DistCategory | null {
@@ -91,7 +97,26 @@ export function computeAsOfHorseStats(
     if (fins.length >= MIN_RACES_DIST) distFinishRatio = mean(fins);
   }
 
-  return { avgPositionRatio, stddevPositionRatio, frontRunSuccessRate, distFinishRatio, speedFigureAbilityRaw: null };
+  // ⑱ 통산 클래스 신호 (earnings 누수 대체) — 과거 ord 이력만 사용
+  const finishRatios: number[] = [];
+  let placeEligible = 0;
+  let placeHit = 0;
+  for (const r of past) {
+    if (r.fieldSize < 2 || r.ord == null) continue;
+    finishRatios.push((r.ord - 1) / (r.fieldSize - 1));
+    // KRA 연승 입상: 8두↑ 3착내 / 5~7두 2착내 / 4두↓ 미발매(분모 제외)
+    if (r.fieldSize >= 8) { placeEligible++; if (r.ord <= 3) placeHit++; }
+    else if (r.fieldSize >= 5) { placeEligible++; if (r.ord <= 2) placeHit++; }
+  }
+  const careerN = finishRatios.length;
+  const careerFinishRatio = careerN > 0 ? mean(finishRatios) : null;
+  const careerPlaceRate = placeEligible > 0 ? placeHit / placeEligible : null;
+
+  return {
+    avgPositionRatio, stddevPositionRatio, frontRunSuccessRate, distFinishRatio,
+    speedFigureAbilityRaw: null,
+    careerFinishRatio, careerPlaceRate, careerN,
+  };
 }
 
 function mean(a: number[]): number {

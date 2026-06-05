@@ -72,3 +72,48 @@ describe('computeAsOfHorseStats — 누수 방지 as-of 통계', () => {
     expect(distCategoryOf(null)).toBeNull();
   });
 });
+
+describe('computeAsOfHorseStats — 통산 클래스 신호 (earnings 누수 대체)', () => {
+  it('과거 없으면 careerN=0, ratio/rate=null', () => {
+    const r = computeAsOfHorseStats([], 'middle');
+    expect(r.careerN).toBe(0);
+    expect(r.careerFinishRatio).toBeNull();
+    expect(r.careerPlaceRate).toBeNull();
+  });
+
+  it('careerFinishRatio = (ord-1)/(fieldSize-1) 평균, careerN=유효경주수', () => {
+    const past: AsOfPastRace[] = [
+      { s1fOrd: null, ord: 1, fieldSize: 11, distCategory: 'middle' },  // ratio 0
+      { s1fOrd: null, ord: 11, fieldSize: 11, distCategory: 'middle' }, // ratio 1
+    ];
+    const r = computeAsOfHorseStats(past, 'middle');
+    expect(r.careerFinishRatio).toBeCloseTo(0.5, 5);
+    expect(r.careerN).toBe(2);
+  });
+
+  it('careerPlaceRate: 8두↑는 3착내 입상', () => {
+    const past: AsOfPastRace[] = [
+      { s1fOrd: null, ord: 3, fieldSize: 10, distCategory: 'middle' }, // 입상
+      { s1fOrd: null, ord: 4, fieldSize: 10, distCategory: 'middle' }, // 비입상
+    ];
+    expect(computeAsOfHorseStats(past, 'middle').careerPlaceRate).toBeCloseTo(0.5, 5);
+  });
+
+  it('careerPlaceRate: 5~7두는 2착내만 입상', () => {
+    const past: AsOfPastRace[] = [
+      { s1fOrd: null, ord: 2, fieldSize: 6, distCategory: 'middle' }, // 입상
+      { s1fOrd: null, ord: 3, fieldSize: 6, distCategory: 'middle' }, // 비입상(6두라 3착은 미입상)
+    ];
+    expect(computeAsOfHorseStats(past, 'middle').careerPlaceRate).toBeCloseTo(0.5, 5);
+  });
+
+  it('careerPlaceRate: 4두↓는 연승 미발매라 분모서 제외 (단 finishRatio엔 포함)', () => {
+    const past: AsOfPastRace[] = [
+      { s1fOrd: null, ord: 1, fieldSize: 4, distCategory: 'middle' },  // place 제외, finish 포함
+      { s1fOrd: null, ord: 1, fieldSize: 10, distCategory: 'middle' }, // 입상
+    ];
+    const r = computeAsOfHorseStats(past, 'middle');
+    expect(r.careerPlaceRate).toBeCloseTo(1.0, 5); // 1/1 (4두 경주 제외)
+    expect(r.careerN).toBe(2);                     // finishRatio는 fieldSize>=2라 둘 다
+  });
+});
