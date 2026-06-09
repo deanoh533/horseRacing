@@ -1,7 +1,12 @@
 /**
- * Stage 2 Phase 2A — 복연승 확정배당 수집 (읽기전용 외부 API).
- * API160_1/integratedInfo_1 호출 → pool=='복연승식' 추출 → data/combo_dividends.jsonl.
- * 사용: npm run collect:combo -- --from 20250101 --to 20991231 --out data/combo_dividends.jsonl
+ * 조합 확정배당 수집 (읽기전용 외부 API).
+ * API160_1/integratedInfo_1 호출 → pool 필터(--pool) 추출 → JSONL (race·a·b·odds).
+ *
+ * 사용:
+ *   # 복연승식(2마리 둘 다 3착내)
+ *   npm run collect:combo -- --from 20250101 --pool 복연승식 --out data/combo_dividends.jsonl
+ *   # 복승식(1·2착) — 복승 박스 백테스트용
+ *   npm run collect:combo -- --from 20250101 --pool 복승식 --out data/quinella_dividends.jsonl
  */
 import 'dotenv/config';
 import { writeFileSync, appendFileSync } from 'node:fs';
@@ -56,6 +61,7 @@ async function main() {
   const from = Number(arg('--from', '20250101'));
   const to = Number(arg('--to', '20991231'));
   const out = arg('--out', 'data/combo_dividends.jsonl');
+  const pool = arg('--pool', '복연승식');
 
   const sb = getSupabaseAdmin();
   const races: { d: number; m: number; n: number }[] = [];
@@ -74,7 +80,7 @@ async function main() {
     }
     if (data.length < PAGE) break;
   }
-  console.log(`대상 경주 ${races.length}건 → ${out}`);
+  console.log(`대상 경주 ${races.length}건 → ${out} (pool=${pool})`);
 
   writeFileSync(out, '');
   const limit = pLimit(4);
@@ -83,7 +89,7 @@ async function main() {
     try {
       const items = await fetchRace(rc.m, rc.d, rc.n);
       const lines = items
-        .filter((it) => it.pool === '복연승식')
+        .filter((it) => it.pool === pool)
         .map((it) => {
           const a = Math.min(it.chulNo, it.chulNo2), b = Math.max(it.chulNo, it.chulNo2);
           return JSON.stringify({ race_date: rc.d, meet: rc.m, rc_no: rc.n, a, b, odds: it.odds });
@@ -92,7 +98,7 @@ async function main() {
     } catch (e) { console.error(`  ⚠️ ${rc.d}/${rc.m}/${rc.n}:`, (e as Error).message); }
     if (++done % 50 === 0) console.log(`  ${done}/${races.length} 경주, ${rows} 조합행`);
   })));
-  console.log(`✅ ${rows} 복연승 조합행 → ${out}`);
+  console.log(`✅ ${rows} ${pool} 조합행 → ${out}`);
 }
 
 main().catch((e) => { console.error('💥', e); process.exit(1); });

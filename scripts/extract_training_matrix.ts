@@ -9,7 +9,7 @@ import 'dotenv/config';
 import { writeFileSync, appendFileSync } from 'node:fs';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { gatherRaceInputs } from '../src/engine/scorePredictor.js';
-import { buildFeatures } from '../src/engine/features/buildFeatures.js';
+import { buildRaceFeatures } from '../src/engine/features/relativizeRace.js';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -50,14 +50,18 @@ async function main() {
     const oddsMap = new Map<string, number | null>(
       (oddsRows ?? []).map((o: { hr_name: string; win_odds: number | null }) => [o.hr_name, o.win_odds])
     );
+    // 경주 내 상대화: 필드 = 전 출주마. z-score 계산 후 결과확정 행만 emit.
+    const raceFeats = buildRaceFeatures(inputs.map((r) => r.input));
     const lines = inputs
-      .filter((r) => r.ord != null && r.ord <= 50)
-      .map((r) => JSON.stringify({
+      .map((r, i) => ({ r, f: raceFeats[i]! }))
+      .filter(({ r }) => r.ord != null && r.ord <= 50)
+      .map(({ r, f }) => JSON.stringify({
         race_date: d, meet: m, rc_no: n, hr_name: r.hr_name,
         ord: r.ord,
         win_odds: oddsMap.get(r.hr_name) ?? null,
         top3: (r.ord as number) <= 3 ? 1 : 0,
-        features: buildFeatures(r.input),
+        top2: (r.ord as number) <= 2 ? 1 : 0,
+        features: f,
       }));
     if (lines.length) { appendFileSync(out, lines.join('\n') + '\n'); rows += lines.length; }
     if (++done % 100 === 0) console.log(`  ${done}/${races.size} races, ${rows} rows`);
