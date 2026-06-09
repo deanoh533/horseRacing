@@ -86,15 +86,44 @@ async function main() {
     byRace.get(k)!.push(r);
   }
 
-  const labels: ('top3' | 'top2')[] = hasTop2 ? ['top3', 'top2'] : ['top3'];
-  const featureSets: ('abs' | 'absz')[] = ['abs', 'absz'];
+  // 게이트A에서 탈락한 신규 구간 후보 — baseline에서 제외(존재 시)
+  const NEW_CANDIDATES = [
+    'early_pos_s1f_mean', 'early_pos_s1f_ratio_mean',
+    'late_pos_g1f_mean', 'late_pos_g1f_ratio_mean',
+    'late_200m_speed_mean', 'early_to_finish_gain_mean',
+  ];
+  const candidate = arg('--candidate', '');
+  const labelArg = arg('--label', '');
+  const labels: ('top3' | 'top2')[] = labelArg === 'top2' ? ['top2']
+    : labelArg === 'top3' ? ['top3']
+    : hasTop2 ? ['top3', 'top2'] : ['top3'];
 
-  console.log('\n피처셋 | 라벨  | 베팅수 | 박스적중 | 적중률 |   ROI%   | Brier');
-  console.log('-'.repeat(68));
+  const fullSchema = buildSchema(train.map((r) => r.features));
+  // baseline = 기존 60개 (z·신규후보 제외)
+  const baseSchema = fullSchema.filter((n) => !n.endsWith('_z') && !NEW_CANDIDATES.includes(n));
 
-  for (const fset of featureSets) {
-    const fullSchema = buildSchema(train.map((r) => r.features));
-    const schema = fset === 'abs' ? fullSchema.filter((n) => !n.endsWith('_z')) : fullSchema;
+  // 변형 정의: --candidate 주면 baseline vs baseline+candidate (단독 효과 격리),
+  // 없으면 abs(z제외) vs absz(전체)
+  let variants: { name: string; schema: string[] }[];
+  if (candidate) {
+    if (!fullSchema.includes(candidate)) console.log(`⚠️ '${candidate}'가 행렬에 없음 (extract:matrix 확인)`);
+    variants = [
+      { name: 'baseline', schema: baseSchema },
+      { name: `+${candidate}`, schema: baseSchema.includes(candidate) ? baseSchema : [...baseSchema, candidate] },
+    ];
+  } else {
+    variants = [
+      { name: 'abs', schema: fullSchema.filter((n) => !n.endsWith('_z')) },
+      { name: 'absz', schema: fullSchema },
+    ];
+  }
+  const w = Math.max(8, ...variants.map((v) => v.name.length));
+
+  console.log(`\n${'변형'.padEnd(w)} | 라벨  | 베팅수 | 박스적중 | 적중률 |   ROI%   | Brier`);
+  console.log('-'.repeat(62 + w));
+
+  for (const v of variants) {
+    const schema = v.schema;
 
     for (const label of labels) {
       const y = train.map((r) => (label === 'top2' ? (r.top2 ?? 0) : r.top3));
@@ -127,12 +156,14 @@ async function main() {
       const roi = roiCost > 0 ? ((roiProfit / roiCost) * 100).toFixed(1) + '%' : '-';
       const brier = brierN ? (brierSum / brierN).toFixed(4) : '-';
       console.log(
-        `${fset.padEnd(6)} | ${label.padEnd(5)} | ${String(bettable).padStart(6)} | ${String(hits).padStart(8)} | ${hitRate.padStart(5)}% | ${roi.padStart(8)} | ${brier}`
+        `${v.name.padEnd(w)} | ${label.padEnd(5)} | ${String(bettable).padStart(6)} | ${String(hits).padStart(8)} | ${hitRate.padStart(5)}% | ${roi.padStart(8)} | ${brier}`
       );
     }
   }
-  console.log('-'.repeat(68));
-  console.log('판정 기준 = 박스 ROI (적중률·Brier는 참고). abs vs absz 비교로 상대화 효과 확인.');
+  console.log('-'.repeat(62 + w));
+  console.log(candidate
+    ? `판정 = 박스 ROI. baseline vs +${candidate} 차이로 단독 효과 확인 (top2 기준).`
+    : '판정 = 박스 ROI (적중률·Brier 참고). abs vs absz 비교로 상대화 효과 확인.');
 }
 
 main().catch((e) => { console.error('💥', e); process.exit(1); });
