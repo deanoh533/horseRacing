@@ -80,6 +80,24 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
     });
     add('late_finish_ratio_mean', mean(finishRatios));
     add('late_gain_mean', mean(gains));
+
+    // 신규 raw 구간 후보 (해석·점수화 없이 평균만; 상관·holdout으로 채택 결정)
+    // ① 초반 200m(s1f) 순위 — raw 등수 + 출주두수 비율
+    add('early_pos_s1f_mean', mean(positions.map((p) => p.startOrd)));
+    add('early_pos_s1f_ratio_mean', mean(positions.map((p) => (p.startOrd - 1) / Math.max(1, p.fieldSize - 1))));
+    // ④ 초반−최종 등수 상승폭 (raw, ③ late_gain_mean의 비가공 버전)
+    add('early_to_finish_gain_mean', mean(positions.map((p) => p.startOrd - p.finishOrd)));
+    // ② 종반 200m(g1f) 순위 — raw 등수 + 비율 (결측 제외)
+    const withG1f = positions.filter((p) => p.g1fOrd != null && p.g1fOrd > 0);
+    if (withG1f.length > 0) {
+      add('late_pos_g1f_mean', mean(withG1f.map((p) => p.g1fOrd!)));
+      add('late_pos_g1f_ratio_mean', mean(withG1f.map((p) => (p.g1fOrd! - 1) / Math.max(1, p.fieldSize - 1))));
+    }
+    // ③ 종반 200m 속도 = 200m ÷ 마지막 200m 시간 (m/s, 거리 무관 물리량; 결측 제외)
+    const withSpd = positions.filter((p) => p.last200mTime != null && p.last200mTime > 0);
+    if (withSpd.length > 0) {
+      add('late_200m_speed_mean', mean(withSpd.map((p) => 200 / p.last200mTime!)));
+    }
   }
 
   // ⑥ 거리 적성

@@ -74,6 +74,34 @@ describe('buildFeatures — 연속형 raw', () => {
     // startRatio=7/9, finishRatio=1/9, gain=6/9>0
     expect(val(input, 'late_gain_mean')!).toBeGreaterThan(0);
   });
+  it('신규 구간 후보: 초반/종반 순위 raw+비율, 종반속도, 상승폭', () => {
+    const input: ScoreEngineInput = {
+      ...base,
+      positions: [
+        { startOrd: 6, finishOrd: 2, fieldSize: 11, g1fOrd: 4, last200mTime: 12.5 },
+        { startOrd: 8, finishOrd: 4, fieldSize: 11, g1fOrd: 6, last200mTime: 13.5 },
+      ],
+    };
+    // ① 초반 200m 순위: raw 등수 평균=(6+8)/2=7, 비율 평균=((5/10)+(7/10))/2=0.6
+    expect(val(input, 'early_pos_s1f_mean')).toBeCloseTo(7, 5);
+    expect(val(input, 'early_pos_s1f_ratio_mean')).toBeCloseTo(0.6, 5);
+    // ② 종반 200m 순위: raw=(4+6)/2=5, 비율=((3/10)+(5/10))/2=0.4
+    expect(val(input, 'late_pos_g1f_mean')).toBeCloseTo(5, 5);
+    expect(val(input, 'late_pos_g1f_ratio_mean')).toBeCloseTo(0.4, 5);
+    // ③ 종반 200m 속도: 200/12.5=16, 200/13.5=14.81 → 평균≈15.41 m/s
+    expect(val(input, 'late_200m_speed_mean')!).toBeCloseTo((16 + 200 / 13.5) / 2, 4);
+    // ④ 초반−최종 등수 상승폭: (6-2)+(8-4) = 4,4 → 평균 4
+    expect(val(input, 'early_to_finish_gain_mean')).toBeCloseTo(4, 5);
+  });
+  it('종반 순위/속도는 결측(0/없음)이면 그 항목 생략', () => {
+    const input: ScoreEngineInput = {
+      ...base,
+      positions: [{ startOrd: 5, finishOrd: 3, fieldSize: 8 }], // g1fOrd·last200mTime 없음
+    };
+    expect(val(input, 'early_pos_s1f_mean')).toBe(5); // 초반은 나옴
+    expect(val(input, 'late_pos_g1f_mean')).toBeUndefined();
+    expect(val(input, 'late_200m_speed_mean')).toBeUndefined();
+  });
   it('② 마체중: 최근 변화량(last)과 기울기 (weightDiffs는 과거→최근)', () => {
     const input: ScoreEngineInput = { ...base, weightDiffs: [-2, 0, 4] };
     expect(val(input, 'weight_diff_last')).toBe(4);

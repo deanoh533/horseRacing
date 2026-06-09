@@ -70,6 +70,7 @@ export interface ScoreEngineInput {
     finishOrd: number;
     fieldSize: number;
     g1fOrd?: number;
+    last200mTime?: number; // 마지막 200m(g1f) 소요 시간(초) = rc_time − g1f_acc_time
   }>;
   frontRunSuccessRate?: number;
 

@@ -270,6 +270,7 @@ async function buildEngineInput(
         finishOrd: r.ord as number,
         fieldSize,
         g1fOrd: (g1fOrd as number) ?? undefined,
+        last200mTime: calcLastFurlong(r) || undefined, // 0이면 결측 → undefined
       };
     })
     .filter((p) => p.startOrd > 0 && p.fieldSize >= 2);
