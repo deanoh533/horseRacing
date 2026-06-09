@@ -50,10 +50,12 @@ import { calculateSpeedFigureScore } from './scoreItems/20_speed_figure.js';
 export interface ScoreEngineInput {
   // ① 레이팅
   rating: number;
-  allRaceRatings?: number[];  // 경주 내 전 출전마 레이팅 (T-015 상대 순위용)
+  allRaceRatings?: number[];  // 경주 내 전 출전마 레이팅 (T-015 상대 순위 + 경쟁강도용)
 
   // ② 마체중 변화
   weightDiffs?: number[];
+  bodyWeight?: number;          // 오늘 마체중 절대값(kg, wg_hr)
+  allRaceBodyWeights?: number[]; // 경주 내 전 출전마 마체중 (필드대비용)
   sex?: string;
   currentMonth?: number;
 

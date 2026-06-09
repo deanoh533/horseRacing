@@ -39,6 +39,15 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
     add('rating_rel', rated.length > 1 ? 1 - better / (rated.length - 1) : 0.5);
   }
 
+  // 경쟁강도 후보 (착순 무관 — 오늘 필드 난이도). 유효 레이팅 ≥2.
+  const fieldRatings = (input.allRaceRatings ?? []).filter((r) => r > 0);
+  if (fieldRatings.length >= 2) {
+    const fieldMean = mean(fieldRatings);
+    add('field_rating_mean', fieldMean);                       // 필드 평균 레이팅
+    add('field_rating_max', Math.max(...fieldRatings));        // 필드 최고 레이팅
+    if ((input.rating ?? 0) > 0) add('rating_minus_field_mean', input.rating - fieldMean); // 내−평균 격차
+  }
+
   // ② 마체중 변화 (raw; U자 비단조 버킷은 계획 B)
   const wd = input.weightDiffs ?? [];
   if (wd.length > 0) {
@@ -46,6 +55,13 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
     add('weight_diff_slope', slope(wd));           // 추세 기울기
   }
   add('weight_diff_n', (input.weightDiffs ?? []).length);
+
+  // 마체중 절대값 후보 (착순 무관 — 체격·컨디션). 오늘 wg_hr.
+  if (input.bodyWeight != null && input.bodyWeight > 0) {
+    add('body_weight', input.bodyWeight);
+    const fieldBw = (input.allRaceBodyWeights ?? []).filter((w) => w > 0);
+    if (fieldBw.length >= 2) add('body_weight_minus_field_mean', input.bodyWeight - mean(fieldBw));
+  }
 
   // ③ 착순 추세 (ord5: 과거→최근)
   const ord5 = input.ord5 ?? [];

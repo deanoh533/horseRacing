@@ -86,30 +86,38 @@ async function main() {
     byRace.get(k)!.push(r);
   }
 
-  // 게이트A에서 탈락한 신규 구간 후보 — baseline에서 제외(존재 시)
+  // 게이트A에서 탈락했거나 검증 중인 신규 후보 — baseline에서 제외(존재 시)
   const NEW_CANDIDATES = [
+    // 구간 후보 (게이트A·B 탈락 종결)
     'early_pos_s1f_mean', 'early_pos_s1f_ratio_mean',
     'late_pos_g1f_mean', 'late_pos_g1f_ratio_mean',
     'late_200m_speed_mean', 'early_to_finish_gain_mean',
+    // 착순 우물 밖 후보 (검증 중)
+    'field_rating_mean', 'field_rating_max', 'rating_minus_field_mean',
+    'body_weight', 'body_weight_minus_field_mean',
   ];
+  // --candidate: 콤마로 여러 개 → 함께 baseline에 추가 (그룹 단위 켜고 끄기)
   const candidate = arg('--candidate', '');
+  const candList = candidate.split(',').map((s) => s.trim()).filter(Boolean);
   const labelArg = arg('--label', '');
   const labels: ('top3' | 'top2')[] = labelArg === 'top2' ? ['top2']
     : labelArg === 'top3' ? ['top3']
     : hasTop2 ? ['top3', 'top2'] : ['top3'];
 
   const fullSchema = buildSchema(train.map((r) => r.features));
-  // baseline = 기존 60개 (z·신규후보 제외)
+  // baseline = 기존 60개 (z·신규후보 전부 제외)
   const baseSchema = fullSchema.filter((n) => !n.endsWith('_z') && !NEW_CANDIDATES.includes(n));
 
-  // 변형 정의: --candidate 주면 baseline vs baseline+candidate (단독 효과 격리),
+  // 변형 정의: --candidate 주면 baseline vs baseline+후보들 (단독/그룹 효과 격리),
   // 없으면 abs(z제외) vs absz(전체)
   let variants: { name: string; schema: string[] }[];
-  if (candidate) {
-    if (!fullSchema.includes(candidate)) console.log(`⚠️ '${candidate}'가 행렬에 없음 (extract:matrix 확인)`);
+  if (candList.length > 0) {
+    const missing = candList.filter((c) => !fullSchema.includes(c));
+    if (missing.length) console.log(`⚠️ 행렬에 없음: ${missing.join(', ')} (extract:matrix 확인)`);
+    const present = candList.filter((c) => fullSchema.includes(c));
     variants = [
       { name: 'baseline', schema: baseSchema },
-      { name: `+${candidate}`, schema: baseSchema.includes(candidate) ? baseSchema : [...baseSchema, candidate] },
+      { name: `+${candList.join('+')}`, schema: [...baseSchema, ...present] },
     ];
   } else {
     variants = [
@@ -161,8 +169,8 @@ async function main() {
     }
   }
   console.log('-'.repeat(62 + w));
-  console.log(candidate
-    ? `판정 = 박스 ROI. baseline vs +${candidate} 차이로 단독 효과 확인 (top2 기준).`
+  console.log(candList.length > 0
+    ? `판정 = 박스 ROI. baseline vs +${candList.join('+')} 차이로 효과 확인 (top2 기준).`
     : '판정 = 박스 ROI (적중률·Brier 참고). abs vs absz 비교로 상대화 효과 확인.');
 }
 

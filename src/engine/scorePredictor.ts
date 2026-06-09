@@ -26,6 +26,7 @@ interface EntryRow {
   rc_dist: number | null;
   track_type: string | null;
   burd_wgt: number | null;
+  wg_hr: number | null;
   jcky_no: string | null;
   trar_no: string | null;
   popularity: number | null;
@@ -61,7 +62,7 @@ export async function gatherRaceInputs(
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
+    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, wg_hr, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
     .eq('race_date', rcDate)
     .eq('meet', meet)
     .eq('rc_no', rcNo)
@@ -75,6 +76,7 @@ export async function gatherRaceInputs(
   const currentMonth = Math.floor((rcDate % 10000) / 100);
   const currentSeason = monthToSeason(currentMonth);
   const allRaceRatings = entryList.map(e => e.ratg ?? 0);
+  const allRaceBodyWeights = entryList.map(e => e.wg_hr ?? 0);
 
   // 기수·조교사 최근 90일 착순 배치 fetch (⑨b⑩b용)
   const ninetyDaysAgo = dateMinusDays(rcDate, 90);
@@ -152,6 +154,8 @@ export async function gatherRaceInputs(
       input.erngSump = e.erng_sump ?? undefined;
       input.earningsAsof = e.erng_sump_asof ?? undefined;
       input.allRaceRatings = allRaceRatings;
+      input.bodyWeight = e.wg_hr ?? undefined;
+      input.allRaceBodyWeights = allRaceBodyWeights;
       return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: e.ord, input };
     })
   );

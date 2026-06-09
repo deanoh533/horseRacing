@@ -102,6 +102,23 @@ describe('buildFeatures — 연속형 raw', () => {
     expect(val(input, 'late_pos_g1f_mean')).toBeUndefined();
     expect(val(input, 'late_200m_speed_mean')).toBeUndefined();
   });
+  it('경쟁강도: 필드 평균/최고 레이팅, 내 레이팅−필드평균 격차', () => {
+    const input: ScoreEngineInput = { rating: 85, allRaceRatings: [70, 80, 90] };
+    expect(val(input, 'field_rating_mean')).toBeCloseTo(80, 5);
+    expect(val(input, 'field_rating_max')).toBe(90);
+    expect(val(input, 'rating_minus_field_mean')).toBeCloseTo(5, 5);
+  });
+  it('경쟁강도: 유효 레이팅(>0) 2개 미만이면 생략', () => {
+    expect(val({ rating: 85, allRaceRatings: [0, 85, 0] }, 'field_rating_mean')).toBeUndefined();
+  });
+  it('마체중 절대값 + 필드대비', () => {
+    const input: ScoreEngineInput = { rating: 0, bodyWeight: 490, allRaceBodyWeights: [450, 480, 510] };
+    expect(val(input, 'body_weight')).toBe(490);
+    expect(val(input, 'body_weight_minus_field_mean')).toBeCloseTo(490 - 480, 5);
+  });
+  it('마체중: bodyWeight 없으면 생략', () => {
+    expect(val({ rating: 0 }, 'body_weight')).toBeUndefined();
+  });
   it('② 마체중: 최근 변화량(last)과 기울기 (weightDiffs는 과거→최근)', () => {
     const input: ScoreEngineInput = { ...base, weightDiffs: [-2, 0, 4] };
     expect(val(input, 'weight_diff_last')).toBe(4);

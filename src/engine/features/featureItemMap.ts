@@ -5,7 +5,9 @@
  */
 const MAP: Record<string, string> = {
   rating_abs: '01_rating', rating_rel: '01_rating',
+  field_rating_mean: '01_rating', field_rating_max: '01_rating', rating_minus_field_mean: '01_rating',
   weight_diff_last: '02_weight_change', weight_diff_slope: '02_weight_change', weight_diff_n: '02_weight_change',
+  body_weight: '02_weight_change', body_weight_minus_field_mean: '02_weight_change',
   recent_ord_mean: '03_recent_form', recent_ord_slope: '03_recent_form', recent_ord_std: '03_recent_form', recent_ord_last: '03_recent_form', hist_n: '03_recent_form',
   sectional_total_improve: '04_sectional_time', sectional_last_improve: '04_sectional_time',
   late_finish_ratio_mean: '05_late_position', late_gain_mean: '05_late_position',
