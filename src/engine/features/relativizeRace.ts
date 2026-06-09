@@ -14,31 +14,15 @@ import type { ScoreEngineInput } from '../index.js';
 import type { Feature } from './types.js';
 
 /**
- * 경주 내 z-score 대상 — 연속형 per-horse 실력 지표 32개.
- * 제외: 이미 상대화된 것(rating_rel·gate_relative), 경주 단위 상수(rc_dist·pace_*),
- * 이진 one-hot(interval_b_*·x_*·sex_*), 표본수 카운트(*_n, 신뢰도 신호), 결측 플래그.
+ * 경주 내 z-score 대상.
+ *
+ * ⚠️ 2026-06-09 z-score 트랙 종결 → **비움**. 게이트A에서 z 32개 전부 자기 절대값과
+ * |r| 0.83~0.93 중복(특히 rating_abs_z↔rating_rel=0.927로 이미 있던 상대화 재발명),
+ * holdout ROI 무변동으로 확인. 죽은 가설을 행렬에 남기면 새 후보 상관 진단에
+ * 노이즈만 되므로 생성을 끈다. (relativizeRace·buildRaceFeatures 골격은 진짜
+ * 상대화 신호가 나올 때 재사용하려고 유지.)
  */
-export const RELATIVIZE_FEATURES: readonly string[] = [
-  'rating_abs',
-  'weight_diff_last', 'weight_diff_slope',
-  'recent_ord_mean', 'recent_ord_slope', 'recent_ord_std', 'recent_ord_last',
-  'sectional_total_improve', 'sectional_last_improve',
-  'late_finish_ratio_mean', 'late_gain_mean',
-  'dist_finish_ratio',
-  'track_improvement',
-  'burden_over_avg', 'burden_ord_mean',
-  'jockey_career_qu', 'jockey_career_win', 'jockey_recent_win',
-  'trainer_top3', 'trainer_recent_top2',
-  'interval_days',
-  'age',
-  'pedigree_dsa_mean',
-  'season_top3',
-  'chemistry_improvement',
-  'recent_pop_top2',
-  'career_finish_ratio', 'career_place_rate', 'earnings_asof_log',
-  'style_avg_ratio', 'style_stddev',
-  'speed_ability_raw',
-];
+export const RELATIVIZE_FEATURES: readonly string[] = [];
 
 /** 그 말이 해당 피처를 "실제로 가졌나" (이름 존재 AND __missing≠1). */
 function isPresent(m: Map<string, number>, name: string): boolean {
@@ -56,11 +40,14 @@ function isPresent(m: Map<string, number>, name: string): boolean {
  * - 표준편차 0이면 z=0.
  * - 결측 말에는 `_z`를 붙이지 않음(toVector에서 0으로 채워져 패리티 유지).
  */
-export function relativizeRace(perHorse: Feature[][]): Feature[][] {
+export function relativizeRace(
+  perHorse: Feature[][],
+  features: readonly string[] = RELATIVIZE_FEATURES,
+): Feature[][] {
   const maps = perHorse.map((fs) => new Map(fs.map((f) => [f.name, f.value])));
   const out = perHorse.map((fs) => [...fs]);
 
-  for (const name of RELATIVIZE_FEATURES) {
+  for (const name of features) {
     const present: { i: number; v: number }[] = [];
     maps.forEach((m, i) => {
       if (isPresent(m, name)) present.push({ i, v: m.get(name)! });
