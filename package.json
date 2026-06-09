@@ -36,7 +36,8 @@
     "collect:prize": "tsx scripts/collect_prize.ts",
     "backtest:combo": "tsx scripts/backtest_combo_betting.ts",
     "learn:logistic": "tsx scripts/learn_logistic.ts",
-    "verify:logistic": "tsx scripts/verify_logistic.ts"
+    "verify:logistic": "tsx scripts/verify_logistic.ts",
+    "refresh:logistic": "tsx scripts/refresh_logistic.ts"
   },
   "engines": {
     "node": ">=20.0.0"

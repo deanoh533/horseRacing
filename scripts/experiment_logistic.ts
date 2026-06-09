@@ -538,9 +538,9 @@ async function main(): Promise<void> {
     // 출력 헤더 (로지스틱 블록)
     console.log(
       '\n[로지스틱]\n' +
-      '분기      | 모델연승 | 시장연승 | v1연승 | 모델단승 | 모델묶음 | 시장묶음 | 모델ROI%  |   n'
+      '분기      | 모델연승 | 시장연승 | v1연승 | 모델단승 | 시장단승 | v1단승 | 모델묶음 | 시장묶음 | 모델ROI%  |   n'
     );
-    console.log('-'.repeat(90));
+    console.log('-'.repeat(110));
 
     // GBDT 분기별 집계를 위한 버퍼 (출력 시 별도 블록으로 표시)
     interface QGbdtBuf {
@@ -580,6 +580,8 @@ async function main(): Promise<void> {
         `${pct(qAccum.mkt.show, qAccum.mkt.n).padStart(8)} | ` +
         `${pct(qAccum.v1.show, qAccum.v1.n).padStart(6)} | ` +
         `${pct(qAccum.model.win, qAccum.model.n).padStart(8)} | ` +
+        `${pct(qAccum.mkt.win, qAccum.mkt.n).padStart(8)} | ` +
+        `${pct(qAccum.v1.win, qAccum.v1.n).padStart(6)} | ` +
         `${qMbundle.padStart(8)} | ` +
         `${qFbundle.padStart(8)} | ` +
         `${qRoi.padStart(9)} | ${qAccum.model.n}`
@@ -587,7 +589,7 @@ async function main(): Promise<void> {
     }
 
     // 누적 결과 출력 (로지스틱)
-    console.log('-'.repeat(90));
+    console.log('-'.repeat(110));
     const cumRoi =
       cumAccum.roiN > 0
         ? (((cumAccum.roiSum / cumAccum.roiN) - 1) * 100).toFixed(1) + '%'
@@ -600,6 +602,8 @@ async function main(): Promise<void> {
       `${pct(cumAccum.mkt.show, cumAccum.mkt.n).padStart(8)} | ` +
       `${pct(cumAccum.v1.show, cumAccum.v1.n).padStart(6)} | ` +
       `${pct(cumAccum.model.win, cumAccum.model.n).padStart(8)} | ` +
+      `${pct(cumAccum.mkt.win, cumAccum.mkt.n).padStart(8)} | ` +
+      `${pct(cumAccum.v1.win, cumAccum.v1.n).padStart(6)} | ` +
       `${cumMbundle.padStart(8)} | ` +
       `${cumFbundle.padStart(8)} | ` +
       `${cumRoi.padStart(9)} | ${cumAccum.model.n}`
@@ -813,9 +817,9 @@ async function main(): Promise<void> {
   // 로지스틱 헤더
   console.log(
     '\n[walk-forward / 로지스틱]\n' +
-    '분기      | 학습크기  | 모델연승 | 시장연승 | v1연승 | 모델단승 | 모델묶음 | 시장묶음 | 모델ROI%  |   n'
+    '분기      | 학습크기  | 모델연승 | 시장연승 | v1연승 | 모델단승 | 시장단승 | v1단승 | 모델묶음 | 시장묶음 | 모델ROI%  |   n'
   );
-  console.log('-'.repeat(106));
+  console.log('-'.repeat(126));
 
   for (const qk of testQuarters) {
     const { year, q } = parseQKey(qk);
@@ -888,6 +892,8 @@ async function main(): Promise<void> {
       `${pct(qAccum.mkt.show, qAccum.mkt.n).padStart(8)} | ` +
       `${pct(qAccum.v1.show, qAccum.v1.n).padStart(6)} | ` +
       `${pct(qAccum.model.win, qAccum.model.n).padStart(8)} | ` +
+      `${pct(qAccum.mkt.win, qAccum.mkt.n).padStart(8)} | ` +
+      `${pct(qAccum.v1.win, qAccum.v1.n).padStart(6)} | ` +
       `${qMbundle.padStart(8)} | ` +
       `${qFbundle.padStart(8)} | ` +
       `${qRoi.padStart(9)} | ${qAccum.model.n}`
@@ -895,7 +901,7 @@ async function main(): Promise<void> {
   }
 
   // 누적 결과 (로지스틱)
-  console.log('-'.repeat(106));
+  console.log('-'.repeat(126));
   const wfCumRoi =
     wfCum.roiN > 0
       ? (((wfCum.roiSum / wfCum.roiN) - 1) * 100).toFixed(1) + '%'
@@ -909,6 +915,8 @@ async function main(): Promise<void> {
     `${pct(wfCum.mkt.show, wfCum.mkt.n).padStart(8)} | ` +
     `${pct(wfCum.v1.show, wfCum.v1.n).padStart(6)} | ` +
     `${pct(wfCum.model.win, wfCum.model.n).padStart(8)} | ` +
+    `${pct(wfCum.mkt.win, wfCum.mkt.n).padStart(8)} | ` +
+    `${pct(wfCum.v1.win, wfCum.v1.n).padStart(6)} | ` +
     `${wfCumMbundle.padStart(8)} | ` +
     `${wfCumFbundle.padStart(8)} | ` +
     `${wfCumRoi.padStart(9)} | ${wfCum.model.n}`
