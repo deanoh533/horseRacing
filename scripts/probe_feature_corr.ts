@@ -66,7 +66,7 @@ function main() {
     const present = maps.filter((m) => m.has(nf)).length;
     if (present === 0) { console.log(`\n❓ ${nf}: 행렬에 없음 (extract:matrix 재실행 필요)`); continue; }
 
-    const corrs: { name: string; r: number; n: number }[] = [];
+    const corrs: { name: string; r: number; n: number; sib: boolean }[] = [];
     for (const other of allNames) {
       if (other === nf) continue;
       const xs: number[] = [], ys: number[] = [];
@@ -74,14 +74,16 @@ function main() {
         if (m.has(nf) && m.has(other)) { xs.push(m.get(nf)!); ys.push(m.get(other)!); }
       }
       const r = pearson(xs, ys);
-      if (Number.isFinite(r)) corrs.push({ name: other, r, n: xs.length });
+      if (Number.isFinite(r)) corrs.push({ name: other, r, n: xs.length, sib: newFeats.includes(other) });
     }
     corrs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
-    const maxAbs = corrs[0] ? Math.abs(corrs[0].r) : 0;
+    // 판정은 기존 피처(형제 후보 제외)와의 최대 |r| 기준
+    const vsExisting = corrs.filter((c) => !c.sib);
+    const maxAbs = vsExisting[0] ? Math.abs(vsExisting[0].r) : 0;
     const verdict = maxAbs > 0.5 ? '❌ 중복(|r|>0.5) — 후보 제외' : '✅ 새 정보(|r|≤0.5) — holdout 진행';
-    console.log(`\n▸ ${nf}  (present ${present}행)  → ${verdict}`);
+    console.log(`\n▸ ${nf}  (present ${present}행)  → ${verdict}  [기존 최대 |r|=${maxAbs.toFixed(3)}]`);
     for (const c of corrs.slice(0, 5)) {
-      const flag = Math.abs(c.r) > 0.5 ? ' ⚠️' : '';
+      const flag = c.sib ? ' (형제)' : (Math.abs(c.r) > 0.5 ? ' ⚠️' : '');
       console.log(`    r=${c.r >= 0 ? '+' : ''}${c.r.toFixed(3)}  ${c.name} (n=${c.n})${flag}`);
     }
   }
