@@ -88,6 +88,9 @@ export interface ScoreEngineInput {
   // ⑧ 부담중량 (부담 극복 지수)
   burdenHistory?: Array<{ ord: number; myBudam: number; raceAvgBudam: number }>;
 
+  // 기수 변경 (직전 경주 대비) — 의도 신호
+  jockeyChangedFromLast?: boolean;
+
   // ⑨ 기수 통산 성적 (jockey_stats)
   jockeyCareerWinRate?: number | null;
   jockeyCareerQuRate?: number | null;

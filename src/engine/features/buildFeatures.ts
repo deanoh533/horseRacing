@@ -141,6 +141,9 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   const jr = input.jockeyRecentOrds ?? [];
   if (jr.length > 0) add('jockey_recent_win', jr.filter((o) => o === 1).length / jr.length);
 
+  // 기수 변경 (직전 경주 대비) — 의도 신호 (착순 우물 밖)
+  if (input.jockeyChangedFromLast != null) add('jockey_changed', input.jockeyChangedFromLast ? 1 : 0);
+
   // ⑩ 조교사 60일 top3율
   const tr60 = input.trainer60DayOrds ?? [];
   if (tr60.length > 0) add('trainer_top3', tr60.filter((o) => o <= 3).length / tr60.length);

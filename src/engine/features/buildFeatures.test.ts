@@ -102,6 +102,11 @@ describe('buildFeatures — 연속형 raw', () => {
     expect(val(input, 'late_pos_g1f_mean')).toBeUndefined();
     expect(val(input, 'late_200m_speed_mean')).toBeUndefined();
   });
+  it('기수 변경: 직전 경주와 기수 다르면 1, 같으면 0', () => {
+    expect(val({ rating: 0, jockeyChangedFromLast: true }, 'jockey_changed')).toBe(1);
+    expect(val({ rating: 0, jockeyChangedFromLast: false }, 'jockey_changed')).toBe(0);
+    expect(val({ rating: 0 }, 'jockey_changed')).toBeUndefined(); // 직전 경주 없음
+  });
   it('경쟁강도: 필드 평균/최고 레이팅, 내 레이팅−필드평균 격차', () => {
     const input: ScoreEngineInput = { rating: 85, allRaceRatings: [70, 80, 90] };
     expect(val(input, 'field_rating_mean')).toBeCloseTo(80, 5);

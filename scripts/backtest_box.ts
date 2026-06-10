@@ -95,6 +95,8 @@ async function main() {
     // 착순 우물 밖 후보 (검증 중)
     'field_rating_mean', 'field_rating_max', 'rating_minus_field_mean',
     'body_weight', 'body_weight_minus_field_mean',
+    // 의도·전략 후보
+    'jockey_changed', 'equip_added', 'equip_removed', 'class_move', 'class_dropped',
   ];
   // --candidate: 콤마로 여러 개 → 함께 baseline에 추가 (그룹 단위 켜고 끄기)
   const candidate = arg('--candidate', '');

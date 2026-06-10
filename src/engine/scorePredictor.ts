@@ -375,11 +375,18 @@ async function buildEngineInput(
     .filter((r) => r.popularity != null)
     .map((r) => r.popularity as number);
 
+  // 기수 변경: 직전 경주(hist5[0]=가장 최근 과거)와 오늘 기수 비교
+  const lastJockey = hist5[0]?.jcky_no ?? null;
+  const jockeyChangedFromLast = lastJockey != null && e.jcky_no != null
+    ? lastJockey !== e.jcky_no
+    : undefined;
+
   return {
     rating: e.ratg ?? 0,
     weightDiffs: histAsc.map((r) => r.wg_hr_diff ?? 0),
     sex: e.gndr ?? undefined,
     currentMonth,
+    jockeyChangedFromLast,
     ord5: histAsc.filter((r) => r.ord != null).map((r) => r.ord as number),
     sameDistTrackTimes,
     sameDistOnlyTimes,
