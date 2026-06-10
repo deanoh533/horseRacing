@@ -16,6 +16,7 @@ import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fitLogistic, predictLogit } from '../src/engine/models/logistic.js';
+import { fitPL, predictPL, type PLRace } from '../src/engine/models/plackettLuce.js';
 import { buildSchema, toVector } from '../src/engine/features/alignFeatures.js';
 import { pairKey } from '../src/engine/analysis/comboBacktest.js';
 import { settleBox, type BoxHorse } from '../src/engine/analysis/boxBacktest.js';
@@ -56,6 +57,10 @@ async function main() {
   const divPath = arg('--div', 'data/quinella_dividends.jsonl');
   const candidate = arg('--candidate', 'class_move');
   const labelArg = arg('--label', 'top2') as 'top2' | 'top3';
+  // --model: logistic(기본) | pl | both — 분기별 두 모델 비교
+  const modelArg = arg('--model', 'logistic');
+  const models: ('logistic' | 'pl')[] = modelArg === 'both' ? ['logistic', 'pl']
+    : modelArg === 'pl' ? ['pl'] : ['logistic'];
 
   const all = load(matrixPath);
   const minHold = Math.min(...QUARTERS.map((q) => q.start));
@@ -98,9 +103,28 @@ async function main() {
   const baseSchema = fullSchema.filter((n) => !n.endsWith('_z') && !NEW_CANDIDATES.includes(n) && n !== candidate);
   const candSchema = [...baseSchema, candidate];
 
-  const evalVariant = (train: Row[], holdRaces: Map<string, Row[]>, schema: string[], label: 'top2' | 'top3') => {
-    const y = train.map((r) => (label === 'top2' ? (r.top2 ?? 0) : r.top3));
-    const model = fitLogistic(train.map((r) => toVector(r.features, schema)), y as number[], schema, { l2: 0.02, iters: 800, lr: 0.2 });
+  const evalVariant = (train: Row[], holdRaces: Map<string, Row[]>, schema: string[], label: 'top2' | 'top3', mdl: 'logistic' | 'pl') => {
+    // 모델 학습 → 말별 점수 함수(scorer, 클수록 상위). PL은 라벨 무관·Brier 제외.
+    let scorer: (r: Row) => number;
+    let brierLabel: 'top2' | 'top3' | null;
+    if (mdl === 'logistic') {
+      const y = train.map((r) => (label === 'top2' ? (r.top2 ?? 0) : r.top3));
+      const m = fitLogistic(train.map((r) => toVector(r.features, schema)), y as number[], schema, { l2: 0.02, iters: 800, lr: 0.2 });
+      scorer = (r) => sigmoid(predictLogit(m, toVector(r.features, schema)));
+      brierLabel = label;
+    } else {
+      const plByRace = new Map<string, PLRace['horses']>();
+      for (const r of train) {
+        if (r.ord == null) continue;
+        const k = `${r.race_date}-${r.meet}-${r.rc_no}`;
+        if (!plByRace.has(k)) plByRace.set(k, []);
+        plByRace.get(k)!.push({ x: toVector(r.features, schema), ord: r.ord });
+      }
+      const plRaces: PLRace[] = [...plByRace.values()].filter((hs) => hs.length >= 2).map((hs) => ({ horses: hs }));
+      const m = fitPL(plRaces, schema, { l2: 0.02, iters: 800, lr: 0.2 });
+      scorer = (r) => predictPL(m, toVector(r.features, schema));
+      brierLabel = null;
+    }
     let bettable = 0, hits = 0, roiProfit = 0, roiCost = 0, brierSum = 0, brierN = 0;
     for (const [rk, rows] of holdRaces) {
       const boxHorses: BoxHorse[] = [];
@@ -108,10 +132,12 @@ async function main() {
         if (r.ord == null) continue;
         const pthr = pthrMap.get(`${rk}-${r.hr_name}`);
         if (pthr == null) continue;
-        const p = sigmoid(predictLogit(model, toVector(r.features, schema)));
+        const p = scorer(r);
         boxHorses.push({ pthrNo: pthr, ord: r.ord, prob: p });
-        const yTrue = label === 'top2' ? (r.ord <= 2 ? 1 : 0) : (r.ord <= 3 ? 1 : 0);
-        brierSum += (p - yTrue) ** 2; brierN++;
+        if (brierLabel) {
+          const yTrue = brierLabel === 'top2' ? (r.ord <= 2 ? 1 : 0) : (r.ord <= 3 ? 1 : 0);
+          brierSum += (p - yTrue) ** 2; brierN++;
+        }
       }
       const res = settleBox(boxHorses, comboByRace.get(rk) ?? new Map());
       if (!res) continue;
@@ -123,9 +149,12 @@ async function main() {
     return { bettable, hits, roi, brier: brierN ? brierSum / brierN : NaN };
   };
 
-  console.log(`분기     | 학습행  | 변형       | 베팅 | 적중 | 적중률 |   ROI%   | Brier`);
-  console.log('-'.repeat(78));
-  const deltas: { q: string; delta: number }[] = [];
+  const fmt = (v: { bettable: number; hits: number; roi: number; brier: number }) =>
+    `${String(v.bettable).padStart(4)} | ${String(v.hits).padStart(4)} | ${(v.bettable ? (v.hits / v.bettable) * 100 : 0).toFixed(1).padStart(5)}% | ${(isNaN(v.roi) ? '-' : v.roi.toFixed(1) + '%').padStart(8)} | ${isNaN(v.brier) ? '-' : v.brier.toFixed(4)}`;
+
+  console.log(`분기     | 모델     | 학습행  | 변형       | 베팅 | 적중 | 적중률 |   ROI%   | Brier`);
+  console.log('-'.repeat(90));
+  const deltasByModel = new Map<string, { q: string; delta: number }[]>();
   for (const q of QUARTERS) {
     const train = all.filter((r) => r.race_date < q.start);
     const hold = all.filter((r) => r.race_date >= q.start && r.race_date < q.end);
@@ -136,24 +165,27 @@ async function main() {
       if (!byRace.has(k)) byRace.set(k, []);
       byRace.get(k)!.push(r);
     }
-    const base = evalVariant(train, byRace, baseSchema, labelArg);
-    const cand = evalVariant(train, byRace, candSchema, labelArg);
-    const fmt = (v: { bettable: number; hits: number; roi: number; brier: number }) =>
-      `${String(v.bettable).padStart(4)} | ${String(v.hits).padStart(4)} | ${(v.bettable ? (v.hits / v.bettable) * 100 : 0).toFixed(1).padStart(5)}% | ${(isNaN(v.roi) ? '-' : v.roi.toFixed(1) + '%').padStart(8)} | ${isNaN(v.brier) ? '-' : v.brier.toFixed(4)}`;
-    console.log(`${q.name} | ${String(train.length).padStart(6)} | baseline   | ${fmt(base)}`);
-    console.log(`${q.name} | ${String(train.length).padStart(6)} | +${candidate.padEnd(9)} | ${fmt(cand)}`);
-    const delta = cand.roi - base.roi;
-    deltas.push({ q: q.name, delta });
-    console.log(`${' '.repeat(9)}|${' '.repeat(8)} | Δ ROI      | ${(delta >= 0 ? '+' : '') + delta.toFixed(1)}%p`);
-    console.log('-'.repeat(78));
+    for (const mdl of models) {
+      const base = evalVariant(train, byRace, baseSchema, labelArg, mdl);
+      const cand = evalVariant(train, byRace, candSchema, labelArg, mdl);
+      console.log(`${q.name} | ${mdl.padEnd(8)} | ${String(train.length).padStart(6)} | baseline   | ${fmt(base)}`);
+      console.log(`${q.name} | ${mdl.padEnd(8)} | ${String(train.length).padStart(6)} | +${candidate.padEnd(9)} | ${fmt(cand)}`);
+      const delta = cand.roi - base.roi;
+      if (!deltasByModel.has(mdl)) deltasByModel.set(mdl, []);
+      deltasByModel.get(mdl)!.push({ q: q.name, delta });
+      console.log(`${' '.repeat(9)}|${' '.repeat(9)} |${' '.repeat(8)} | Δ ROI      | ${(delta >= 0 ? '+' : '') + delta.toFixed(1)}%p`);
+    }
+    console.log('-'.repeat(90));
   }
 
-  console.log(`\n=== ${candidate} 한계 ROI 델타 (분기별 일관성) ===`);
-  for (const d of deltas) console.log(`  ${d.q}: ${(d.delta >= 0 ? '+' : '') + d.delta.toFixed(1)}%p`);
-  const pos = deltas.filter((d) => d.delta > 0).length;
-  const mean = deltas.reduce((s, d) => s + d.delta, 0) / (deltas.length || 1);
-  console.log(`  → ${pos}/${deltas.length} 분기 +방향, 평균 ${(mean >= 0 ? '+' : '') + mean.toFixed(1)}%p`);
-  console.log(pos === deltas.length ? '  ✅ 전 분기 일관 — 강건' : pos >= deltas.length - 1 ? '  ⚠️ 대체로 +, 1분기 약함' : '  ❌ 분기별 불일치 — 강건성 미확보');
+  for (const [mdl, deltas] of deltasByModel) {
+    console.log(`\n=== ${candidate} [${mdl}] 한계 ROI 델타 (분기별 일관성) ===`);
+    for (const d of deltas) console.log(`  ${d.q}: ${(d.delta >= 0 ? '+' : '') + d.delta.toFixed(1)}%p`);
+    const pos = deltas.filter((d) => d.delta > 0).length;
+    const mean = deltas.reduce((s, d) => s + d.delta, 0) / (deltas.length || 1);
+    console.log(`  → ${pos}/${deltas.length} 분기 +방향, 평균 ${(mean >= 0 ? '+' : '') + mean.toFixed(1)}%p`);
+    console.log(pos === deltas.length ? '  ✅ 전 분기 일관 — 강건' : pos >= deltas.length - 1 ? '  ⚠️ 대체로 +, 1분기 약함' : '  ❌ 분기별 불일치 — 강건성 미확보');
+  }
 }
 
 main().catch((e) => { console.error('💥', e); process.exit(1); });
