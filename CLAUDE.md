@@ -164,6 +164,19 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
+> **2026-06-11 — class_move promote(라이브 반영) + 패리티 버그 수정 + PL 모델 (main 커밋)**
+> 이 세션 흐름(시간순):
+> 1. **신규 후보 3개 게이트** (직전대비 변화): **게이트A** — `away_meet` 탈락(전체 100% 상수=원정 0건, 다신 제안 X), dist_change·track_change 통과. **게이트B 단일분기**(2025 Q1) 둘 다 +로 통과처럼 보임.
+> 2. **PL(Plackett-Luce) 모델 신규** — `src/engine/models/plackettLuce.ts`(TDD), `backtest:box`·`backtest:box:quarters`에 `--model logistic|pl|both` 추가(같은 후보 두 모델 비교). PL은 박스 ROI에서 분기마다 로지스틱과 우열 뒤집힘(2025 Q2·Q3은 PL 우위·Q3 유일 흑자). **박스/라이브 모델=로지스틱**, PL은 연승 트랙용(walkforward는 PL 미지원).
+> 3. **★ 다분기가 게이트B 표준** — `backtest:box:quarters`로 보니 dist_change·track_change **둘 다 탈락**(2/5 분기, 평균 +0.4/+0.2%p=노이즈). 단일 holdout(2025 Q1)이 거짓양성을 줬음. **class_move는 강건**(4/5, +3.9%p; 단/연승도 +0.9/+0.5%p) → 채택 정당.
+> 4. **죽은 피처 3개 제거**(away_meet·dist_change·track_change): buildFeatures·scorePredictor·featureItemMap·index·테스트.
+> 5. **★ 패리티 버그 발견·수정**(체계적 디버깅): `scorePredictor` 기수·조교사 90일 쿼리가 `.range()`·`.order()` 없이 **Supabase 1000행 캡**에 걸려 비결정 잘림(실측 1038→1000) → jockey/trainer_recent 피처가 실행마다 달라져 refresh 패리티 80중 18 불일치. 평소 예측도 최근폼 잘렸음. → 페이지네이션+안정정렬. 상세 [[reference-db-schema-gotchas]].
+> 6. **복승 배당 결손 보충** — 우리 키 쿼터 소진(2025-11-30까지만)→**친구 키**로 2025-12~2026-05-09 수집·concat. `data/quinella_dividends.jsonl`=2025-01~2026-05-09. 백업 `pre-gap.bak`.
+> 7. **속도 조사** — extract 경주 병렬화 **무효**(Supabase 처리량 병목, 동시성↑ 손해). 진짜 지렛대=gatherRaceInputs 말별 쿼리 배치화(~5-10×, 라이브도)지만 보류(공유 경로 리팩터). [[reference-db-schema-gotchas]] 기록.
+> 8. **재추출(고친 코드) → refresh:logistic 패리티 ✅0 → promote id=5**(logit-20260611) 활성. 미확정 595경주/6559행 재생성, 확정 과거 동결. 롤백=이전 id로 promote.
+> 9. **적중률**(id=5 홀드아웃 walk-forward): **연승 60.1%/단승 28.9%** vs 시장 68.2/37.2 = **−8.1%p**(여전히 시장 못 이김). class_move·최근폼수정으로도 시장격차 안 좁혀짐.
+> **다음:** ①gatherRaceInputs 배치화(속도) ②시장격차 좁힐 새 raw 신호(휴양·혈통 등, 다분기 게이트로) ③PL 연승 트랙(walkforward PL 지원 추가) ④복승 배당 마지막 4주(2026-05-10~)·복연승 트랙.
+
 > **2026-06-10 — 복승 박스 타깃 + 2단계 게이트로 신호 발굴 (진행 중, main 커밋)**
 > - **목표:** 복승 3마리 박스 ROI. **라벨 top2 채택**(top3 대비 +8%p). **원칙:** 압축은 모델에 맡기고 사람은 raw만 공급(자체레이팅·Elo 폐기). 메모리 [[feedback-no-human-compression]]·[[project-feature-gate-findings]].
 > - **2단계 게이트(표준):** A=`probe:corr`(후보↔기존 \|r\|>0.5 중복제외) → B=`backtest:box --label top2 --div data/quinella_dividends.jsonl`(holdout 복승박스 ROI). 게이트A 규칙 검증됨(겹침은 보강 안 함).
