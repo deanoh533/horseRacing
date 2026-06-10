@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
 import { getActiveModelVersion } from './modelVersion.js';
 import { scoreLogistic } from './logisticScorer.js';
+import { parseClassBand } from './features/intentSignals.js';
 import { fetchAsOfHorseStats, distCategoryOf, type AsOfHorseStats } from './asOfHorseStats.js';
 import { loadParMap } from './speedFigure.js';
 
@@ -27,6 +28,11 @@ interface EntryRow {
   track_type: string | null;
   burd_wgt: number | null;
   wg_hr: number | null;
+  asis_equip1: string | null;
+  asis_equip2: string | null;
+  asis_equip3: string | null;
+  asis_equip4: string | null;
+  asis_equip5: string | null;
   jcky_no: string | null;
   trar_no: string | null;
   popularity: number | null;
@@ -62,7 +68,7 @@ export async function gatherRaceInputs(
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, wg_hr, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
+    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, wg_hr, asis_equip1, asis_equip2, asis_equip3, asis_equip4, asis_equip5, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
     .eq('race_date', rcDate)
     .eq('meet', meet)
     .eq('rc_no', rcNo)
@@ -115,19 +121,20 @@ export async function gatherRaceInputs(
     trainerRecentMap.get(r.trar_no)!.push(r.ord);
   }
 
-  // 경주 거리/주로: race_entries에 없으면 races 테이블에서 fallback
+  // 경주 거리/주로/등급: race_entries에 거리 없으면 races fallback. prize_cond는 races 전용.
   let rcDist = entryList[0]?.rc_dist ?? null;
   let trackType = entryList[0]?.track_type ?? null;
-  if (rcDist === null) {
+  let prizeCond: string | null = null;
+  {
     const { data: race } = await sb
       .from('races')
-      .select('rc_dist, track_type')
+      .select('rc_dist, track_type, prize_cond')
       .eq('race_date', rcDate)
       .eq('meet', meet)
       .eq('rc_no', rcNo)
       .maybeSingle();
-    rcDist = race?.rc_dist ?? null;
-    trackType = race?.track_type ?? null;
+    if (rcDist === null) { rcDist = race?.rc_dist ?? null; trackType = race?.track_type ?? null; }
+    prizeCond = race?.prize_cond ?? null;
   }
 
   // ⑤⑥⑫⑲⑳ 통계: 누수 방지 as-of(말별 과거 경주만) 사전 패스 — 전역 뷰 미사용
@@ -149,7 +156,7 @@ export async function gatherRaceInputs(
 
   const rows = await Promise.all(
     entryList.map(async (e) => {
-      const enriched = { ...e, rc_dist: rcDist, track_type: trackType };
+      const enriched = { ...e, rc_dist: rcDist, track_type: trackType, prize_cond: prizeCond };
       const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType, asOfMap.get(e.hr_name)!);
       input.erngSump = e.erng_sump ?? undefined;
       input.earningsAsof = e.erng_sump_asof ?? undefined;
@@ -199,7 +206,7 @@ export async function predictRace(
 
 async function buildEngineInput(
   sb: SupabaseClient,
-  e: EntryRow & { rc_dist: number | null; track_type: string | null },
+  e: EntryRow & { rc_dist: number | null; track_type: string | null; prize_cond: string | null },
   totalHorses: number,
   currentMonth: number,
   currentSeason: 'spring' | 'summer' | 'autumn' | 'winter',
@@ -215,7 +222,7 @@ async function buildEngineInput(
   // 구간기록 컬럼 포함: ④ lastFurlong 계산, ⑤ positions 계산용
   const { data: hist5raw } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord')
+    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord, asis_equip1, asis_equip2, asis_equip3, asis_equip4, asis_equip5')
     .eq('hr_name', e.hr_name)
     .lt('race_date', rcDate)
     .not('ord', 'is', null)
@@ -375,11 +382,29 @@ async function buildEngineInput(
     .filter((r) => r.popularity != null)
     .map((r) => r.popularity as number);
 
-  // 기수 변경: 직전 경주(hist5[0]=가장 최근 과거)와 오늘 기수 비교
-  const lastJockey = hist5[0]?.jcky_no ?? null;
+  // 의도·전략 신호: 직전 경주(hist5[0]=가장 최근 과거) vs 오늘
+  const last = hist5[0];
+  const lastJockey = last?.jcky_no ?? null;
   const jockeyChangedFromLast = lastJockey != null && e.jcky_no != null
     ? lastJockey !== e.jcky_no
     : undefined;
+
+  const equipOf = (r: { asis_equip1: string | null; asis_equip2: string | null; asis_equip3: string | null; asis_equip4: string | null; asis_equip5: string | null }) =>
+    [r.asis_equip1, r.asis_equip2, r.asis_equip3, r.asis_equip4, r.asis_equip5].filter((x): x is string => !!x);
+  const equipToday = equipOf(e);
+  const equipLast = last ? equipOf(last) : undefined;
+
+  // 등급 이동: 오늘 밴드 vs 직전 경주 밴드 상한 (races.prize_cond)
+  const classBandToday = parseClassBand(e.prize_cond);
+  let classBandLast: number | null = null;
+  if (last) {
+    const { data: lastRace } = await sb
+      .from('races')
+      .select('prize_cond')
+      .eq('race_date', last.race_date).eq('meet', last.meet).eq('rc_no', last.rc_no)
+      .maybeSingle();
+    classBandLast = parseClassBand(lastRace?.prize_cond ?? null);
+  }
 
   return {
     rating: e.ratg ?? 0,
@@ -387,6 +412,10 @@ async function buildEngineInput(
     sex: e.gndr ?? undefined,
     currentMonth,
     jockeyChangedFromLast,
+    equipToday,
+    equipLast,
+    classBandToday,
+    classBandLast,
     ord5: histAsc.filter((r) => r.ord != null).map((r) => r.ord as number),
     sameDistTrackTimes,
     sameDistOnlyTimes,

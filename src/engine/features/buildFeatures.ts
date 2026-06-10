@@ -5,6 +5,7 @@
  */
 import type { ScoreEngineInput } from '../index.js';
 import type { Feature, FeatureVector } from './types.js';
+import { equipDiff } from './intentSignals.js';
 
 function slope(arr: number[]): number {
   const n = arr.length;
@@ -143,6 +144,20 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
 
   // 기수 변경 (직전 경주 대비) — 의도 신호 (착순 우물 밖)
   if (input.jockeyChangedFromLast != null) add('jockey_changed', input.jockeyChangedFromLast ? 1 : 0);
+
+  // 장구 변경 (직전 경주 대비)
+  if (input.equipToday != null && input.equipLast != null) {
+    const { added, removed } = equipDiff(input.equipToday, input.equipLast);
+    add('equip_added', added);
+    add('equip_removed', removed);
+  }
+
+  // 등급 이동 (직전 경주 밴드 상한 대비). 음수=하락(쉬운 클래스).
+  if (input.classBandToday != null && input.classBandLast != null) {
+    const move = input.classBandToday - input.classBandLast;
+    add('class_move', move);
+    add('class_dropped', move < 0 ? 1 : 0);
+  }
 
   // ⑩ 조교사 60일 top3율
   const tr60 = input.trainer60DayOrds ?? [];
