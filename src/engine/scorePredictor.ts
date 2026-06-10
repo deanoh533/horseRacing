@@ -80,41 +80,42 @@ export async function gatherRaceInputs(
   const allRaceBodyWeights = entryList.map(e => e.wg_hr ?? 0);
 
   // 기수·조교사 최근 90일 착순 배치 fetch (⑨b⑩b용)
+  // ⚠️ 페이지네이션 필수: 한 경주 기수×90일이 1000행(Supabase 기본 캡)을 넘으면
+  //    .range() 없이는 1000행만, .order() 없이는 *비결정적으로* 잘려 패리티가 깨진다.
   const ninetyDaysAgo = dateMinusDays(rcDate, 90);
   const jockeyNos = [...new Set(entryList.map(e => e.jcky_no).filter((x): x is string => x !== null && x !== undefined))];
   const trainerNos = [...new Set(entryList.map(e => e.trar_no).filter((x): x is string => x !== null && x !== undefined))];
 
-  const [jockeyRecentRaw, trainerRecentRaw] = await Promise.all([
-    jockeyNos.length > 0
-      ? sb.from('race_entries')
-          .select('jcky_no, ord')
-          .in('jcky_no', jockeyNos)
-          .gte('race_date', ninetyDaysAgo)
-          .lt('race_date', rcDate)
-          .not('ord', 'is', null)
-          .lt('ord', 50)
-      : Promise.resolve({ data: [] as { jcky_no: string; ord: number }[], error: null }),
-    trainerNos.length > 0
-      ? sb.from('race_entries')
-          .select('trar_no, ord')
-          .in('trar_no', trainerNos)
-          .gte('race_date', ninetyDaysAgo)
-          .lt('race_date', rcDate)
-          .not('ord', 'is', null)
-          .lt('ord', 50)
-      : Promise.resolve({ data: [] as { trar_no: string; ord: number }[], error: null }),
-  ]);
+  const fetchRecentOrds = async (col: 'jcky_no' | 'trar_no', nos: string[]): Promise<Map<string, number[]>> => {
+    const map = new Map<string, number[]>();
+    if (nos.length === 0) return map;
+    const PAGE = 1000;
+    for (let off = 0; ; off += PAGE) {
+      const { data, error } = await sb.from('race_entries')
+        .select(`${col}, ord`)
+        .in(col, nos)
+        .gte('race_date', ninetyDaysAgo)
+        .lt('race_date', rcDate)
+        .not('ord', 'is', null)
+        .lt('ord', 50)
+        .order('race_date').order('meet').order('rc_no').order(col) // 안정 정렬(결정적 페이지 경계)
+        .range(off, off + PAGE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const r of data as Array<Record<string, string | number>>) {
+        const key = r[col] as string;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(r.ord as number);
+      }
+      if (data.length < PAGE) break;
+    }
+    return map;
+  };
 
-  const jockeyRecentMap = new Map<string, number[]>();
-  for (const r of (jockeyRecentRaw.data ?? []) as { jcky_no: string; ord: number }[]) {
-    if (!jockeyRecentMap.has(r.jcky_no)) jockeyRecentMap.set(r.jcky_no, []);
-    jockeyRecentMap.get(r.jcky_no)!.push(r.ord);
-  }
-  const trainerRecentMap = new Map<string, number[]>();
-  for (const r of (trainerRecentRaw.data ?? []) as { trar_no: string; ord: number }[]) {
-    if (!trainerRecentMap.has(r.trar_no)) trainerRecentMap.set(r.trar_no, []);
-    trainerRecentMap.get(r.trar_no)!.push(r.ord);
-  }
+  const [jockeyRecentMap, trainerRecentMap] = await Promise.all([
+    fetchRecentOrds('jcky_no', jockeyNos),
+    fetchRecentOrds('trar_no', trainerNos),
+  ]);
 
   // 경주 거리/주로/등급: race_entries에 거리 없으면 races fallback. prize_cond는 races 전용.
   let rcDist = entryList[0]?.rc_dist ?? null;
