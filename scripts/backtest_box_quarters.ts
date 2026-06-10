@@ -37,6 +37,7 @@ const NEW_CANDIDATES = [
   'late_200m_speed_mean', 'early_to_finish_gain_mean',
   'field_rating_mean', 'field_rating_max', 'rating_minus_field_mean',
   'body_weight', 'body_weight_minus_field_mean',
+  'dist_change', 'track_change', 'away_meet',
 ];
 
 // 평가 분기 (walk-forward: 학습 = 분기 시작 이전 전체). [start, end)

@@ -24,16 +24,19 @@
 
 ## 2. 신규 raw 피처
 
+> **⚠️ rest_days 드롭 (2026-06-10, 구현 전 발견):** 기존 `interval_days`(⑪ 경주 간격)가
+> 이미 `daysBetween(직전 race_date, 오늘)` = 제안한 rest_days와 **완전 동일**. raw emit + 버킷까지 존재,
+> `daysBetween` 헬퍼도 이미 있음. 추가하면 게이트A |r|=1.0 자명 중복 → 후보에서 제외.
+
 | 피처 | 산식 | 표현 | 사전가용(라이브 클린) |
 |---|---|---|---|
-| `rest_days` | 오늘 race_date − 직전 race_date (일수) | raw 연속값, **클리핑 없음** | ✅ 출전 일정 확정 |
 | `dist_change` | 오늘 rc_dist − 직전 rc_dist (m) | raw 델타(±) | ✅ |
 | `track_change` | 오늘 track_type ≠ 직전 track_type (1/0) | 이진 | ✅ |
 | `away_meet` | 오늘 meet ≠ 직전 meet (1/0) | 이진 | ✅ |
 
-- **날짜 → 일수 변환:** YYYYMMDD 정수 두 개를 일수 차로. `Date` 파싱(UTC) 후 `(a−b)/86400000`.
-- **초출마(직전 경주 없음):** 4개 모두 `undefined` emit 안 함 — class_move의 `if (last)` 가드와 동일.
-- **클리핑 없음(rest_days):** 장기 휴양의 큰 값을 그대로 둔다. 압축은 모델이. (relativizeRace z는 현재 OFF.)
+- **초출마(직전 경주 없음):** 3개 모두 `undefined` emit 안 함 — class_move의 `if (last)` 가드와 동일.
+- **dist_change 클리핑 없음:** 큰 델타 그대로 둔다. 압축은 모델이. (relativizeRace z는 현재 OFF.)
+- `last`는 `hist5[0]`(가장 최근 과거)이며 `race_date·rc_dist·track_type·meet`를 이미 보유.
 
 ### 희소 피처 사전 차단
 `away_meet`(서울↔부경 이동)·`track_change`(잔디 경주 희소)는 **분산≈0 의심** → equip류 과적합 위험.
@@ -43,20 +46,20 @@
 
 ## 3. 플러밍 (class_move가 깐 경로 그대로)
 
-1. `src/engine/scorePredictor.ts` `gatherRaceInputs` 반환에 `restDays·distChange·trackChange·awayMeet` 추가
-   — `last`와 오늘 `e`/`rcDist`/`trackType`/`meet`에서 계산. **새 DB 쿼리 없음.**
-2. `src/engine/index.ts` `ScoreEngineInput`에 4개 선택 필드 추가.
-3. `src/engine/features/buildFeatures.ts`에 `add('rest_days', …)` 등 4줄 — `undefined` 가드.
-4. (선택) `intentSignals.ts`에 날짜→일수 순수함수 `daysBetween(a, b)` 추가 + 단위테스트.
+1. `src/engine/scorePredictor.ts` `gatherRaceInputs` 반환에 `distChange·trackChange·awayMeet` 추가
+   — `last`와 오늘 `e`/`rcDist`/`trackType`/`meet`에서 계산. **새 DB 쿼리 없음.** (`daysBetween`은 이미 있음.)
+2. `src/engine/index.ts` `ScoreEngineInput`에 3개 선택 필드 추가.
+3. `src/engine/features/buildFeatures.ts`에 `add('dist_change', …)` 등 3줄 — `undefined` 가드.
+4. `featureItemMap.ts`에 3개 매핑 추가(dist_change→06, track_change→07, away_meet→context 또는 07).
 
-날짜·델타 계산은 순수함수로 분리해 TDD(class_move의 `buildFeatures.test.ts` 패턴).
+델타 계산 가드는 buildFeatures에서 처리, `buildFeatures.test.ts`에 class_move 패턴으로 단위테스트.
 
 ---
 
 ## 4. 검증 흐름 (표준)
 
 ```
-행렬 2차 재추출 (class_move + 새 델타 4개 동시 포함)
+행렬 2차 재추출 (class_move + 새 델타 3개 동시 포함)
   → probe: 각 델타 커버리지·분산·분포 → 희소 드롭(away_meet·track_change 후보)
   → 게이트A  npm run probe:corr -- --new rest_days,dist_change,...
         (기존과 |r|>0.5 중복제외. 형제끼리는 판정 제외)
@@ -89,5 +92,5 @@
 
 ## 7. 성공 기준
 
-- 4개 중 ≥1개가 게이트A·B 통과 + 다분기 +방향 일관 → buildFeatures 채택.
+- 3개 중 ≥1개가 게이트A·B 통과 + 다분기 +방향 일관 → buildFeatures 채택.
 - 전부 탈락이어도 **착순 우물 밖 신호 포화 여부**에 대한 음성지식 확보 = 유효 결과.

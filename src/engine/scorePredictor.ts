@@ -397,6 +397,12 @@ async function buildEngineInput(
     currentMonth,
     classBandToday,
     classBandLast,
+    // 직전대비 변화 신호 (last = hist5[0], 추가 쿼리 없음). 직전 없으면 null → buildFeatures 생략.
+    prevRcDist: last?.rc_dist ?? null,
+    trackType: e.track_type ?? null,
+    prevTrackType: last?.track_type ?? null,
+    meet: e.meet,
+    prevMeet: last?.meet ?? null,
     ord5: histAsc.filter((r) => r.ord != null).map((r) => r.ord as number),
     sameDistTrackTimes,
     sameDistOnlyTimes,

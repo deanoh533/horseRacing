@@ -92,6 +92,13 @@ export interface ScoreEngineInput {
   classBandToday?: number | null;        // 오늘 등급 밴드 상한 (prize_cond)
   classBandLast?: number | null;         // 직전 경주 등급 밴드 상한
 
+  // 직전대비 변화 신호 (착순 우물 밖 후보, probe·게이트 검증 중 — 2026-06-10)
+  prevRcDist?: number | null;            // 직전 경주 거리 (dist_change = rcDist − prevRcDist)
+  trackType?: string | null;             // 오늘 주로
+  prevTrackType?: string | null;         // 직전 경주 주로 (track_change)
+  meet?: number | null;                  // 오늘 경마장
+  prevMeet?: number | null;              // 직전 경마장 (away_meet = 원정 여부)
+
   // ⑨ 기수 통산 성적 (jockey_stats)
   jockeyCareerWinRate?: number | null;
   jockeyCareerQuRate?: number | null;

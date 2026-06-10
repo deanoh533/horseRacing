@@ -96,6 +96,8 @@ async function main() {
     'field_rating_mean', 'field_rating_max', 'rating_minus_field_mean',
     // 마체중: 게이트B 통과했으나 라이브 누수로 보류 → baseline 제외 유지
     'body_weight', 'body_weight_minus_field_mean',
+    // 직전대비 변화 후보(2026-06-10, 게이트 검증 중) → 통과 전까지 baseline 제외
+    'dist_change', 'track_change', 'away_meet',
     // class_move는 채택 → baseline 포함(여기 넣지 않음).
   ];
   // --candidate: 콤마로 여러 개 → 함께 baseline에 추가 (그룹 단위 켜고 끄기)
