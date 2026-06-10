@@ -126,6 +126,7 @@ async function main() {
       brierLabel = null;
     }
     let bettable = 0, hits = 0, roiProfit = 0, roiCost = 0, brierSum = 0, brierN = 0;
+    let winHit = 0, showHit = 0, nTop = 0; // 단승(1착)·연승(3착내) — 모델 1순위 픽 기준(박스 ≥5 게이트와 무관, 전 경주)
     for (const [rk, rows] of holdRaces) {
       const boxHorses: BoxHorse[] = [];
       for (const r of rows) {
@@ -139,6 +140,14 @@ async function main() {
           brierSum += (p - yTrue) ** 2; brierN++;
         }
       }
+      // 단/연승: 최고점(1순위 픽) 말의 실제 착순
+      if (boxHorses.length) {
+        let top = boxHorses[0]!;
+        for (const h of boxHorses) if (h.prob > top.prob) top = h;
+        nTop++;
+        if (top.ord === 1) winHit++;
+        if (top.ord >= 1 && top.ord <= 3) showHit++;
+      }
       const res = settleBox(boxHorses, comboByRace.get(rk) ?? new Map());
       if (!res) continue;
       bettable++;
@@ -146,7 +155,7 @@ async function main() {
       if (res.profit != null) { roiProfit += res.profit; roiCost += 3; }
     }
     const roi = roiCost > 0 ? (roiProfit / roiCost) * 100 : NaN;
-    return { bettable, hits, roi, brier: brierN ? brierSum / brierN : NaN };
+    return { bettable, hits, roi, brier: brierN ? brierSum / brierN : NaN, winHit, showHit, nTop };
   };
 
   const fmt = (v: { bettable: number; hits: number; roi: number; brier: number }) =>
@@ -155,6 +164,8 @@ async function main() {
   console.log(`분기     | 모델     | 학습행  | 변형       | 베팅 | 적중 | 적중률 |   ROI%   | Brier`);
   console.log('-'.repeat(90));
   const deltasByModel = new Map<string, { q: string; delta: number }[]>();
+  const winShow = new Map<string, { bW: number; bS: number; bN: number; cW: number; cS: number; cN: number }>();
+  const showDeltas = new Map<string, { q: string; delta: number }[]>(); // 분기별 연승 %p 델타
   for (const q of QUARTERS) {
     const train = all.filter((r) => r.race_date < q.start);
     const hold = all.filter((r) => r.race_date >= q.start && r.race_date < q.end);
@@ -174,6 +185,14 @@ async function main() {
       if (!deltasByModel.has(mdl)) deltasByModel.set(mdl, []);
       deltasByModel.get(mdl)!.push({ q: q.name, delta });
       console.log(`${' '.repeat(9)}|${' '.repeat(9)} |${' '.repeat(8)} | Δ ROI      | ${(delta >= 0 ? '+' : '') + delta.toFixed(1)}%p`);
+      // 단/연승 누적 + 분기별 연승 델타
+      const ws = winShow.get(mdl) ?? { bW: 0, bS: 0, bN: 0, cW: 0, cS: 0, cN: 0 };
+      ws.bW += base.winHit; ws.bS += base.showHit; ws.bN += base.nTop;
+      ws.cW += cand.winHit; ws.cS += cand.showHit; ws.cN += cand.nTop;
+      winShow.set(mdl, ws);
+      const showD = (base.nTop && cand.nTop) ? ((cand.showHit / cand.nTop) - (base.showHit / base.nTop)) * 100 : 0;
+      if (!showDeltas.has(mdl)) showDeltas.set(mdl, []);
+      showDeltas.get(mdl)!.push({ q: q.name, delta: showD });
     }
     console.log('-'.repeat(90));
   }
@@ -185,6 +204,19 @@ async function main() {
     const mean = deltas.reduce((s, d) => s + d.delta, 0) / (deltas.length || 1);
     console.log(`  → ${pos}/${deltas.length} 분기 +방향, 평균 ${(mean >= 0 ? '+' : '') + mean.toFixed(1)}%p`);
     console.log(pos === deltas.length ? '  ✅ 전 분기 일관 — 강건' : pos >= deltas.length - 1 ? '  ⚠️ 대체로 +, 1분기 약함' : '  ❌ 분기별 불일치 — 강건성 미확보');
+  }
+
+  // ── 단승·연승 (1순위 픽 기준) — 박스 ROI와 별개로 모델 랭킹 정확도 ──
+  for (const [mdl, ws] of winShow) {
+    const p = (a: number, n: number) => (n ? ((a / n) * 100).toFixed(1) : '-');
+    const dShow = (ws.cS / ws.cN - ws.bS / ws.bN) * 100;
+    const dWin = (ws.cW / ws.cN - ws.bW / ws.bN) * 100;
+    const sd = showDeltas.get(mdl)!;
+    const posS = sd.filter((d) => d.delta > 0).length;
+    console.log(`\n=== ${candidate} [${mdl}] 단승·연승 (1순위 픽, baseline → +${candidate}) ===`);
+    console.log(`  연승(3착내): ${p(ws.bS, ws.bN)}% → ${p(ws.cS, ws.cN)}%  (Δ ${(dShow >= 0 ? '+' : '') + dShow.toFixed(1)}%p)`);
+    console.log(`  단승(1착)  : ${p(ws.bW, ws.bN)}% → ${p(ws.cW, ws.cN)}%  (Δ ${(dWin >= 0 ? '+' : '') + dWin.toFixed(1)}%p)`);
+    console.log(`  분기별 연승Δ: ${sd.map((d) => (d.delta >= 0 ? '+' : '') + d.delta.toFixed(1)).join(' / ')} → ${posS}/${sd.length} +`);
   }
 }
 
