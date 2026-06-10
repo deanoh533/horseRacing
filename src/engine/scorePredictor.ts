@@ -150,10 +150,64 @@ export async function gatherRaceInputs(
   }
   const paceType = computePaceType(styleMap);
 
+  // ── 말별 쿼리 배치화 (경주당 ~150 라운드트립 → ~7). buildEngineInput은 이 맵만 읽음(쿼리 0). ──
+  const hrNamesU = [...new Set(entryList.map((e) => e.hr_name))];
+  const hrNosU = [...new Set(entryList.map((e) => e.hr_no).filter((x): x is string => x != null))];
+
+  // (A) 전 출주마 과거 경주 전체 → hist5·시즌·조합·직전등급 파생 (한 말 같은날 중복출주 없음 → top5 안정)
+  const histByHorse = new Map<string, HistFull[]>();
+  for (let off = 0; ; off += 1000) {
+    const { data, error } = await sb.from('race_entries')
+      .select('hr_name, race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord')
+      .in('hr_name', hrNamesU).lt('race_date', rcDate).not('ord', 'is', null)
+      .order('hr_name').order('race_date', { ascending: false }).order('meet').order('rc_no')
+      .range(off, off + 999);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data as HistFull[]) { const a = histByHorse.get(r.hr_name); if (a) a.push(r); else histByHorse.set(r.hr_name, [r]); }
+    if (data.length < 1000) break;
+  }
+
+  // (B) hist5 경주들의 엔트리 burd_wgt → fieldSize(count)·burden(avg) 공용 (날짜 in 후 키 그룹)
+  const histDates = new Set<number>();
+  for (const [, h] of histByHorse) for (const r of h.slice(0, 5)) histDates.add(r.race_date);
+  const histRaceBudams = new Map<string, (number | null)[]>();
+  if (histDates.size > 0) {
+    for (let off = 0; ; off += 1000) {
+      const { data, error } = await sb.from('race_entries')
+        .select('race_date, meet, rc_no, burd_wgt')
+        .in('race_date', [...histDates])
+        .order('race_date').order('meet').order('rc_no')
+        .range(off, off + 999);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const r of data as { race_date: number; meet: number; rc_no: number; burd_wgt: number | null }[]) {
+        const k = `${r.race_date}-${r.meet}-${r.rc_no}`; const a = histRaceBudams.get(k); if (a) a.push(r.burd_wgt); else histRaceBudams.set(k, [r.burd_wgt]);
+      }
+      if (data.length < 1000) break;
+    }
+  }
+
+  // (C) 혈통 (D) 기수통산 (E) 조교사60일 (F) 직전경주 등급 — .in() 배치
+  const pedigreeMap = new Map<string, Record<string, number | null>>();
+  const jockeyCareerMap = new Map<string, { win_rate_t: number | null; qu_rate_t: number | null }>();
+  const trainer60Map = new Map<string, number[]>();
+  const racePrizeCondMap = new Map<string, string | null>();
+  const sixtyAgo = subtractDays(rcDate, 60);
+  const lastDates = new Set<number>();
+  for (const [, h] of histByHorse) if (h[0]) lastDates.add(h[0].race_date);
+  await Promise.all([
+    (async () => { if (hrNosU.length === 0) return; const { data } = await sb.from('horses').select('hr_no, dsa_bri_vl, dsa_clc_vl, dsa_ier_vl, dsa_prf_vl, dsidx_vl').in('hr_no', hrNosU); for (const r of (data ?? []) as Record<string, number | null>[]) pedigreeMap.set(r.hr_no as unknown as string, r); })(),
+    (async () => { if (jockeyNos.length === 0) return; const { data } = await sb.from('jockey_stats').select('jcky_no, win_rate_t, qu_rate_t').in('jcky_no', jockeyNos).eq('meet', meet); for (const r of (data ?? []) as { jcky_no: string; win_rate_t: number | null; qu_rate_t: number | null }[]) jockeyCareerMap.set(r.jcky_no, { win_rate_t: r.win_rate_t, qu_rate_t: r.qu_rate_t }); })(),
+    (async () => { if (trainerNos.length === 0) return; for (let off = 0; ; off += 1000) { const { data, error } = await sb.from('race_entries').select('trar_no, ord').in('trar_no', trainerNos).gte('race_date', sixtyAgo).lt('race_date', rcDate).not('ord', 'is', null).order('race_date').order('meet').order('rc_no').order('trar_no').range(off, off + 999); if (error) throw error; if (!data || data.length === 0) break; for (const r of data as { trar_no: string; ord: number }[]) { const a = trainer60Map.get(r.trar_no); if (a) a.push(r.ord); else trainer60Map.set(r.trar_no, [r.ord]); } if (data.length < 1000) break; } })(),
+    (async () => { if (lastDates.size === 0) return; const { data } = await sb.from('races').select('race_date, meet, rc_no, prize_cond').in('race_date', [...lastDates]); for (const r of (data ?? []) as { race_date: number; meet: number; rc_no: number; prize_cond: string | null }[]) racePrizeCondMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, r.prize_cond ?? null); })(),
+  ]);
+  const batch: RaceBatch = { histByHorse, histRaceBudams, pedigreeMap, jockeyCareerMap, trainer60Map, racePrizeCondMap };
+
   const rows = await Promise.all(
     entryList.map(async (e) => {
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType, prize_cond: prizeCond };
-      const input = await buildEngineInput(sb, enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType, asOfMap.get(e.hr_name)!);
+      const input = buildEngineInput(enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType, asOfMap.get(e.hr_name)!, batch);
       input.erngSump = e.erng_sump ?? undefined;
       input.earningsAsof = e.erng_sump_asof ?? undefined;
       input.allRaceRatings = allRaceRatings;
@@ -200,8 +254,24 @@ export async function predictRace(
   }));
 }
 
-async function buildEngineInput(
-  sb: SupabaseClient,
+type HistFull = {
+  hr_name: string; race_date: number; meet: number; rc_no: number;
+  ord: number | null; rc_dist: number | null; track_type: string | null;
+  wg_hr_diff: number | null; burd_wgt: number | null; win_odds: number | null;
+  popularity: number | null; jcky_no: string | null; rc_time: number | null;
+  se_g1f_acc_time: number | null; bu_g1f_acc_time: number | null;
+  sj_s1f_ord: number | null; bu_s1f_ord: number | null; sj_g1f_ord: number | null; bu_g1f_ord: number | null;
+};
+interface RaceBatch {
+  histByHorse: Map<string, HistFull[]>;
+  histRaceBudams: Map<string, (number | null)[]>;
+  pedigreeMap: Map<string, Record<string, number | null>>;
+  jockeyCareerMap: Map<string, { win_rate_t: number | null; qu_rate_t: number | null }>;
+  trainer60Map: Map<string, number[]>;
+  racePrizeCondMap: Map<string, string | null>;
+}
+
+function buildEngineInput(
   e: EntryRow & { rc_dist: number | null; track_type: string | null; prize_cond: string | null },
   totalHorses: number,
   currentMonth: number,
@@ -210,24 +280,17 @@ async function buildEngineInput(
   trainerRecentMap: Map<string, number[]>,
   styleMap: Map<string, { avg: number | null; std: number | null }>,
   paceType: 'HOT' | 'NORMAL' | 'SLOW',
-  asOf: AsOfHorseStats
-): Promise<ScoreEngineInput> {
+  asOf: AsOfHorseStats,
+  batch: RaceBatch
+): ScoreEngineInput {
   const rcDate = e.race_date;
 
-  // 같은 말의 과거 5경주 (race_entries에서 ord 있는 것만)
-  // 구간기록 컬럼 포함: ④ lastFurlong 계산, ⑤ positions 계산용
-  const { data: hist5raw } = await sb
-    .from('race_entries')
-    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord')
-    .eq('hr_name', e.hr_name)
-    .lt('race_date', rcDate)
-    .not('ord', 'is', null)
-    .order('race_date', { ascending: false })
-    .limit(5);
-  const hist5 = hist5raw ?? [];
+  // 같은 말의 과거 경주 (배치 (A)에서 주입). hist5=최근 5, fullHist=전체(시즌·조합용).
+  const fullHist = batch.histByHorse.get(e.hr_name) ?? [];
+  const hist5 = fullHist.slice(0, 5);
   const histAsc = [...hist5].reverse();
 
-  const burdenHistory = await buildBurdenHistory(sb, hist5);
+  const burdenHistory = buildBurdenHistory(hist5, batch.histRaceBudams);
 
   const sameDistOrds = hist5
     .filter((r) => r.rc_dist === e.rc_dist && r.ord != null)
@@ -252,19 +315,12 @@ async function buildEngineInput(
   //   - g1fOrd = g1f_ord (종반 200m, 3시점 분석)
   //   - fieldSize = 그 경주 출전두수 (ratio 정규화용)
   //
-  // hist5의 각 race에 대해 field_size 병렬 조회 (5 queries Promise.all)
+  // field_size = 그 경주 전체 출주두수 (배치 (B): histRaceBudams 행수)
   const fieldSizesMap = new Map<string, number>();
-  await Promise.all(
-    hist5.map(async (r) => {
-      const { count } = await sb
-        .from('race_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('race_date', r.race_date)
-        .eq('meet', r.meet)
-        .eq('rc_no', r.rc_no);
-      fieldSizesMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, count ?? 0);
-    })
-  );
+  for (const r of hist5) {
+    const k = `${r.race_date}-${r.meet}-${r.rc_no}`;
+    fieldSizesMap.set(k, batch.histRaceBudams.get(k)?.length ?? 0);
+  }
 
   const positions = hist5
     .filter((r) => r.ord != null)
@@ -290,21 +346,8 @@ async function buildEngineInput(
   const avgPositionRatio: number | null = asOf.avgPositionRatio;
   const stddevPositionRatio: number | null = asOf.stddevPositionRatio;
 
-  // 혈통 (horses 테이블 — 정적 정보, 누수 아님)
-  const { data: pedigreeData } = e.hr_no
-    ? await sb
-        .from('horses')
-        .select('dsa_bri_vl, dsa_clc_vl, dsa_ier_vl, dsa_prf_vl, dsidx_vl')
-        .eq('hr_no', e.hr_no)
-        .maybeSingle()
-    : { data: null };
-  const pedigreeRow = pedigreeData as {
-    dsa_bri_vl?: number | null;
-    dsa_clc_vl?: number | null;
-    dsa_ier_vl?: number | null;
-    dsa_prf_vl?: number | null;
-    dsidx_vl?: number | null;
-  } | null;
+  // 혈통 (배치 (C): horses — 정적 정보, 누수 아님)
+  const pedigreeRow = (e.hr_no ? batch.pedigreeMap.get(e.hr_no) : undefined) ?? null;
   const pedigree: ScoreEngineInput['pedigree'] = pedigreeRow
     ? {
         dsaBriVl: pedigreeRow.dsa_bri_vl ?? undefined,
@@ -320,59 +363,26 @@ async function buildEngineInput(
     .filter((r) => r.track_type === e.track_type && r.ord != null)
     .map((r) => r.ord as number);
 
-  let jockeyCareerWinRate: number | null = null;
-  let jockeyCareerQuRate: number | null = null;
-  if (e.jcky_no) {
-    const { data: jkStat } = await sb
-      .from('jockey_stats')
-      .select('win_rate_t, qu_rate_t')
-      .eq('jcky_no', e.jcky_no)
-      .eq('meet', e.meet)
-      .maybeSingle();
-    jockeyCareerWinRate = jkStat?.win_rate_t ?? null;
-    jockeyCareerQuRate = jkStat?.qu_rate_t ?? null;
-  }
+  const jk = e.jcky_no ? batch.jockeyCareerMap.get(e.jcky_no) : undefined;
+  const jockeyCareerWinRate: number | null = jk?.win_rate_t ?? null;
+  const jockeyCareerQuRate: number | null = jk?.qu_rate_t ?? null;
 
-  const sixtyDaysAgo = subtractDays(rcDate, 60);
-  let trainer60DayOrds: number[] = [];
-  if (e.trar_no) {
-    const { data: tr } = await sb
-      .from('race_entries')
-      .select('ord')
-      .eq('trar_no', e.trar_no)
-      .gte('race_date', sixtyDaysAgo)
-      .lt('race_date', rcDate)
-      .not('ord', 'is', null);
-    trainer60DayOrds = (tr ?? []).map((r) => r.ord as number);
-  }
+  // 조교사 60일 착순 (배치 (E))
+  const trainer60DayOrds: number[] = e.trar_no ? (batch.trainer60Map.get(e.trar_no) ?? []) : [];
 
   let intervalDays: number | null = null;
   if (histAsc.length > 0) {
     intervalDays = daysBetween(histAsc[histAsc.length - 1]!.race_date as number, rcDate);
   }
 
-  const { data: seasonRaw } = await sb
-    .from('race_entries')
-    .select('race_date, ord')
-    .eq('hr_name', e.hr_name)
-    .lt('race_date', rcDate)
-    .not('ord', 'is', null);
-  const sameSeasonOrds = (seasonRaw ?? [])
+  // 시즌·조합·전체착순: 배치 (A) fullHist 파생 (집계라 순서 무관)
+  const sameSeasonOrds = fullHist
     .filter((r) => monthToSeason(Math.floor((r.race_date % 10000) / 100)) === currentSeason)
     .map((r) => r.ord as number);
-
-  let combinationOrds: number[] = [];
-  if (e.jcky_no) {
-    const { data: combRaw } = await sb
-      .from('race_entries')
-      .select('ord')
-      .eq('hr_name', e.hr_name)
-      .eq('jcky_no', e.jcky_no)
-      .lt('race_date', rcDate)
-      .not('ord', 'is', null);
-    combinationOrds = (combRaw ?? []).map((r) => r.ord as number);
-  }
-  const horseAllOrds = (seasonRaw ?? []).map((r) => r.ord as number);
+  const combinationOrds: number[] = e.jcky_no
+    ? fullHist.filter((r) => r.jcky_no === e.jcky_no).map((r) => r.ord as number)
+    : [];
+  const horseAllOrds = fullHist.map((r) => r.ord as number);
 
   const recent5Popularities = hist5
     .filter((r) => r.popularity != null)
@@ -383,12 +393,8 @@ async function buildEngineInput(
   const classBandToday = parseClassBand(e.prize_cond);
   let classBandLast: number | null = null;
   if (last) {
-    const { data: lastRace } = await sb
-      .from('races')
-      .select('prize_cond')
-      .eq('race_date', last.race_date).eq('meet', last.meet).eq('rc_no', last.rc_no)
-      .maybeSingle();
-    classBandLast = parseClassBand(lastRace?.prize_cond ?? null);
+    const pc = batch.racePrizeCondMap.get(`${last.race_date}-${last.meet}-${last.rc_no}`) ?? null;
+    classBandLast = parseClassBand(pc);
   }
 
   return {
@@ -443,23 +449,17 @@ type HistRow = {
   burd_wgt: number | null;
 };
 
-async function buildBurdenHistory(
-  sb: SupabaseClient,
-  hist5: HistRow[]
-): Promise<Array<{ ord: number; myBudam: number; raceAvgBudam: number }>> {
+function buildBurdenHistory(
+  hist5: HistRow[],
+  histRaceBudams: Map<string, (number | null)[]>
+): Array<{ ord: number; myBudam: number; raceAvgBudam: number }> {
   if (hist5.length === 0) return [];
   const validHist = hist5.filter((h) => h.ord != null && h.burd_wgt != null);
   if (validHist.length === 0) return [];
 
   const results: Array<{ ord: number; myBudam: number; raceAvgBudam: number }> = [];
   for (const h of validHist) {
-    const { data: peers } = await sb
-      .from('race_entries')
-      .select('burd_wgt')
-      .eq('race_date', h.race_date)
-      .eq('meet', h.meet)
-      .eq('rc_no', h.rc_no);
-    const budams = (peers ?? []).map((p) => p.burd_wgt).filter((v): v is number => v != null);
+    const budams = (histRaceBudams.get(`${h.race_date}-${h.meet}-${h.rc_no}`) ?? []).filter((v): v is number => v != null);
     if (budams.length === 0) continue;
     const raceAvgBudam = budams.reduce((s, v) => s + v, 0) / budams.length;
     results.push({ ord: h.ord as number, myBudam: h.burd_wgt as number, raceAvgBudam });

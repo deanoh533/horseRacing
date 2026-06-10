@@ -39,8 +39,11 @@ export function figuresBeforeDate(
   return timeline.filter((t) => t.date < beforeDate).map((t) => t.fig);
 }
 
-/** race_par_times view → 버킷키→par_time 맵 (n_wins>=PAR_MIN_WINS만) */
+/** race_par_times view → 버킷키→par_time 맵 (n_wins>=PAR_MIN_WINS만).
+ *  정적 기준표 → 프로세스 1회만 로드(메모이즈). extract 수천경주 재로드 방지. */
+let _parMapCache: Map<string, number> | null = null;
 export async function loadParMap(sb: SupabaseClient): Promise<Map<string, number>> {
+  if (_parMapCache) return _parMapCache;
   const map = new Map<string, number>();
   const { data, error } = await sb
     .from('race_par_times')
@@ -51,5 +54,6 @@ export async function loadParMap(sb: SupabaseClient): Promise<Map<string, number
       map.set(parBucketKey(r.meet, r.rc_dist, r.track_type), r.par_time);
     }
   }
+  _parMapCache = map;
   return map;
 }
