@@ -15,6 +15,7 @@ import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fitLogistic, predictLogit } from '../src/engine/models/logistic.js';
+import { fitPL, predictPL, type PLRace } from '../src/engine/models/plackettLuce.js';
 import { buildSchema, toVector } from '../src/engine/features/alignFeatures.js';
 import { pairKey } from '../src/engine/analysis/comboBacktest.js';
 import { settleBox, type BoxHorse } from '../src/engine/analysis/boxBacktest.js';
@@ -107,6 +108,10 @@ async function main() {
   const labels: ('top3' | 'top2')[] = labelArg === 'top2' ? ['top2']
     : labelArg === 'top3' ? ['top3']
     : hasTop2 ? ['top3', 'top2'] : ['top3'];
+  // --model: logistic(기본) | pl | both — 같은 후보를 두 모델로 비교
+  const modelArg = arg('--model', 'logistic');
+  const models: ('logistic' | 'pl')[] = modelArg === 'both' ? ['logistic', 'pl']
+    : modelArg === 'pl' ? ['pl'] : ['logistic'];
 
   const fullSchema = buildSchema(train.map((r) => r.features));
   // baseline = 기존 60개 (z·신규후보 전부 제외)
@@ -129,53 +134,71 @@ async function main() {
       { name: 'absz', schema: fullSchema },
     ];
   }
-  const w = Math.max(8, ...variants.map((v) => v.name.length));
+  const wName = Math.max(8, ...variants.map((v) => v.name.length));
 
-  console.log(`\n${'변형'.padEnd(w)} | 라벨  | 베팅수 | 박스적중 | 적중률 |   ROI%   | Brier`);
-  console.log('-'.repeat(62 + w));
+  console.log(`\n${'변형'.padEnd(wName)} | 모델     | 라벨  | 베팅수 | 박스적중 | 적중률 |   ROI%   | Brier`);
+  console.log('-'.repeat(74 + wName));
+
+  // 공통 정산: scorer(말→점수, 클수록 상위) + 선택 brier 라벨(PL은 null=확률 아님)
+  const settleAll = (scorer: (r: Row) => number, brierLabel: 'top2' | 'top3' | null) => {
+    let bettable = 0, hits = 0, roiProfit = 0, roiCost = 0, brierSum = 0, brierN = 0;
+    for (const [rk, rows] of byRace) {
+      const boxHorses: BoxHorse[] = [];
+      for (const r of rows) {
+        if (r.ord == null) continue;
+        const pthr = pthrMap.get(`${rk}-${r.hr_name}`);
+        if (pthr == null) continue;
+        const s = scorer(r);
+        boxHorses.push({ pthrNo: pthr, ord: r.ord, prob: s });
+        if (brierLabel) {
+          const yTrue = brierLabel === 'top2' ? (r.ord <= 2 ? 1 : 0) : (r.ord <= 3 ? 1 : 0);
+          brierSum += (s - yTrue) ** 2; brierN++;
+        }
+      }
+      const res = settleBox(boxHorses, comboByRace.get(rk) ?? new Map());
+      if (!res) continue;
+      bettable++;
+      if (res.hit) hits++;
+      if (res.profit != null) { roiProfit += res.profit; roiCost += 3; }
+    }
+    const hitRate = bettable ? ((hits / bettable) * 100).toFixed(1) : '-';
+    const roi = roiCost > 0 ? ((roiProfit / roiCost) * 100).toFixed(1) + '%' : '-';
+    const brier = brierN ? (brierSum / brierN).toFixed(4) : '-';
+    return { bettable, hits, hitRate, roi, brier };
+  };
+
+  type Stats = ReturnType<typeof settleAll>;
+  const printRow = (vname: string, mdl: string, label: string, s: Stats) =>
+    console.log(`${vname.padEnd(wName)} | ${mdl.padEnd(8)} | ${label.padEnd(5)} | ${String(s.bettable).padStart(6)} | ${String(s.hits).padStart(8)} | ${s.hitRate.padStart(5)}% | ${s.roi.padStart(8)} | ${s.brier}`);
 
   for (const v of variants) {
     const schema = v.schema;
-
-    for (const label of labels) {
-      const y = train.map((r) => (label === 'top2' ? (r.top2 ?? 0) : r.top3));
-      const model = fitLogistic(train.map((r) => toVector(r.features, schema)), y as number[], schema, { l2: 0.02, iters: 800, lr: 0.2 });
-
-      let bettable = 0, hits = 0;
-      let roiProfit = 0, roiCost = 0;
-      let brierSum = 0, brierN = 0;
-
-      for (const [rk, rows] of byRace) {
-        const boxHorses: BoxHorse[] = [];
-        for (const r of rows) {
-          if (r.ord == null) continue;
-          const pthr = pthrMap.get(`${rk}-${r.hr_name}`);
-          if (pthr == null) continue;
-          const p = sigmoid(predictLogit(model, toVector(r.features, schema)));
-          boxHorses.push({ pthrNo: pthr, ord: r.ord, prob: p });
-          // Brier (선택 라벨 기준)
-          const yTrue = label === 'top2' ? (r.ord <= 2 ? 1 : 0) : (r.ord <= 3 ? 1 : 0);
-          brierSum += (p - yTrue) ** 2; brierN++;
+    for (const mdl of models) {
+      if (mdl === 'logistic') {
+        for (const label of labels) {
+          const y = train.map((r) => (label === 'top2' ? (r.top2 ?? 0) : r.top3));
+          const model = fitLogistic(train.map((r) => toVector(r.features, schema)), y as number[], schema, { l2: 0.02, iters: 800, lr: 0.2 });
+          printRow(v.name, 'logistic', label, settleAll((r) => sigmoid(predictLogit(model, toVector(r.features, schema))), label));
         }
-        const res = settleBox(boxHorses, comboByRace.get(rk) ?? new Map());
-        if (!res) continue;
-        bettable++;
-        if (res.hit) hits++;
-        if (res.profit != null) { roiProfit += res.profit; roiCost += 3; }
+      } else {
+        // PL: 경주 단위 ord 랭킹 학습 (라벨 무관, 전체 순서 사용)
+        const plByRace = new Map<string, PLRace['horses']>();
+        for (const r of train) {
+          if (r.ord == null) continue;
+          const k = `${r.race_date}-${r.meet}-${r.rc_no}`;
+          if (!plByRace.has(k)) plByRace.set(k, []);
+          plByRace.get(k)!.push({ x: toVector(r.features, schema), ord: r.ord });
+        }
+        const plRaces: PLRace[] = [...plByRace.values()].filter((hs) => hs.length >= 2).map((hs) => ({ horses: hs }));
+        const model = fitPL(plRaces, schema, { l2: 0.02, iters: 800, lr: 0.2 });
+        printRow(v.name, 'pl', '-', settleAll((r) => predictPL(model, toVector(r.features, schema)), null));
       }
-
-      const hitRate = bettable ? ((hits / bettable) * 100).toFixed(1) : '-';
-      const roi = roiCost > 0 ? ((roiProfit / roiCost) * 100).toFixed(1) + '%' : '-';
-      const brier = brierN ? (brierSum / brierN).toFixed(4) : '-';
-      console.log(
-        `${v.name.padEnd(w)} | ${label.padEnd(5)} | ${String(bettable).padStart(6)} | ${String(hits).padStart(8)} | ${hitRate.padStart(5)}% | ${roi.padStart(8)} | ${brier}`
-      );
     }
   }
-  console.log('-'.repeat(62 + w));
+  console.log('-'.repeat(74 + wName));
   console.log(candList.length > 0
-    ? `판정 = 박스 ROI. baseline vs +${candList.join('+')} 차이로 효과 확인 (top2 기준).`
-    : '판정 = 박스 ROI (적중률·Brier 참고). abs vs absz 비교로 상대화 효과 확인.');
+    ? `판정 = 박스 ROI. baseline vs +${candList.join('+')} 차이로 효과 확인 (top2 기준). --model both면 두 모델에서 일관 +방향인지 확인.`
+    : '판정 = 박스 ROI (적중률·Brier 참고). PL Brier는 확률 아님(-).');
 }
 
 main().catch((e) => { console.error('💥', e); process.exit(1); });
