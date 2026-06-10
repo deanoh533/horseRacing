@@ -168,8 +168,10 @@ npm run test:run     # vitest 단위 테스트
 > - **목표:** 복승 3마리 박스 ROI. **라벨 top2 채택**(top3 대비 +8%p). **원칙:** 압축은 모델에 맡기고 사람은 raw만 공급(자체레이팅·Elo 폐기). 메모리 [[feedback-no-human-compression]]·[[project-feature-gate-findings]].
 > - **2단계 게이트(표준):** A=`probe:corr`(후보↔기존 \|r\|>0.5 중복제외) → B=`backtest:box --label top2 --div data/quinella_dividends.jsonl`(holdout 복승박스 ROI). 게이트A 규칙 검증됨(겹침은 보강 안 함).
 > - **신규 도구(main):** `extract:matrix`(z OFF·top2·후보 포함)·`probe:corr`·`backtest:box`(--candidate 격리)·`refresh:logistic`. 순수함수 `relativizeRace`(z 현재 OFF)·`settleBox`·`buildRaceFeatures`.
-> - **결과:** z-score·구간후보6·경쟁강도3 **전부 게이트 탈락**(착순신호 포화 + 편성 때문 필드강도≈자기레이팅). **마체중만 게이트B +7.2%p ROI(−25→−17.8) 통과** — 단 `wg_hr`이 `transformer.ts` 경기후 결과에만 채워짐(raceCardSync 미수집)=라이브 누수로 **보류**. (마체중은 계량=경기前 측정이라 착순 누설은 아님, 운영 타이밍 문제.)
-> - **다음(재개시):** ①마체중 사전수집 가능성(KRA 직전정보/계량 API) 조사 ②다분기 강건성(행렬 ~20250930 확장) ③새 후보(등급이동·기수변경·조교 — training_logs 커버리지 SQL 미확인).
+> - **채택:** **등급이동 `class_move`**(오늘−직전 등급밴드상한, raw 델타) — 게이트B 단독 **+2.2%p**(−25.0→−22.8), prize_cond 100% 사전가용 → **라이브 클린**. buildFeatures 반영(아직 promote 안 함).
+> - **탈락:** z-score·구간후보6·경쟁강도3(편성탓 필드강도≈자기레이팅)·장구(게이트B ROI악화)·기수변경(combo_n과 0.59 중복)·class_dropped(사람임계값). 착순 기반 신호 포화 확인.
+> - **보류:** 마체중 게이트B +7.2%p 통과했으나 `wg_hr`이 경기후 결과(`transformer.ts`)에만 채워짐=라이브 누수(계량=경기前이라 착순누설은 아님, 운영 타이밍).
+> - **다음(재개시):** ①다분기 강건성(class_move·마체중 단일분기 → 행렬 ~20250930 확장) ②마체중 사전수집 가능성(KRA 직전정보 API) 조사 ③새 후보(휴양·원정·혈통; 조교 커버리지 미확인) ④class_move `refresh:logistic`→`promote`.
 >
 > **2026-06-06 — 재설계 최종값 확정 + earnings 트랙 종결** (브랜치 `feat/score-learning-redesign`, 미머지)
 > - **최종 walkforward 결과:** 로지스틱 **연승 59.0%** / v1 57.6% / 시장 68.8%. 모델−v1 = **+1.4%p (±1.9%p 노이즈)**. 모델−시장 = **-9.8%p** (불일치 시 -20.8%p). GBDT 59.2%(로지스틱과 동률). ROI 전부 음수.
