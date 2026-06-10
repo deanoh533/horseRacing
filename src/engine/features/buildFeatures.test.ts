@@ -107,21 +107,6 @@ describe('buildFeatures — 연속형 raw', () => {
     expect(val({ rating: 0, classBandToday: 80, classBandLast: 65 }, 'class_move')).toBe(15);
     expect(val({ rating: 0, classBandToday: 65 }, 'class_move')).toBeUndefined(); // 직전 없음
   });
-  it('직전대비 변화: dist_change·track_change·away_meet (raw, 직전 없으면 생략, 0=무변화 emit)', () => {
-    // dist_change = 오늘 − 직전 거리 (raw 델타, ±)
-    expect(val({ rating: 0, rcDist: 1600, prevRcDist: 1200 }, 'dist_change')).toBe(400);
-    expect(val({ rating: 0, rcDist: 1200, prevRcDist: 1600 }, 'dist_change')).toBe(-400);
-    expect(val({ rating: 0, rcDist: 1600, prevRcDist: 1600 }, 'dist_change')).toBe(0); // 무변화도 emit
-    expect(val({ rating: 0, rcDist: 1600 }, 'dist_change')).toBeUndefined(); // 직전 없음
-    // track_change = 주로 바뀌면 1, 같으면 0
-    expect(val({ rating: 0, trackType: '더트', prevTrackType: '더트' }, 'track_change')).toBe(0);
-    expect(val({ rating: 0, trackType: '잔디', prevTrackType: '더트' }, 'track_change')).toBe(1);
-    expect(val({ rating: 0, trackType: '더트' }, 'track_change')).toBeUndefined(); // 직전 없음
-    // away_meet = 경마장 바뀌면 1 (원정), 같으면 0
-    expect(val({ rating: 0, meet: 1, prevMeet: 1 }, 'away_meet')).toBe(0);
-    expect(val({ rating: 0, meet: 3, prevMeet: 1 }, 'away_meet')).toBe(1);
-    expect(val({ rating: 0, meet: 1 }, 'away_meet')).toBeUndefined(); // 직전 없음
-  });
   it('경쟁강도: 필드 평균/최고 레이팅, 내 레이팅−필드평균 격차', () => {
     const input: ScoreEngineInput = { rating: 85, allRaceRatings: [70, 80, 90] };
     expect(val(input, 'field_rating_mean')).toBeCloseTo(80, 5);

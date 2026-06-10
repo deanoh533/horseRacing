@@ -149,18 +149,6 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
     add('class_move', input.classBandToday - input.classBandLast);
   }
 
-  // 직전대비 변화 신호 (raw 델타·이진, probe·게이트 검증 중 — 2026-06-10).
-  // 휴양일수는 interval_days(⑪)와 중복이라 제외. 0=무변화도 유효 관측 → emit.
-  if (input.rcDist != null && input.prevRcDist != null) {
-    add('dist_change', input.rcDist - input.prevRcDist);
-  }
-  if (input.trackType != null && input.prevTrackType != null) {
-    add('track_change', input.trackType !== input.prevTrackType ? 1 : 0);
-  }
-  if (input.meet != null && input.prevMeet != null) {
-    add('away_meet', input.meet !== input.prevMeet ? 1 : 0);
-  }
-
   // ⑩ 조교사 60일 top3율
   const tr60 = input.trainer60DayOrds ?? [];
   if (tr60.length > 0) add('trainer_top3', tr60.filter((o) => o <= 3).length / tr60.length);
