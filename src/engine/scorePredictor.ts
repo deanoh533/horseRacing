@@ -28,11 +28,6 @@ interface EntryRow {
   track_type: string | null;
   burd_wgt: number | null;
   wg_hr: number | null;
-  asis_equip1: string | null;
-  asis_equip2: string | null;
-  asis_equip3: string | null;
-  asis_equip4: string | null;
-  asis_equip5: string | null;
   jcky_no: string | null;
   trar_no: string | null;
   popularity: number | null;
@@ -68,7 +63,7 @@ export async function gatherRaceInputs(
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, wg_hr, asis_equip1, asis_equip2, asis_equip3, asis_equip4, asis_equip5, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
+    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, wg_hr, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
     .eq('race_date', rcDate)
     .eq('meet', meet)
     .eq('rc_no', rcNo)
@@ -222,7 +217,7 @@ async function buildEngineInput(
   // 구간기록 컬럼 포함: ④ lastFurlong 계산, ⑤ positions 계산용
   const { data: hist5raw } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord, asis_equip1, asis_equip2, asis_equip3, asis_equip4, asis_equip5')
+    .select('race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord')
     .eq('hr_name', e.hr_name)
     .lt('race_date', rcDate)
     .not('ord', 'is', null)
@@ -382,19 +377,8 @@ async function buildEngineInput(
     .filter((r) => r.popularity != null)
     .map((r) => r.popularity as number);
 
-  // 의도·전략 신호: 직전 경주(hist5[0]=가장 최근 과거) vs 오늘
+  // 등급 이동: 직전 경주(hist5[0]=가장 최근 과거) 밴드 vs 오늘 (races.prize_cond)
   const last = hist5[0];
-  const lastJockey = last?.jcky_no ?? null;
-  const jockeyChangedFromLast = lastJockey != null && e.jcky_no != null
-    ? lastJockey !== e.jcky_no
-    : undefined;
-
-  const equipOf = (r: { asis_equip1: string | null; asis_equip2: string | null; asis_equip3: string | null; asis_equip4: string | null; asis_equip5: string | null }) =>
-    [r.asis_equip1, r.asis_equip2, r.asis_equip3, r.asis_equip4, r.asis_equip5].filter((x): x is string => !!x);
-  const equipToday = equipOf(e);
-  const equipLast = last ? equipOf(last) : undefined;
-
-  // 등급 이동: 오늘 밴드 vs 직전 경주 밴드 상한 (races.prize_cond)
   const classBandToday = parseClassBand(e.prize_cond);
   let classBandLast: number | null = null;
   if (last) {
@@ -411,9 +395,6 @@ async function buildEngineInput(
     weightDiffs: histAsc.map((r) => r.wg_hr_diff ?? 0),
     sex: e.gndr ?? undefined,
     currentMonth,
-    jockeyChangedFromLast,
-    equipToday,
-    equipLast,
     classBandToday,
     classBandLast,
     ord5: histAsc.filter((r) => r.ord != null).map((r) => r.ord as number),

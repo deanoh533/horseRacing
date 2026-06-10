@@ -88,10 +88,7 @@ export interface ScoreEngineInput {
   // ⑧ 부담중량 (부담 극복 지수)
   burdenHistory?: Array<{ ord: number; myBudam: number; raceAvgBudam: number }>;
 
-  // 의도·전략 신호 (직전 경주 대비, 착순 우물 밖)
-  jockeyChangedFromLast?: boolean;       // 기수 변경
-  equipToday?: string[];                 // 오늘 장구 목록
-  equipLast?: string[];                  // 직전 경주 장구 목록
+  // 등급 이동 (직전 경주 대비, 착순 우물 밖) — 게이트 통과 채택(class_move)
   classBandToday?: number | null;        // 오늘 등급 밴드 상한 (prize_cond)
   classBandLast?: number | null;         // 직전 경주 등급 밴드 상한
 

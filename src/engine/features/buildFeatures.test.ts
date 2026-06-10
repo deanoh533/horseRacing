@@ -102,23 +102,9 @@ describe('buildFeatures — 연속형 raw', () => {
     expect(val(input, 'late_pos_g1f_mean')).toBeUndefined();
     expect(val(input, 'late_200m_speed_mean')).toBeUndefined();
   });
-  it('기수 변경: 직전 경주와 기수 다르면 1, 같으면 0', () => {
-    expect(val({ rating: 0, jockeyChangedFromLast: true }, 'jockey_changed')).toBe(1);
-    expect(val({ rating: 0, jockeyChangedFromLast: false }, 'jockey_changed')).toBe(0);
-    expect(val({ rating: 0 }, 'jockey_changed')).toBeUndefined(); // 직전 경주 없음
-  });
-  it('장구 변경: 추가/제거 개수', () => {
-    const input: ScoreEngineInput = { rating: 0, equipToday: ['블', '가'], equipLast: ['블'] };
-    expect(val(input, 'equip_added')).toBe(1);
-    expect(val(input, 'equip_removed')).toBe(0);
-    expect(val({ rating: 0 }, 'equip_added')).toBeUndefined(); // 직전 정보 없음
-  });
-  it('등급 이동: class_move = 오늘−직전 밴드, 하락이면 class_dropped=1', () => {
-    // 오늘 65, 직전 80 → -15 (하락=쉬운 클래스)
+  it('등급 이동: class_move = 오늘−직전 밴드 (raw 델타, 음수=하락)', () => {
     expect(val({ rating: 0, classBandToday: 65, classBandLast: 80 }, 'class_move')).toBe(-15);
-    expect(val({ rating: 0, classBandToday: 65, classBandLast: 80 }, 'class_dropped')).toBe(1);
-    // 상승
-    expect(val({ rating: 0, classBandToday: 80, classBandLast: 65 }, 'class_dropped')).toBe(0);
+    expect(val({ rating: 0, classBandToday: 80, classBandLast: 65 }, 'class_move')).toBe(15);
     expect(val({ rating: 0, classBandToday: 65 }, 'class_move')).toBeUndefined(); // 직전 없음
   });
   it('경쟁강도: 필드 평균/최고 레이팅, 내 레이팅−필드평균 격차', () => {

@@ -92,11 +92,11 @@ async function main() {
     'early_pos_s1f_mean', 'early_pos_s1f_ratio_mean',
     'late_pos_g1f_mean', 'late_pos_g1f_ratio_mean',
     'late_200m_speed_mean', 'early_to_finish_gain_mean',
-    // 착순 우물 밖 후보 (검증 중)
+    // 게이트 탈락(코드 잔존 시) — baseline 제외
     'field_rating_mean', 'field_rating_max', 'rating_minus_field_mean',
+    // 마체중: 게이트B 통과했으나 라이브 누수로 보류 → baseline 제외 유지
     'body_weight', 'body_weight_minus_field_mean',
-    // 의도·전략 후보
-    'jockey_changed', 'equip_added', 'equip_removed', 'class_move', 'class_dropped',
+    // class_move는 채택 → baseline 포함(여기 넣지 않음).
   ];
   // --candidate: 콤마로 여러 개 → 함께 baseline에 추가 (그룹 단위 켜고 끄기)
   const candidate = arg('--candidate', '');

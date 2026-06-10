@@ -5,7 +5,6 @@
  */
 import type { ScoreEngineInput } from '../index.js';
 import type { Feature, FeatureVector } from './types.js';
-import { equipDiff } from './intentSignals.js';
 
 function slope(arr: number[]): number {
   const n = arr.length;
@@ -142,21 +141,12 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   const jr = input.jockeyRecentOrds ?? [];
   if (jr.length > 0) add('jockey_recent_win', jr.filter((o) => o === 1).length / jr.length);
 
-  // 기수 변경 (직전 경주 대비) — 의도 신호 (착순 우물 밖)
-  if (input.jockeyChangedFromLast != null) add('jockey_changed', input.jockeyChangedFromLast ? 1 : 0);
-
-  // 장구 변경 (직전 경주 대비)
-  if (input.equipToday != null && input.equipLast != null) {
-    const { added, removed } = equipDiff(input.equipToday, input.equipLast);
-    add('equip_added', added);
-    add('equip_removed', removed);
-  }
-
-  // 등급 이동 (직전 경주 밴드 상한 대비). 음수=하락(쉬운 클래스).
+  // 등급 이동 (직전 경주 밴드 상한 대비, raw 델타). 음수=하락(쉬운 클래스).
+  // 게이트 검증(2026-06-10): class_move 채택(게이트B +2.2%p, 라이브 클린).
+  // 탈락: jockey_changed(combo_n과 |r|0.59 중복)·equip(게이트B ROI 악화)·
+  //       class_dropped(사람 임계값=원칙위반·move에 흡수).
   if (input.classBandToday != null && input.classBandLast != null) {
-    const move = input.classBandToday - input.classBandLast;
-    add('class_move', move);
-    add('class_dropped', move < 0 ? 1 : 0);
+    add('class_move', input.classBandToday - input.classBandLast);
   }
 
   // ⑩ 조교사 60일 top3율
