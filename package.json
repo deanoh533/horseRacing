@@ -40,7 +40,8 @@
     "refresh:logistic": "tsx scripts/refresh_logistic.ts",
     "backtest:box": "tsx scripts/backtest_box.ts",
     "backtest:box:quarters": "tsx scripts/backtest_box_quarters.ts",
-    "probe:corr": "tsx scripts/probe_feature_corr.ts"
+    "probe:corr": "tsx scripts/probe_feature_corr.ts",
+    "exp:pl": "tsx scripts/experiment_pl.ts"
   },
   "engines": {
     "node": ">=20.0.0"
