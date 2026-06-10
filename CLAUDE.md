@@ -175,7 +175,9 @@ npm run test:run     # vitest 단위 테스트
 > 7. **속도 조사** — extract 경주 병렬화 **무효**(Supabase 처리량 병목, 동시성↑ 손해). 진짜 지렛대=gatherRaceInputs 말별 쿼리 배치화(~5-10×, 라이브도)지만 보류(공유 경로 리팩터). [[reference-db-schema-gotchas]] 기록.
 > 8. **재추출(고친 코드) → refresh:logistic 패리티 ✅0 → promote id=5**(logit-20260611) 활성. 미확정 595경주/6559행 재생성, 확정 과거 동결. 롤백=이전 id로 promote.
 > 9. **적중률**(id=5 홀드아웃 walk-forward): **연승 60.1%/단승 28.9%** vs 시장 68.2/37.2 = **−8.1%p**(여전히 시장 못 이김). class_move·최근폼수정으로도 시장격차 안 좁혀짐.
-> **다음:** ①gatherRaceInputs 배치화(속도) ②시장격차 좁힐 새 raw 신호(휴양·혈통 등, 다분기 게이트로) ③PL 연승 트랙(walkforward PL 지원 추가) ④복승 배당 마지막 4주(2026-05-10~)·복연승 트랙.
+> 10. **속도** ✅ — gatherRaceInputs 말별 쿼리 `.in()` 배치화: 경주당 ~150→~7 라운드트립, **187경주 224s→61s(3.7×), byte-identical**. extract 전체 ~30-60분→~8-16분. (경주 병렬화는 무효=Supabase 처리량 병목.)
+> **다음 (우선순위):** ①**시장격차(−8%p) 좁힐 새 raw 신호** — 휴양·혈통·트랙이동 등, 다분기 게이트B(`backtest:box:quarters`)로. ②PL 연승 트랙(walkforward가 PL/artifact 미지원 → 지원 추가해야 PL을 연승·시장격차로 평가) ③복승 배당 마지막 4주(2026-05-10~06-05) 보충·복연승 트랙 ④더 짜낼 속도=asOf(fetchAsOfHorseStats) 배치화(누수민감, byte-identical 필수).
+> **세션 끝 상태(다음 시작점):** 8커밋 전부 **로컬 main·미푸시**. **DB: model_versions id=5(logit-20260611) 활성**(롤백=이전 id promote). 데이터: `training_matrix.jsonl`=현재 깨끗(배치코드 산출)·`quinella_dividends.jsonl`=2025-01~2026-05-09(마지막 4주 결손)·**`combo_dividends.jsonl`=0바이트(복연승 truncate, 재수집 필요)**·`*.bak`/`*.gap`/`smoke` 등 정리대상 잔존. 우리 KRA_API_KEY는 어제 쿼터소진(오늘 리셋됐을 것), 복승 결손은 친구키로 보충했음(키 미저장).
 
 > **2026-06-10 — 복승 박스 타깃 + 2단계 게이트로 신호 발굴 (진행 중, main 커밋)**
 > - **목표:** 복승 3마리 박스 ROI. **라벨 top2 채택**(top3 대비 +8%p). **원칙:** 압축은 모델에 맡기고 사람은 raw만 공급(자체레이팅·Elo 폐기). 메모리 [[feedback-no-human-compression]]·[[project-feature-gate-findings]].
