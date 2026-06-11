@@ -1,7 +1,7 @@
 # KRA 경마 분석 도구 — Claude 컨텍스트
 
 > 새 세션에서 이 파일을 가장 먼저 읽습니다.
-> 마지막 업데이트: 2026-06-06 (earnings as-of 정화 완료 + 재설계 최종값 확정)
+> 마지막 업데이트: 2026-06-12 (DuckDB 로컬 미러 설계 완료)
 
 ---
 
@@ -164,6 +164,17 @@ npm run test:run     # vitest 단위 테스트
 
 ## ⚠️ 지금 알아야 할 핵심 이슈
 
+> **2026-06-12 — DuckDB 로컬 미러 설계 완료 (브랜치 feat/duckdb-local-mirror)**
+> - **현황:** Supabase All services Restricted(402). egress 5GB/월 소진. 결제 주기 리셋: **2026-06-23**. 읽기·쓰기·웹앱 전부 차단.
+> - **설계 확정:** 분석·백테스트 읽기를 로컬 DuckDB 파일로 분리 → egress 0. 쓰기·라이브·웹앱은 Supabase 유지. 어댑터(`src/db/localDb.ts`)가 `.from().select().eq()...` 체인을 SQL로 번역. `getReadClient()` 한 줄 교체로 스크립트 연결. `gatherRaceInputs`는 클라이언트 주입만 교체(라이브 무영향).
+> - **스펙:** `docs/superpowers/specs/2026-06-12-duckdb-local-mirror-design.md`
+> - **다음 세션 시작점(Phase 1 — Supabase 불필요):**
+>   1. `@duckdb/node-api` Windows 설치·기본 쿼리 붙는지 검증 ← **첫 번째 할 일**
+>   2. 어댑터 `src/db/localDb.ts` TDD
+>   3. 덤프 스크립트 `scripts/sync_local_db.ts` + `npm run db:pull` (코드 완성, 실행은 6/23 후)
+>   4. `extract:matrix` 배선
+> - **6/23 이후:** `db:pull` 한 방 → byte-identical 검증 → 나머지 스크립트 전파 → 복승 배당 Supabase 정식 테이블화
+>
 > **2026-06-11 — class_move promote(라이브 반영) + 패리티 버그 수정 + PL 모델 (main 커밋)**
 > 이 세션 흐름(시간순):
 > 1. **신규 후보 3개 게이트** (직전대비 변화): **게이트A** — `away_meet` 탈락(전체 100% 상수=원정 0건, 다신 제안 X), dist_change·track_change 통과. **게이트B 단일분기**(2025 Q1) 둘 다 +로 통과처럼 보임.
