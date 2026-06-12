@@ -180,6 +180,106 @@ export function printGateA(warnings: GateAWarning[]): void {
   if (warnings.length > 10) console.log(`     ... 외 ${warnings.length - 10}개`);
 }
 
+// ── 게이트 B: 연승률 개선량 ───────────────────────────────────────
+
+const GATE_B_HOLDOUT_START = 20251001;
+const GATE_B_HOLDOUT_END   = 20251231;
+
+export interface GateBResult {
+  itemId: string;
+  include: boolean;
+  delta: number;
+  withRate: number;
+  withoutRate: number;
+}
+
+export function runGateB(races: RaceRecord[]): GateBResult[] {
+  const gateTrain = races.filter((r) => r.raceDate < GATE_B_HOLDOUT_START);
+  const gateHoldout = races.filter(
+    (r) => r.raceDate >= GATE_B_HOLDOUT_START && r.raceDate <= GATE_B_HOLDOUT_END
+  );
+  if (gateHoldout.length < 50) {
+    console.warn('  ⚠️  게이트 B holdout 경주 수 부족 (<50). 결과 신뢰도 낮음.');
+  }
+
+  // 모든 ScoreItem ID 목록
+  const itemIds = [...new Set(
+    races.flatMap((r) => r.horses.flatMap((h) =>
+      h.features.map((f) => featureToItem(f.name))
+    ))
+  )].filter((id) => id !== 'context' && id !== '').sort();
+
+  // 전체 피처 스키마
+  const allFeatures = buildSchema(gateTrain.flatMap((r) => r.horses.map((h) => h.features)));
+
+  // 학습 행렬
+  const trainX = gateTrain.flatMap((r) =>
+    r.horses.map((h) => toVector(h.features, allFeatures))
+  );
+  const trainY = gateTrain.flatMap((r) =>
+    r.horses.map((h) => (h.ord <= 3 ? 1 : 0))
+  );
+
+  // holdout 연승률 헬퍼
+  function placeRate(
+    model: ReturnType<typeof fitLogistic>,
+    holdout: RaceRecord[],
+    schema: string[]
+  ): number {
+    let hit = 0, n = 0;
+    for (const race of holdout) {
+      const scored = race.horses.map((h) => ({
+        h,
+        score: predictLogit(model, toVector(h.features, schema)),
+      }));
+      const top = scored.sort((a, b) => b.score - a.score)[0];
+      if (!top) continue;
+      n++;
+      if (top.h.ord <= 3) hit++;
+    }
+    return n ? hit / n : 0;
+  }
+
+  // 기준선: 전체 피처 모델
+  const modelAll = fitLogistic(trainX, trainY, allFeatures);
+  const baseRate = placeRate(modelAll, gateHoldout, allFeatures);
+
+  const results: GateBResult[] = [];
+  for (const itemId of itemIds) {
+    const itemFeats = allFeatures.filter((n) => featureToItem(n) === itemId);
+    if (itemFeats.length === 0) {
+      results.push({ itemId, include: false, delta: 0, withRate: baseRate, withoutRate: baseRate });
+      continue;
+    }
+
+    // 해당 항목 제거한 스키마
+    const reducedFeatures = allFeatures.filter((n) => featureToItem(n) !== itemId);
+
+    const withoutX = gateTrain.flatMap((r) =>
+      r.horses.map((h) => toVector(h.features, reducedFeatures))
+    );
+    const modelWithout = fitLogistic(withoutX, trainY, reducedFeatures);
+    const withoutRate = placeRate(modelWithout, gateHoldout, reducedFeatures);
+    const delta = baseRate - withoutRate;
+
+    results.push({ itemId, include: delta > 0, delta, withRate: baseRate, withoutRate });
+  }
+  return results;
+}
+
+export function printGateB(results: GateBResult[]): void {
+  console.log('\n=== 항목 포함 현황 ===\n');
+  console.log('항목                   │ Logistic/GBDT/PL │ 게이트B 개선량');
+  console.log('─'.repeat(60));
+  for (const r of [...results].sort((a, b) => b.delta - a.delta)) {
+    const mark = r.include ? '✅ 포함  ' : '⚠️  제외  ';
+    const sign = r.delta >= 0 ? '+' : '';
+    console.log(
+      `${r.itemId.padEnd(23)}│ ${mark.padEnd(16)}│ ${sign}${(r.delta * 100).toFixed(1)}%p`
+    );
+  }
+}
+
 // ── 향후 Task 3~5에서 채워질 함수 슬롯 ────────────────────────────
 
 // buildMatrix(races): 피처 행렬 + 라벨 배열 생성
@@ -187,12 +287,7 @@ export function printGateA(warnings: GateAWarning[]): void {
 // evalModels(testRaces, models): 적중률·ROI 비교
 // main(): collectRaces(TRAIN) → trainModels → collectRaces(TEST) → evalModels → 결과 출력
 
-// buildSchema, toVector, fitLogistic, predictLogit,
 // fitGBDT, predictGBDT, fitPL, predictPL 은 위 함수들에서 사용됨
-void buildSchema;
-void toVector;
-void fitLogistic;
-void predictLogit;
 void fitGBDT;
 void predictGBDT;
 void fitPL;
