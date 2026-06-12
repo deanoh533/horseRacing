@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { existsSync } from 'node:fs';
 import { DuckDBInstance } from '@duckdb/node-api';
-import { makeLocalClient } from './localDb.js';
+import { makeLocalClient, getLocalDb } from './localDb.js';
 
 let instance: any;
 let conn: any;
@@ -121,5 +122,106 @@ describe('복합 필터', () => {
       .in('track_type', ['T'])
       .not('ord', 'is', null);
     expect(data).toHaveLength(2);
+  });
+});
+
+describe('order', () => {
+  it('ascending: race_date ASC', async () => {
+    const { data } = await client.from('races').select('race_date')
+      .order('race_date', { ascending: true });
+    expect(data).toHaveLength(4);
+    expect(data![0]!.race_date).toBe(20240101);
+  });
+
+  it('descending: race_date DESC', async () => {
+    const { data } = await client.from('races').select('race_date')
+      .order('race_date', { ascending: false });
+    expect(data).toHaveLength(4);
+    expect(data![0]!.race_date).toBe(20240301);
+  });
+
+  it('다중 order: meet ASC, rc_no DESC', async () => {
+    const { data } = await client.from('races').select('*')
+      .order('meet', { ascending: true })
+      .order('rc_no', { ascending: false });
+    // meet=1인 행이 3개 있고, rc_no는 1, 2, 1 → rc_no DESC이면 2가 먼저
+    expect(data).toHaveLength(4);
+    expect(data![0]!.meet).toBe(1);
+    expect(data![0]!.rc_no).toBe(2);
+  });
+});
+
+describe('range / limit', () => {
+  it('limit: limit(2)', async () => {
+    const { data } = await client.from('races').select('*').limit(2);
+    expect(data).toHaveLength(2);
+  });
+
+  it('range: range(1, 2)', async () => {
+    const { data } = await client.from('races').select('*').range(1, 2);
+    expect(data).toHaveLength(2);
+  });
+
+  it('range + order: 2번째부터 2개, race_date ASC', async () => {
+    const { data } = await client.from('races').select('race_date')
+      .order('race_date', { ascending: true })
+      .range(1, 2);
+    expect(data).toHaveLength(2);
+    expect(data![0]!.race_date).toBe(20240101); // 2번째 (offset 1)
+    expect(data![1]!.race_date).toBe(20240201); // 3번째
+  });
+});
+
+describe('single / maybeSingle', () => {
+  it('single: 정확히 1행', async () => {
+    const { data, error } = await client.from('races').select('*')
+      .eq('meet', 2)
+      .single();
+    expect(error).toBeNull();
+    expect(data).not.toBeNull();
+    expect(data!.meet).toBe(2);
+  });
+
+  it('single: 0행 → error', async () => {
+    const { data, error } = await client.from('races').select('*')
+      .eq('meet', 99)
+      .single();
+    expect(data).toBeNull();
+    expect(error).not.toBeNull();
+  });
+
+  it('single: 다행 → error', async () => {
+    const { data, error } = await client.from('races').select('*')
+      .eq('meet', 1)
+      .single();
+    expect(data).toBeNull();
+    expect(error).not.toBeNull();
+  });
+
+  it('maybeSingle: 0행 → null', async () => {
+    const { data, error } = await client.from('races').select('*')
+      .eq('meet', 99)
+      .maybeSingle();
+    expect(data).toBeNull();
+    expect(error).toBeNull();
+  });
+
+  it('maybeSingle: 1행 → 객체', async () => {
+    const { data, error } = await client.from('races').select('*')
+      .eq('meet', 2)
+      .maybeSingle();
+    expect(error).toBeNull();
+    expect(data).not.toBeNull();
+    expect(data!.meet).toBe(2);
+  });
+});
+
+describe('getLocalDb 에러', () => {
+  it('DB 파일 없으면 명확한 에러', async () => {
+    if (existsSync('data/local.duckdb')) {
+      // 파일이 있으면 이 테스트 생략
+      return;
+    }
+    await expect(getLocalDb()).rejects.toThrow('npm run db:pull');
   });
 });
