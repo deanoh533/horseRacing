@@ -107,6 +107,79 @@ export async function collectRaces(
   return races;
 }
 
+// ── 게이트 A: 피처 상관계수 ───────────────────────────────────────
+
+function pearson(xs: number[], ys: number[]): number {
+  const n = xs.length;
+  if (n < 3) return NaN;
+  const mx = xs.reduce((s, v) => s + v, 0) / n;
+  const my = ys.reduce((s, v) => s + v, 0) / n;
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < n; i++) {
+    const a = xs[i]! - mx, b = ys[i]! - my;
+    num += a * b; dx += a * a; dy += b * b;
+  }
+  return Math.sqrt(dx * dy) === 0 ? 0 : num / Math.sqrt(dx * dy);
+}
+
+export interface GateAWarning {
+  newFeat: string;
+  existingFeat: string;
+  r: number;
+}
+
+export function runGateA(races: RaceRecord[]): GateAWarning[] {
+  // 모든 피처 이름 수집
+  const allFeats = new Set<string>();
+  for (const race of races)
+    for (const h of race.horses)
+      for (const f of h.features) allFeats.add(f.name);
+
+  const featNames = [...allFeats].sort();
+
+  // 피처별 값 벡터 (말 단위)
+  const vectors = new Map<string, number[]>();
+  for (const name of featNames) vectors.set(name, []);
+  for (const race of races)
+    for (const h of race.horses) {
+      const present = new Map(h.features.map((f) => [f.name, f.value]));
+      for (const name of featNames)
+        vectors.get(name)!.push(present.get(name) ?? 0);
+    }
+
+  const warnings: GateAWarning[] = [];
+  const THRESHOLD = 0.5;
+  const names = featNames.filter((n) => !n.endsWith('__missing'));
+
+  for (let i = 0; i < names.length; i++) {
+    for (let j = i + 1; j < names.length; j++) {
+      const a = names[i]!, b = names[j]!;
+      // 같은 ScoreItem끼리는 비교 생략
+      if (featureToItem(a) === featureToItem(b)) continue;
+      const r = pearson(vectors.get(a)!, vectors.get(b)!);
+      if (Number.isFinite(r) && Math.abs(r) > THRESHOLD) {
+        warnings.push({ newFeat: a, existingFeat: b, r });
+      }
+    }
+  }
+  return warnings;
+}
+
+export function printGateA(warnings: GateAWarning[]): void {
+  if (warnings.length === 0) {
+    console.log('  ✅ 게이트 A: 이상 없음');
+    return;
+  }
+  console.log(`  ⚠️  게이트 A: ${warnings.length}개 상관 경고 (|r|>0.5)`);
+  for (const w of warnings.slice(0, 10)) {
+    console.log(
+      `     [${w.newFeat}] ↔ [${w.existingFeat}] r=${w.r.toFixed(2)}`
+      + `\n       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.`
+    );
+  }
+  if (warnings.length > 10) console.log(`     ... 외 ${warnings.length - 10}개`);
+}
+
 // ── 향후 Task 3~5에서 채워질 함수 슬롯 ────────────────────────────
 
 // buildMatrix(races): 피처 행렬 + 라벨 배열 생성
@@ -114,9 +187,8 @@ export async function collectRaces(
 // evalModels(testRaces, models): 적중률·ROI 비교
 // main(): collectRaces(TRAIN) → trainModels → collectRaces(TEST) → evalModels → 결과 출력
 
-// featureToItem, buildSchema, toVector, fitLogistic, predictLogit,
+// buildSchema, toVector, fitLogistic, predictLogit,
 // fitGBDT, predictGBDT, fitPL, predictPL 은 위 함수들에서 사용됨
-void featureToItem;
 void buildSchema;
 void toVector;
 void fitLogistic;
