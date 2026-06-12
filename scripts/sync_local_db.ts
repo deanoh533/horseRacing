@@ -107,7 +107,10 @@ async function main() {
   // DATABASE_URL이 있으면 pg 직접 연결, 없으면 null(supabase-js 폴백)
   let pgClient: any = null;
   if (process.env.DATABASE_URL) {
-    const { Client } = await import('pg') as any;
+    const pgModule = await import('pg') as any;
+    const { Client, types } = pgModule.default ?? pgModule;
+    // NUMERIC(1700)을 string이 아닌 number로 반환 — supabase-js REST와 동일하게
+    types.setTypeParser(1700, (v: string) => parseFloat(v));
     // ## → %23%23 URL 인코딩 (pg URL 파서 호환)
     const connStr = process.env.DATABASE_URL.replace(/##/g, '%23%23');
     pgClient = new Client({ connectionString: connStr, ssl: { rejectUnauthorized: false } });
