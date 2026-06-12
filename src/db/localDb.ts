@@ -98,7 +98,12 @@ export class QueryBuilder implements PromiseLike<DbResult<any>> {
       if (this._offset) sql += ` OFFSET ${this._offset}`;
 
       const reader = await this._conn.runAndReadAll(sql, params);
-      const rows = reader.getRowObjects() as Row[];
+      // DuckDB는 INTEGER를 BigInt로 반환 → supabase-js(number)와 호환되도록 변환
+      const rows = (reader.getRowObjects() as Row[]).map(row =>
+        Object.fromEntries(
+          Object.entries(row).map(([k, v]) => [k, typeof v === 'bigint' ? Number(v) : v])
+        )
+      ) as Row[];
 
       if (this._mode === 'single') {
         if (rows.length !== 1) {
