@@ -125,14 +125,14 @@ npm run test:run     # vitest 단위 테스트
 
 ### 큰그림·아키텍처
 - [docs/architecture.md](docs/architecture.md) — **시스템 전체 그림** (시작 추천)
-- [docs/data_flow.md](docs/data_flow.md) — KRA API → DB → ScoreEngine → UI 전체 흐름
+- [docs/data_flow.md](docs/data_flow.md) — **KRA API → DuckDB → ScoreEngine → Gate A/B → Benchmark → UI 전체 파이프라인** (2026-06-12 갱신)
 - [docs/data_lifecycle.md](docs/data_lifecycle.md) — 출마표 발표·결과 도착 시점
 
 ### 알고리즘·예측
 - [docs/score_algorithm.md](docs/score_algorithm.md) — 알고리즘 흐름 + **수정 가이드** (항목 목록·비중·산식은 roadmap·score_items 위임)
 - [docs/score_roadmap.md](docs/score_roadmap.md) — **평가항목 고도화 로드맵** (클린 슬레이트 비교·변경 이력 Living Doc)
 - [docs/prediction_mode.md](docs/prediction_mode.md) — 사전/사후 데이터 소스 차이
-- [docs/accuracy_metrics.md](docs/accuracy_metrics.md) — 적중률 4개 지표 정의
+- [docs/accuracy_metrics.md](docs/accuracy_metrics.md) — **지표 관리 통합 문서**: 적중률 4개 지표 + Gate A/B 검증 표준 + 멀티모델 벤치마크 레이어. ⚠️ 새 검증/학습 방법 추가 시 이 문서도 갱신
 
 ### 화면·기능
 - [docs/PRD_v6.1_entries_view.md](docs/PRD_v6.1_entries_view.md) — 출마정보 화면 PRD
@@ -167,12 +167,19 @@ npm run test:run     # vitest 단위 테스트
 **브랜치:** `feat/duckdb-local-mirror` (main 미머지)  
 **Supabase 제한:** 2026-06-23 리셋 (egress 소진 — 읽기·쓰기·웹앱 전부 차단)  
 **활성 모델:** id=5 (logit-20260611) — 연승 60.1% / 단승 28.9% / 시장 −8.1%p  
-**DuckDB 스펙:** `docs/superpowers/specs/2026-06-12-duckdb-local-mirror-design.md`
+**DuckDB 스펙:** `docs/superpowers/specs/2026-06-12-duckdb-local-mirror-design.md`  
+**Benchmark 스크립트:** `scripts/benchmark_all.ts` 구현 완료 — `npm run benchmark` (db:pull 후 사용)
+
+**브랜치 상태 (2026-06-12 세션 완료):**
+- `gatherRaceInputs` / `predictRace` → `ReadClient` 추상화 완료 (`src/engine/scorePredictor.ts` 외 관련 파일)
+- `scripts/benchmark_all.ts` 신규 (560줄): collectRaces → Gate A(상관계수) → Gate B(연승률 개선) → 9개 모델 학습 → 평가 → ASCII 리포트
+- 스펙: `docs/superpowers/specs/2026-06-12-multi-model-benchmark-design.md`
+- 플랜: `docs/superpowers/plans/2026-06-12-multi-model-benchmark.md`
 
 **다음 단계 (우선순위):**
-1. **db:pull 실행** (6/23 이후) — `npm run db:pull` → byte-identical 검증 → 나머지 스크립트 전파
+1. **db:pull 실행** (6/23 이후) — `npm run db:pull` → `npm run benchmark` 실행
 2. **마체중 직전수집** — KRA 직전정보/계량 API 조사 (gate B +7.2%p, 가장 유망)
-3. **시장격차(−8%p) 좁힐 새 raw 신호** — 다분기 gate B (`backtest:box:quarters`) 기준
+3. **시장격차(−8%p) 좁힐 새 raw 신호** — 다분기 gate B 기준
 4. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
 
 **롤백:** 이전 model_version id로 promote
