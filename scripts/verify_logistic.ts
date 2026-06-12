@@ -6,7 +6,7 @@
  */
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
-import { getSupabaseAdmin } from '../src/db/supabase.js';
+import { getReadClient } from '../src/db/localDb.js';
 import { gatherRaceInputs } from '../src/engine/scorePredictor.js';
 import { scoreLogistic } from '../src/engine/logisticScorer.js';
 import { fitLogistic, predictLogit, type LogisticModel } from '../src/engine/models/logistic.js';
@@ -32,7 +32,7 @@ async function main() {
   for (const r of test) { const k = `${r.race_date}-${r.meet}-${r.rc_no}`; if (!byRace.has(k)) byRace.set(k, []); byRace.get(k)!.push(r); }
   const raceKeys = [...byRace.keys()].slice(0, maxRaces);
 
-  const sb = getSupabaseAdmin();
+  const sb = await getReadClient();
   let parityRaces = 0, parityMismatch = 0;
   let liveHit = 0, total = 0;
 

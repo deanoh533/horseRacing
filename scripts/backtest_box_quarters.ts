@@ -14,7 +14,7 @@
  */
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
-import { getSupabaseAdmin } from '../src/db/supabase.js';
+import { getReadClient } from '../src/db/localDb.js';
 import { fitLogistic, predictLogit } from '../src/engine/models/logistic.js';
 import { fitPL, predictPL, type PLRace } from '../src/engine/models/plackettLuce.js';
 import { buildSchema, toVector } from '../src/engine/features/alignFeatures.js';
@@ -68,7 +68,7 @@ async function main() {
   console.log(`\n복승 박스 분기별 강건성 — 행렬 ${all.length}행, 후보=${candidate}, 라벨=${labelArg}`);
 
   // ── pthr 맵 (전 holdout 범위) ──
-  const sb = getSupabaseAdmin();
+  const sb = await getReadClient();
   const pthrMap = new Map<string, number>();
   const PAGE = 1000;
   for (let off = 0; ; off += PAGE) {

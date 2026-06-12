@@ -23,13 +23,29 @@ async function main() {
   const model = fitLogistic(rows.map((r) => toVector(r.features, schema)), rows.map((r) => r.top3), schema, { l2: 0.02, iters: 800, lr: 0.2 });
   console.log(`학습완료: ${rows.length}행, 피처 ${schema.length}, intercept ${model.intercept.toFixed(3)}`);
 
-  const sb = getSupabaseAdmin();
-  const { data, error } = await sb.from('model_versions').insert({
-    label, model_type: 'logistic', weights: {}, artifact: model, source: 'learned', is_active: false,
-    notes: `Stage-1 로지스틱 후보. 학습행렬 ${matrixPath} ${rows.length}행.`,
-  }).select('id').single();
-  if (error) throw error;
-  console.log(`✅ 후보 삽입: id=${data!.id} label=${label} (is_active=false). 검증 후 promote.`);
+  if (process.env.DATABASE_URL) {
+    const pgModule = await import('pg') as any;
+    const { Client, types } = pgModule.default ?? pgModule;
+    types.setTypeParser(1700, (v: string) => parseFloat(v));
+    const pgClient = new Client({ connectionString: process.env.DATABASE_URL.replace(/##/g, '%23%23'), ssl: { rejectUnauthorized: false } });
+    await pgClient.connect();
+    const res = await pgClient.query(
+      `INSERT INTO model_versions (label, model_type, weights, artifact, source, is_active, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [label, 'logistic', JSON.stringify({}), JSON.stringify(model), 'learned', false,
+       `Stage-1 로지스틱 후보. 학습행렬 ${matrixPath} ${rows.length}행.`]
+    );
+    await pgClient.end();
+    console.log(`✅ 후보 삽입: id=${res.rows[0].id} label=${label} (is_active=false). 검증 후 promote.`);
+  } else {
+    const sb = getSupabaseAdmin();
+    const { data, error } = await sb.from('model_versions').insert({
+      label, model_type: 'logistic', weights: {}, artifact: model, source: 'learned', is_active: false,
+      notes: `Stage-1 로지스틱 후보. 학습행렬 ${matrixPath} ${rows.length}행.`,
+    }).select('id').single();
+    if (error) throw error;
+    console.log(`✅ 후보 삽입: id=${data!.id} label=${label} (is_active=false). 검증 후 promote.`);
+  }
 }
 
 main().catch((e) => { console.error('💥', e); process.exit(1); });
