@@ -125,6 +125,7 @@ npm run test:run     # vitest 단위 테스트
 
 ### 큰그림·아키텍처
 - [docs/architecture.md](docs/architecture.md) — **시스템 전체 그림** (시작 추천)
+- [docs/pipeline_guide.md](docs/pipeline_guide.md) — **파이프라인 실전 가이드**: 4개 데이터 소스 역할·라이브 예측 흐름·핵심 스크립트·전체 명령어. ⚠️ 새 스크립트·학습·검증 방법 추가 시 갱신
 - [docs/data_flow.md](docs/data_flow.md) — **KRA API → DuckDB → ScoreEngine → Gate A/B → Benchmark → UI 전체 파이프라인** (2026-06-12 갱신)
 - [docs/data_lifecycle.md](docs/data_lifecycle.md) — 출마표 발표·결과 도착 시점
 
