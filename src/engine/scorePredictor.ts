@@ -5,7 +5,7 @@
  *   - ord가 null  → 사전 모드 (출주표 기반 예측)
  *   - ord가 있음  → 사후 모드 (결과 포함 백테스트)
  */
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ReadClient } from '../db/localDb.js';
 import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
 import { getActiveModelVersion } from './modelVersion.js';
 import { scoreLogistic } from './logisticScorer.js';
@@ -55,7 +55,7 @@ export interface RaceInputRow {
 }
 
 export async function gatherRaceInputs(
-  sb: SupabaseClient,
+  sb: ReadClient,
   rcDate: number,
   meet: number,
   rcNo: number
@@ -221,7 +221,7 @@ export async function gatherRaceInputs(
 }
 
 export async function predictRace(
-  sb: SupabaseClient,
+  sb: ReadClient,
   rcDate: number,
   meet: number,
   rcNo: number

@@ -18,6 +18,7 @@ import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fitLogistic, predictLogit, type LogisticModel } from '../src/engine/models/logistic.js';
 import { buildSchema, toVector } from '../src/engine/features/alignFeatures.js';
 import { gatherRaceInputs } from '../src/engine/scorePredictor.js';
+import type { ReadClient } from '../src/db/localDb.js';
 import { scoreLogistic } from '../src/engine/logisticScorer.js';
 import type { Feature } from '../src/engine/features/types.js';
 
@@ -135,7 +136,7 @@ async function main() {
     const offline = matrixByRace.get(rk);
     if (!offline) continue;
 
-    const liveInputs = await gatherRaceInputs(sb, rc.race_date, rc.meet, rc.rc_no);
+    const liveInputs = await gatherRaceInputs(sb as unknown as ReadClient, rc.race_date, rc.meet, rc.rc_no);
     const live = liveInputs.map((row) => ({
       hr: row.hr_name,
       s: scoreLogistic(model, row.input).total,

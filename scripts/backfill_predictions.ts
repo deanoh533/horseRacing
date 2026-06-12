@@ -13,6 +13,7 @@
 import 'dotenv/config';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { predictRace } from '../src/engine/scorePredictor.js';
+import type { ReadClient } from '../src/db/localDb.js';
 import pLimit from 'p-limit';
 
 const CONCURRENCY = 3; // 너무 많이 동시 처리하면 Supabase rate-limit
@@ -63,7 +64,7 @@ async function main() {
     races.map((r) =>
       limit(async () => {
         try {
-          const rows = await predictRace(sb, r.race_date, r.meet, r.rc_no);
+          const rows = await predictRace(sb as unknown as ReadClient, r.race_date, r.meet, r.rc_no);
           if (rows.length === 0) return;
 
           // 기존 행 삭제 (race+meet+rc_no 기준) 후 새로 insert

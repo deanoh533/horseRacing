@@ -8,7 +8,7 @@
  * 해결: 뷰와 동일한 공식을, 그 말의 *과거* 경주(race_date < 예측경주)로만 재계산한다.
  *    현재 경주가 자동 제외되어 누수가 사라진다.
  */
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ReadClient } from '../db/localDb.js';
 import { parBucketKey, raceSpeedFigure, computeAbilityRaw } from './speedFigure.js';
 import { SPEED_FIGURE_N } from './scoreItems/20_speed_figure.js';
 
@@ -134,7 +134,7 @@ function sampleStddev(a: number[]): number {
  * field_size는 race_sectional_stats 뷰(경주별 horses 카운트)에서 조회.
  */
 export async function fetchAsOfHorseStats(
-  sb: SupabaseClient,
+  sb: ReadClient,
   hrName: string,
   beforeDate: number,
   currentDistCategory: DistCategory | null,

@@ -14,6 +14,7 @@ import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
+import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
 
 export interface RaceCardSyncResult {
@@ -103,7 +104,7 @@ async function syncOneMeet(
 
         // 예측 점수 생성 (사전 모드: ord=null → actual_ord=null)
         try {
-          const preds = await predictRace(sb, rcDate, meet, rcNo);
+          const preds = await predictRace(sb as unknown as ReadClient, rcDate, meet, rcNo);
           if (preds.length > 0) {
             await sb.from('predictions')
               .delete()

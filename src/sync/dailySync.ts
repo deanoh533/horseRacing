@@ -20,6 +20,7 @@ import {
   calculatePopularities,
 } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
+import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
 
 interface SyncOptions {
@@ -246,7 +247,7 @@ async function syncMeet(
 
         // 5. Score Engine → predictions upsert
         try {
-          const predictions = await predictRace(supabase, rcDate, meet, rcNo);
+          const predictions = await predictRace(supabase as unknown as ReadClient, rcDate, meet, rcNo);
           if (predictions.length > 0) {
             await supabase
               .from('predictions')

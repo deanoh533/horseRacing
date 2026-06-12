@@ -5,7 +5,7 @@
  * 거리·주로별 par로 정규화 → 클래스가 시간에 녹아든 절대 능력 척도.
  * 집계는 반드시 as-of(과거 경주만). 자세한 근거: docs/superpowers/specs/2026-06-03-speed-figure-design.md
  */
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ReadClient } from '../db/localDb.js';
 
 /** par 유효 최소 우승표본 (튜닝 대상) */
 export const PAR_MIN_WINS = 10;
@@ -42,7 +42,7 @@ export function figuresBeforeDate(
 /** race_par_times view → 버킷키→par_time 맵 (n_wins>=PAR_MIN_WINS만).
  *  정적 기준표 → 프로세스 1회만 로드(메모이즈). extract 수천경주 재로드 방지. */
 let _parMapCache: Map<string, number> | null = null;
-export async function loadParMap(sb: SupabaseClient): Promise<Map<string, number>> {
+export async function loadParMap(sb: ReadClient): Promise<Map<string, number>> {
   if (_parMapCache) return _parMapCache;
   const map = new Map<string, number>();
   const { data, error } = await sb
