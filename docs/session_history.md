@@ -4,6 +4,67 @@
 
 ---
 
+## 2026-06-12 — 파이프라인 문서화 세션
+
+**목표:** API 수집→가공→학습→예측 전체 흐름 문서 정리 + 새 검증/학습방법 추가 시 문서 갱신 규칙 확립.
+
+**작업 내용:**
+1. `docs/data_flow.md` 전면 재작성 — DuckDB·Gate A/B·Benchmark 포함한 7단계 파이프라인
+2. `docs/accuracy_metrics.md` 확장 — Gate A/B + 멀티모델 3레이어 다이어그램 + §9 변경 이력 + 문서 갱신 규칙 상단 명시
+3. `docs/pipeline_guide.md` 신규 — 4개 데이터 소스 역할·라이브 예측 흐름·핵심 스크립트·전체 명령어·신호 발굴 표준 절차
+4. CLAUDE.md 문서 인덱스 갱신
+
+**핵심 정리 내용:**
+
+| 구분 | 요점 |
+|---|---|
+| KRA API | 수집 전용. 결과는 Supabase로만 감 |
+| Supabase | 쓰기(sync/backfill/promote/apply_weights) + 웹 읽기 + walkforward 읽기 |
+| DuckDB | 오프라인 분석 전용 (benchmark/backtest/probe 전부) |
+| 매트릭스 | extract:matrix로 DuckDB→JSONL. backtest_box/probe_corr/learn_logistic이 읽음 |
+| benchmark | DuckDB 직접. rawScores+features 둘 다 필요. predictions 안 읽음 |
+| walkforward | Supabase predictions 읽음. Spearman 전용. DB에 저장된 rawScore 재활용 |
+
+**문서 갱신 규칙 확립:**
+- 새 검증/학습 방법 추가 시 `pipeline_guide.md` §9 + `accuracy_metrics.md` §9 + `score_roadmap.md` 마스터 상태표 함께 갱신
+
+**커밋:** d76948b (문서 통합), a7202cc (pipeline_guide 신규)
+
+---
+
+## 2026-06-12 — Multi-Model Benchmark 구현 (feat/duckdb-local-mirror)
+
+**목표:** `npm run benchmark` 한 명령으로 Spearman·Logistic·GBDT·PL·시장 배당 전 방법 비교.
+
+**설계 결정 (이전 세션에서 확정):**
+- TRAIN 2024~2025 / TEST 2026 고정 split (walkforward 아님)
+- Gate A: 피처 간 Pearson |r|>0.5 경고만, 자동탈락 없음 (상관 ≠ 중복 정보)
+- Gate B: holdout=2025-Q4, 연승률 개선량 > 0이면 포함 (ROI 아님 — 높은 적중률=낮은 ROI 역설 회피)
+- Supabase 0 호출 — DuckDB 직접
+- 피처 공간 분리: Spearman=rawScore 21개 / Logistic·GBDT·PL=buildFeatures 60개
+
+**구현 완료 (8 커밋):**
+1. `gatherRaceInputs` / `predictRace` → `ReadClient` 추상화 (scorePredictor.ts + 관련 6파일)
+   - 내부 callees(modelVersion·speedFigure·asOfHorseStats)도 함께 교체
+2. `scripts/benchmark_all.ts` 신규 (560줄):
+   - `collectRaces(db, from, to)` — DuckDB에서 races 목록 → 경주별 gatherRaceInputs → rawScores + buildFeatures
+   - `runGateA` / `printGateA` — Pearson 상관 경고
+   - `runGateB` / `printGateB` — 항목별 logistic with/without 비교, 연승률 개선량
+   - `learnSpearman` / `spearmanRho` — computeOptimalWeights 인라인 재구현 (weightLearner SupabaseClient 의존 우회)
+   - `trainAllModels` — 9개 모델 동시 학습
+   - `evaluateRace` / `evaluate` / `printReport` — 단/연/복승 분기별+전체 ASCII 표
+   - `main()` 오케스트레이터
+3. `package.json` — `"benchmark": "tsx scripts/benchmark_all.ts"` 등록
+4. 코드 리뷰 수정: Gate B `__missing` 불일치 수정, 데드코드 제거
+
+**알려진 설계 트레이드오프:**
+- Gate B holdout(Q4 2025)이 trainAllModels에 폴드백됨 (스펙 의도적 — 2026 테스트는 클린)
+- `weightLearner.ts`는 SupabaseClient 유지 (write 필요, 이번 범위 밖)
+
+**다음:** db:pull(6/23 이후) → `npm run benchmark` 실행 → 결과 보고 새 신호 탐색
+
+---
+
 ## 2026-06-11 — class_move promote + 패리티 버그 수정 + PL 모델 (main 커밋)
 
 이 세션 흐름(시간순):
