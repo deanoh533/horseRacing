@@ -155,73 +155,29 @@ npm run test:run     # vitest 단위 테스트
 ### 세션 인계 (새 세션 정독 추천)
 - [docs/working_style.md](docs/working_style.md) — **시니어 개발자 + 설계자 관점, 협업 패턴**
 - [docs/running_style_insight.md](docs/running_style_insight.md) — 주행 성향 분류 큰그림·현재 위치·다음 단계 (⑤⑥⑫⑲ 완료 / ⑲ 스코어맵 재설계 대기)
-- [docs/superpowers/specs/2026-05-28-score-redesign-design.md](docs/superpowers/specs/2026-05-28-score-redesign-design.md) — **점수 알고리즘 재설계 스펙** (3단계 전체 완료)
+- [docs/session_history.md](docs/session_history.md) — 세션별 작업 히스토리 (2026-06-02 ~ 현재)
 
 ### 할일
 - [TODO.md](TODO.md) — 우선순위별 할일
 
 ---
 
-## ⚠️ 지금 알아야 할 핵심 이슈
+## ⚠️ 현재 실행 상태 (2026-06-12)
 
-> **2026-06-12 — DuckDB 로컬 미러 설계 완료 (브랜치 feat/duckdb-local-mirror)**
-> - **현황:** Supabase All services Restricted(402). egress 5GB/월 소진. 결제 주기 리셋: **2026-06-23**. 읽기·쓰기·웹앱 전부 차단.
-> - **설계 확정:** 분석·백테스트 읽기를 로컬 DuckDB 파일로 분리 → egress 0. 쓰기·라이브·웹앱은 Supabase 유지. 어댑터(`src/db/localDb.ts`)가 `.from().select().eq()...` 체인을 SQL로 번역. `getReadClient()` 한 줄 교체로 스크립트 연결. `gatherRaceInputs`는 클라이언트 주입만 교체(라이브 무영향).
-> - **스펙:** `docs/superpowers/specs/2026-06-12-duckdb-local-mirror-design.md`
-> - **다음 세션 시작점(Phase 1 — Supabase 불필요):**
->   1. `@duckdb/node-api` Windows 설치·기본 쿼리 붙는지 검증 ← **첫 번째 할 일**
->   2. 어댑터 `src/db/localDb.ts` TDD
->   3. 덤프 스크립트 `scripts/sync_local_db.ts` + `npm run db:pull` (코드 완성, 실행은 6/23 후)
->   4. `extract:matrix` 배선
-> - **6/23 이후:** `db:pull` 한 방 → byte-identical 검증 → 나머지 스크립트 전파 → 복승 배당 Supabase 정식 테이블화
->
-> **2026-06-11 — class_move promote(라이브 반영) + 패리티 버그 수정 + PL 모델 (main 커밋)**
-> 이 세션 흐름(시간순):
-> 1. **신규 후보 3개 게이트** (직전대비 변화): **게이트A** — `away_meet` 탈락(전체 100% 상수=원정 0건, 다신 제안 X), dist_change·track_change 통과. **게이트B 단일분기**(2025 Q1) 둘 다 +로 통과처럼 보임.
-> 2. **PL(Plackett-Luce) 모델 신규** — `src/engine/models/plackettLuce.ts`(TDD), `backtest:box`·`backtest:box:quarters`에 `--model logistic|pl|both` 추가(같은 후보 두 모델 비교). PL은 박스 ROI에서 분기마다 로지스틱과 우열 뒤집힘(2025 Q2·Q3은 PL 우위·Q3 유일 흑자). **박스/라이브 모델=로지스틱**, PL은 연승 트랙용(walkforward는 PL 미지원).
-> 3. **★ 다분기가 게이트B 표준** — `backtest:box:quarters`로 보니 dist_change·track_change **둘 다 탈락**(2/5 분기, 평균 +0.4/+0.2%p=노이즈). 단일 holdout(2025 Q1)이 거짓양성을 줬음. **class_move는 강건**(4/5, +3.9%p; 단/연승도 +0.9/+0.5%p) → 채택 정당.
-> 4. **죽은 피처 3개 제거**(away_meet·dist_change·track_change): buildFeatures·scorePredictor·featureItemMap·index·테스트.
-> 5. **★ 패리티 버그 발견·수정**(체계적 디버깅): `scorePredictor` 기수·조교사 90일 쿼리가 `.range()`·`.order()` 없이 **Supabase 1000행 캡**에 걸려 비결정 잘림(실측 1038→1000) → jockey/trainer_recent 피처가 실행마다 달라져 refresh 패리티 80중 18 불일치. 평소 예측도 최근폼 잘렸음. → 페이지네이션+안정정렬. 상세 [[reference-db-schema-gotchas]].
-> 6. **복승 배당 결손 보충** — 우리 키 쿼터 소진(2025-11-30까지만)→**친구 키**로 2025-12~2026-05-09 수집·concat. `data/quinella_dividends.jsonl`=2025-01~2026-05-09. 백업 `pre-gap.bak`.
-> 7. **속도 조사** — extract 경주 병렬화 **무효**(Supabase 처리량 병목, 동시성↑ 손해). 진짜 지렛대=gatherRaceInputs 말별 쿼리 배치화(~5-10×, 라이브도)지만 보류(공유 경로 리팩터). [[reference-db-schema-gotchas]] 기록.
-> 8. **재추출(고친 코드) → refresh:logistic 패리티 ✅0 → promote id=5**(logit-20260611) 활성. 미확정 595경주/6559행 재생성, 확정 과거 동결. 롤백=이전 id로 promote.
-> 9. **적중률**(id=5 홀드아웃 walk-forward): **연승 60.1%/단승 28.9%** vs 시장 68.2/37.2 = **−8.1%p**(여전히 시장 못 이김). class_move·최근폼수정으로도 시장격차 안 좁혀짐.
-> 10. **속도** ✅ — gatherRaceInputs 말별 쿼리 `.in()` 배치화: 경주당 ~150→~7 라운드트립, **187경주 224s→61s(3.7×), byte-identical**. extract 전체 ~30-60분→~8-16분. (경주 병렬화는 무효=Supabase 처리량 병목.)
-> **PL 종결(2026-06-11):** `exp:pl` 측정+쌍승 proof-of-life로 PL이 단·연·복·쌍승 *전부* 로지스틱에 짐(쌍승 순서맞힘 52.4%<로지57.3%). **로지스틱 확정, PL 폐기.** 메모리 [[project-feature-gate-findings]].
-> **다음 (우선순위):** ①**마체중 직전수집** — gate B +7.2%p 검증 신호, 경기前 마체중을 KRA 직전정보/계량 API로 수집하면 라이브화(데이터 작업, 가장 유망). ②**시장격차(−8%p) 좁힐 새 raw 신호** — 마체중변화·휴양패턴·혈통심화, 다분기 게이트B(`backtest:box:quarters`)로. ③복승 배당 마지막 4주(2026-05-10~06-05) 보충 ④더 짜낼 속도=asOf(fetchAsOfHorseStats) 배치화(누수민감, byte-identical 필수).
-> **세션 끝 상태(다음 시작점):** 8커밋 전부 **로컬 main·미푸시**. **DB: model_versions id=5(logit-20260611) 활성**(롤백=이전 id promote). 데이터: `training_matrix.jsonl`=현재 깨끗(배치코드 산출)·`quinella_dividends.jsonl`=2025-01~2026-05-09(마지막 4주 결손)·**`combo_dividends.jsonl`=0바이트(복연승 truncate, 재수집 필요)**·`*.bak`/`*.gap`/`smoke` 등 정리대상 잔존. 우리 KRA_API_KEY는 어제 쿼터소진(오늘 리셋됐을 것), 복승 결손은 친구키로 보충했음(키 미저장).
+**브랜치:** `feat/duckdb-local-mirror` (main 미머지)  
+**Supabase 제한:** 2026-06-23 리셋 (egress 소진 — 읽기·쓰기·웹앱 전부 차단)  
+**활성 모델:** id=5 (logit-20260611) — 연승 60.1% / 단승 28.9% / 시장 −8.1%p  
+**DuckDB 스펙:** `docs/superpowers/specs/2026-06-12-duckdb-local-mirror-design.md`
 
-> **2026-06-10 — 복승 박스 타깃 + 2단계 게이트로 신호 발굴 (진행 중, main 커밋)**
-> - **목표:** 복승 3마리 박스 ROI. **라벨 top2 채택**(top3 대비 +8%p). **원칙:** 압축은 모델에 맡기고 사람은 raw만 공급(자체레이팅·Elo 폐기). 메모리 [[feedback-no-human-compression]]·[[project-feature-gate-findings]].
-> - **2단계 게이트(표준):** A=`probe:corr`(후보↔기존 \|r\|>0.5 중복제외) → B=`backtest:box --label top2 --div data/quinella_dividends.jsonl`(holdout 복승박스 ROI). 게이트A 규칙 검증됨(겹침은 보강 안 함).
-> - **신규 도구(main):** `extract:matrix`(z OFF·top2·후보 포함)·`probe:corr`·`backtest:box`(--candidate 격리)·`refresh:logistic`. 순수함수 `relativizeRace`(z 현재 OFF)·`settleBox`·`buildRaceFeatures`.
-> - **채택:** **등급이동 `class_move`**(오늘−직전 등급밴드상한, raw 델타) — 게이트B 단독 **+2.2%p**(−25.0→−22.8), prize_cond 100% 사전가용 → **라이브 클린**. buildFeatures 반영(아직 promote 안 함).
-> - **탈락:** z-score·구간후보6·경쟁강도3(편성탓 필드강도≈자기레이팅)·장구(게이트B ROI악화)·기수변경(combo_n과 0.59 중복)·class_dropped(사람임계값). 착순 기반 신호 포화 확인.
-> - **보류:** 마체중 게이트B +7.2%p 통과했으나 `wg_hr`이 경기후 결과(`transformer.ts`)에만 채워짐=라이브 누수(계량=경기前이라 착순누설은 아님, 운영 타이밍).
-> - **다음(재개시):** ①다분기 강건성(class_move·마체중 단일분기 → 행렬 ~20250930 확장) ②마체중 사전수집 가능성(KRA 직전정보 API) 조사 ③새 후보(휴양·원정·혈통; 조교 커버리지 미확인) ④class_move `refresh:logistic`→`promote`.
->
-> **2026-06-06 — 재설계 최종값 확정 + earnings 트랙 종결** (브랜치 `feat/score-learning-redesign`, 미머지)
-> - **최종 walkforward 결과:** 로지스틱 **연승 59.0%** / v1 57.6% / 시장 68.8%. 모델−v1 = **+1.4%p (±1.9%p 노이즈)**. 모델−시장 = **-9.8%p** (불일치 시 -20.8%p). GBDT 59.2%(로지스틱과 동률). ROI 전부 음수.
-> - **★ 음성지식 확정:** earnings 누수→클래스→진짜as-of(API156) 순서로 정화했으나 수득상금 차원 자체가 예측력 없음. 재설계 "+5.2%p"는 전부 earnings 미래누수였음 — 1b·1a로 이중 확인.
-> - **DB 상태:** 마이그012(model_type/artifact)·013(rk_purse/erng_sump_asof) 적용 완료. erng_sump_asof 38,627행 채워짐. 학습행렬 37,992행(`data/training_matrix.jsonl`) 재추출 완료.
-> - **sync 버그 수정:** raceCardSync·dailySync에서 hrName 없는 API 항목 스킵 처리 (main 커밋 05342f8).
-> - **다음 결정 (3択):**
->   - A) **B3 승격** — `npm run learn:logistic -- --label v4-logit` → `verify:logistic` → `promote`. 시장 못 이기지만 v1보다 나음(노이즈 범위, 방향은 맞음).
->   - B) **복연승 백테스트** — API160 복구됨. `npm run collect:combo -- --from 20250101` → `npm run backtest:combo -- --split 20250101`. ROI 양수 구간 있으면 Stage2 value 화폐화.
->   - C) **새 항목/신호 탐색** — 시장 격차 -9.8%p 좁히기. ⑧ 부담중량 산식(ρ=0.316) 또는 신규 항목.
-> - 상세: 메모리 [[project-score-learning-redesign]] · [[reference-earnings-asof-leak]]
->
-> **2026-06-03 — ⑳ 속도능력지수 신규 + 시장 벤치마크** (브랜치 `feat/speed-figure`, 미승격)
-> - **시장 벤치마크 발견:** 모델이 인기1위(win_odds 최저)에 연승 11%p 뒤지고, 엇갈릴 때 22%p 더 틀림(부가가치 음). `walkforward_eval`에 시장·불일치·순위별·묶음 비교 추가. (용어: "1순위 3착내"=**연승**, 복승 아님 → `docs/score_items/20_speed_figure.md` §0)
-> - **⑳ 속도능력지수**(par-time 절대 능력지수, `20_speed_figure`) 추가 → ρ=0.271(정직 4위). 후보 v3: 연승 57.7→61.2(+3.6%p, 6분기 전부 우세), **시장 격차 -11.1→-7.5%p**, 3순위는 시장 추월. **append-only**(v1 weight 0이라 backfill이 기존 점수 불변).
-> - 도구: `npm run walkforward -- --candidate 3`(검증), `scripts/probe_speed_figure.ts`(분포), `backfill_speed_figure.ts`(키-추가). 상세: `docs/superpowers/specs/2026-06-03-speed-figure-design.md` + 메모리 [[project-market-benchmark]]·[[project-speed-figure]].
-> - **다음 결정:** v3 승격 여부(사람 판단). 미완: 함수율·날씨 보정, ⑲ 재설계, 더 강한 항목 탐색.
->
-> **2026-06-02 — 가중치 버전관리 도입 + 치팅 누수 수정 완료** (main 배포)
-> - ⑤⑥⑫⑲가 전역 뷰로 "예측 대상 경주 결과"까지 평균에 넣던 **look-ahead 누수** 수정(`src/engine/asOfHorseStats.ts`, as-of 재계산). **옛 적중률(단32.5/연52.8/복65.9)은 누수 포함 거짓** — 정직값 복승 ~58%.
-> - 라이브 예측은 코드 상수가 아니라 **`model_versions` 활성행 가중치** 사용, predictions에 `model_version` 도장(결과 확정 후 동결). v1=기준선(활성)·v2=2024학습 후보.
-> - 도구: `npm run walkforward`(검증)·`learn:candidate`(후보)·`promote`(승격)·`build:rho-history`(ρ이력). **`npm run backfill`(전체)는 과거 동결 무시 덮어쓰기 주의.**
-> - 상세·다음단계(미완: v2 승격, Stage C Phase 2b, 새 항목): 메모리 [[weight-versioning-design]] + `~/.claude/plans/reflective-honking-brooks.md`
+**다음 단계 (우선순위):**
+1. **db:pull 실행** (6/23 이후) — `npm run db:pull` → byte-identical 검증 → 나머지 스크립트 전파
+2. **마체중 직전수집** — KRA 직전정보/계량 API 조사 (gate B +7.2%p, 가장 유망)
+3. **시장격차(−8%p) 좁힐 새 raw 신호** — 다분기 gate B (`backtest:box:quarters`) 기준
+4. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
+
+**롤백:** 이전 model_version id로 promote
+
+> 세션별 상세 히스토리 → [docs/session_history.md](docs/session_history.md)
 
 항목별 상태(완료/진행/ρ 값/개선 후보)는 아래 문서가 **단일 출처(SSOT)**입니다. 여기에 중복 기재하지 않습니다.
 
