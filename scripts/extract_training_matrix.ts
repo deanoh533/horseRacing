@@ -7,7 +7,7 @@
  */
 import 'dotenv/config';
 import { writeFileSync, appendFileSync } from 'node:fs';
-import { getSupabaseAdmin } from '../src/db/supabase.js';
+import { getReadClient } from '../src/db/localDb.js';
 import { gatherRaceInputs } from '../src/engine/scorePredictor.js';
 import { buildRaceFeatures } from '../src/engine/features/relativizeRace.js';
 
@@ -18,7 +18,7 @@ async function main() {
   const to = Number(arg('--to', '20991231'));
   const out = arg('--out', 'data/training_matrix.jsonl');
 
-  const sb = getSupabaseAdmin();
+  const sb = await getReadClient();
 
   const races = new Set<string>();
   const PAGE = 1000;
