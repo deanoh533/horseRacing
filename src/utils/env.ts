@@ -28,7 +28,7 @@ const envSchema = z.object({
   BACKTEST_DAYS: z.coerce.number().default(730),
 
   // DuckDB 로컬 미러
-  DB_SOURCE: z.enum(['local', 'supabase']).default('supabase'),
+  DB_SOURCE: z.enum(['local', 'supabase']).default('local'),
 });
 
 export type Env = z.infer<typeof envSchema>;
