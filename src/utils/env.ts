@@ -26,6 +26,9 @@ const envSchema = z.object({
   // 동기화
   SYNC_CRON_SCHEDULE: z.string().default('0 3 * * *'),
   BACKTEST_DAYS: z.coerce.number().default(730),
+
+  // DuckDB 로컬 미러
+  DB_SOURCE: z.enum(['local', 'supabase']).default('supabase'),
 });
 
 export type Env = z.infer<typeof envSchema>;

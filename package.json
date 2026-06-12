@@ -41,13 +41,15 @@
     "backtest:box": "tsx scripts/backtest_box.ts",
     "backtest:box:quarters": "tsx scripts/backtest_box_quarters.ts",
     "probe:corr": "tsx scripts/probe_feature_corr.ts",
-    "exp:pl": "tsx scripts/experiment_pl.ts"
+    "exp:pl": "tsx scripts/experiment_pl.ts",
+    "db:pull": "tsx scripts/sync_local_db.ts"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
+    "@duckdb/node-api": "^1.5.3-r.3",
     "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.7.0",
     "date-fns": "^4.0.0",

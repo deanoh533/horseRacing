@@ -72,3 +72,7 @@ image/
 
 # 학습행렬 추출 결과 (대용량 JSONL)
 data/*.jsonl
+
+# DuckDB 로컬 미러
+data/local.duckdb
+data/local.duckdb.wal
