@@ -1,12 +1,12 @@
 /**
- * 복승 3마리 박스 — 분기별 walk-forward 강건성 검증 (읽기전용).
+ * 피처 후보 — 분기별 walk-forward 강건성 검증 (읽기전용).
  *
- * 각 holdout 분기를 "그 분기 시작 이전 전체 데이터"로 학습한 모델로 평가한다.
- * 분기마다 baseline vs baseline+<후보>를 같은 학습셋에서 비교 →
- * 후보의 한계 ROI 델타가 분기마다 +방향으로 일관되는지(강건성) 확인.
+ * 게이트B: 후보 피처가 예측 정확도(연승률)를 개선하는지 다분기로 확인.
+ * 판정 기준: 연승(3착내) 델타가 분기별로 일관되게 +방향인가.
+ * ROI는 참고용으로 함께 출력하되 채택 판정에 사용하지 않는다.
  *
- * baseline 정의·정산(settleBox)·로지스틱은 backtest_box.ts와 동일.
- * 차이: 단일 holdout 블록 → 분기 루프 + 후보를 baseline에서 격리.
+ * 배경: 패리뮤추얼 구조에서 공개 피처는 ROI 개선이 어렵지만
+ * 예측 정확도는 실질적으로 올릴 수 있다. 정확도가 올라야 배팅 전략을 얹을 수 있다.
  *
  * 사용:
  *   npm run backtest:box:quarters -- --candidate class_move --label top2 \
@@ -197,26 +197,32 @@ async function main() {
     console.log('-'.repeat(90));
   }
 
+  // ── ROI 참고용 출력 (판정 기준 아님) ──
   for (const [mdl, deltas] of deltasByModel) {
-    console.log(`\n=== ${candidate} [${mdl}] 한계 ROI 델타 (분기별 일관성) ===`);
-    for (const d of deltas) console.log(`  ${d.q}: ${(d.delta >= 0 ? '+' : '') + d.delta.toFixed(1)}%p`);
-    const pos = deltas.filter((d) => d.delta > 0).length;
-    const mean = deltas.reduce((s, d) => s + d.delta, 0) / (deltas.length || 1);
-    console.log(`  → ${pos}/${deltas.length} 분기 +방향, 평균 ${(mean >= 0 ? '+' : '') + mean.toFixed(1)}%p`);
-    console.log(pos === deltas.length ? '  ✅ 전 분기 일관 — 강건' : pos >= deltas.length - 1 ? '  ⚠️ 대체로 +, 1분기 약함' : '  ❌ 분기별 불일치 — 강건성 미확보');
+    console.log(`\n[참고] ${candidate} [${mdl}] ROI 델타 (채택 판정에 사용하지 않음)`);
+    const roiMean = deltas.reduce((s, d) => s + d.delta, 0) / (deltas.length || 1);
+    console.log(`  ${deltas.map((d) => (d.delta >= 0 ? '+' : '') + d.delta.toFixed(1) + '%p').join(' / ')}  평균 ${(roiMean >= 0 ? '+' : '') + roiMean.toFixed(1)}%p`);
+    console.log(`  (패리뮤추얼 구조상 공개 피처는 ROI 개선이 어려움 — 연승률로 판정)`);
   }
 
-  // ── 단승·연승 (1순위 픽 기준) — 박스 ROI와 별개로 모델 랭킹 정확도 ──
+  // ── 게이트B 판정: 연승(3착내) 델타 기준 ──
   for (const [mdl, ws] of winShow) {
     const p = (a: number, n: number) => (n ? ((a / n) * 100).toFixed(1) : '-');
     const dShow = (ws.cS / ws.cN - ws.bS / ws.bN) * 100;
     const dWin = (ws.cW / ws.cN - ws.bW / ws.bN) * 100;
     const sd = showDeltas.get(mdl)!;
     const posS = sd.filter((d) => d.delta > 0).length;
-    console.log(`\n=== ${candidate} [${mdl}] 단승·연승 (1순위 픽, baseline → +${candidate}) ===`);
+    const meanS = sd.reduce((s, d) => s + d.delta, 0) / (sd.length || 1);
+    console.log(`\n=== 게이트B 판정: ${candidate} [${mdl}] 연승(3착내) 개선 여부 ===`);
+    console.log(`  baseline → +${candidate}`);
     console.log(`  연승(3착내): ${p(ws.bS, ws.bN)}% → ${p(ws.cS, ws.cN)}%  (Δ ${(dShow >= 0 ? '+' : '') + dShow.toFixed(1)}%p)`);
     console.log(`  단승(1착)  : ${p(ws.bW, ws.bN)}% → ${p(ws.cW, ws.cN)}%  (Δ ${(dWin >= 0 ? '+' : '') + dWin.toFixed(1)}%p)`);
-    console.log(`  분기별 연승Δ: ${sd.map((d) => (d.delta >= 0 ? '+' : '') + d.delta.toFixed(1)).join(' / ')} → ${posS}/${sd.length} +`);
+    console.log(`  분기별 연승Δ: ${sd.map((d) => (d.delta >= 0 ? '+' : '') + d.delta.toFixed(1)).join(' / ')}  → ${posS}/${sd.length} +방향, 평균 ${(meanS >= 0 ? '+' : '') + meanS.toFixed(1)}%p`);
+    console.log(
+      posS === sd.length ? '  ✅ 전 분기 일관 — 채택 권장'
+      : posS >= sd.length - 1 ? '  ⚠️ 대체로 +, 1분기 약함 — 사람 판단'
+      : '  ❌ 분기별 불일치 — 기각 권장'
+    );
   }
 }
 

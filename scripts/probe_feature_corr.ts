@@ -1,8 +1,9 @@
 /**
  * 신규 후보 피처 ↔ 기존 피처 상관계수 진단 (읽기전용, 행렬만 사용).
  *
- * 원칙: 새 feature가 기존과 |r|>0.5면 중복(다중공선성) → 후보에서 뺀다.
- * 각 신규 후보에 대해 모든 다른 피처와 Pearson r을 계산, 상위 상관을 출력.
+ * 원칙: 새 feature가 기존과 |r|>0.5면 경고만 출력 — 자동 탈락하지 않는다.
+ * 최종 판단은 게이트B(Walkforward 연승률 개선)에 맡긴다.
+ * 상관이 높아도 보완 정보를 줄 수 있으므로(예: 키↔몸무게) 경고를 보고 사람이 결정.
  *
  * 사용:
  *   npm run probe:corr -- --matrix data/training_matrix.jsonl
@@ -80,7 +81,7 @@ function main() {
     // 판정은 기존 피처(형제 후보 제외)와의 최대 |r| 기준
     const vsExisting = corrs.filter((c) => !c.sib);
     const maxAbs = vsExisting[0] ? Math.abs(vsExisting[0].r) : 0;
-    const verdict = maxAbs > 0.5 ? '❌ 중복(|r|>0.5) — 후보 제외' : '✅ 새 정보(|r|≤0.5) — holdout 진행';
+    const verdict = maxAbs > 0.5 ? '⚠️  상관 높음(|r|>0.5) — 보완 정보 가능성 있음. 게이트B로 최종 판단' : '✅ 새 정보(|r|≤0.5) — 게이트B 진행';
     console.log(`\n▸ ${nf}  (present ${present}행)  → ${verdict}  [기존 최대 |r|=${maxAbs.toFixed(3)}]`);
     for (const c of corrs.slice(0, 5)) {
       const flag = c.sib ? ' (형제)' : (Math.abs(c.r) > 0.5 ? ' ⚠️' : '');
@@ -88,7 +89,7 @@ function main() {
     }
   }
   console.log('\n' + '='.repeat(72));
-  console.log('|r|>0.5인 후보는 빼고, 살아남은 것만 backtest:box(top2)로 ROI 검증.');
+  console.log('⚠️  경고는 참고용. 모든 후보를 게이트B(Walkforward 연승률 개선)로 최종 판단.');
 }
 
 main();
