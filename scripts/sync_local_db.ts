@@ -67,9 +67,12 @@ async function dumpTable(
   const tmp = join(tmpdir(), `duckpull_${table}.json`).replace(/\\/g, '/');
   writeFileSync(tmp, JSON.stringify(rows));
 
-  await conn.run(`DROP TABLE IF EXISTS "${table}"`);
-  await conn.run(`CREATE TABLE "${table}" AS SELECT * FROM read_json_auto('${tmp}')`);
-  unlinkSync(tmp);
+  try {
+    await conn.run(`DROP TABLE IF EXISTS "${table}"`);
+    await conn.run(`CREATE TABLE "${table}" AS SELECT * FROM read_json_auto('${tmp}')`);
+  } finally {
+    unlinkSync(tmp);
+  }
 
   console.log(`    ✅ ${rows.length}행`);
 }
