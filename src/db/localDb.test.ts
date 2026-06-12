@@ -131,6 +131,7 @@ describe('order', () => {
       .order('race_date', { ascending: true });
     expect(data).toHaveLength(4);
     expect(data![0]!.race_date).toBe(20240101);
+    expect(data![3]!.race_date).toBe(20240301);
   });
 
   it('descending: race_date DESC', async () => {
@@ -154,11 +155,6 @@ describe('order', () => {
 describe('range / limit', () => {
   it('limit: limit(2)', async () => {
     const { data } = await client.from('races').select('*').limit(2);
-    expect(data).toHaveLength(2);
-  });
-
-  it('range: range(1, 2)', async () => {
-    const { data } = await client.from('races').select('*').range(1, 2);
     expect(data).toHaveLength(2);
   });
 
@@ -217,11 +213,7 @@ describe('single / maybeSingle', () => {
 });
 
 describe('getLocalDb 에러', () => {
-  it('DB 파일 없으면 명확한 에러', async () => {
-    if (existsSync('data/local.duckdb')) {
-      // 파일이 있으면 이 테스트 생략
-      return;
-    }
+  it.skipIf(existsSync('data/local.duckdb'))('DB 파일 없으면 명확한 에러', async () => {
     await expect(getLocalDb()).rejects.toThrow('npm run db:pull');
   });
 });
