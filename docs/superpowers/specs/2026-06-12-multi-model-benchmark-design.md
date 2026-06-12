@@ -7,11 +7,14 @@
 
 ## 1. 목적
 
-새 피처(항목)를 추가할 때마다 **단일 명령 하나**로 모든 예측 방법의 성과를 비교할 수 있는 백테스트 CLI.
+새 ScoreItem을 추가할 때마다 **단일 명령 하나**로:
+1. 그 항목이 logistic/GBDT/PL에 넣기 적합한지 **2단계 게이트**로 자동 판단
+2. 모든 예측 방법의 성과를 한눈에 비교
 
-- Supabase 호출 0회 (DuckDB 로컬 미러만 사용)
-- backfill 없이 즉시 실행 가능 (ScoreEngine을 DuckDB 위에서 직접 실행)
-- 단승·연승·복승 × 분기별 전체 비교표 출력
+조건:
+- Supabase 호출 0회 (DuckDB 로컬 미러 직접 사용)
+- `training_matrix.jsonl` 파일 불필요 (DuckDB에서 직접 피처 추출)
+- 게이트 미통과 항목은 에러 없이 Spearman에만 포함, 포함/미포함 내역 출력
 
 ---
 
@@ -23,82 +26,98 @@ npm run benchmark
 
 ---
 
-## 3. 데이터 흐름
+## 3. 전체 흐름
 
 ```
-[Step 0] featureItemMap 정합성 검증 (에러 시 즉시 중단)
-  - buildFeatures()가 내보내는 모든 피처명 → featureItemMap 등록 여부 확인
-  - 모든 ScoreItem ID → 매핑된 피처 최소 1개 존재 여부 확인
-  - 누락 시: "⚠️ 미매핑 피처: xxx (featureItemMap.ts 업데이트 필요)" 출력 후 종료
-         │
-         ▼
 DuckDB 로컬 미러
   (race_entries + races + horses + jockey_stats 등)
          │
          ▼
-gatherRaceInputs(duckdb ReadClient, ...)  ← Supabase 0 호출
-  → ScoreEngineInput (경주마별)
+gatherRaceInputs(DuckDB ReadClient)  ← Supabase 0 호출
+  → ScoreEngineInput (전 경주마)
          │
-         ├─ ScoreEngine.calculateScores(input) → rawScore 21개  [Spearman용]
-         └─ buildFeatures(input)               → raw 피처 60+개 [Logistic/GBDT/PL용]
+         ├─ ScoreEngine.calculateScores() → rawScore 21개  [Spearman용]
+         └─ buildFeatures()              → raw 피처 60+개  [Logistic/GBDT/PL용]
          │
-    ┌────┴─────────────────────────────────────────┐
-    │ TRAIN: 2024-01-01 ~ 2025-12-31               │
-    │  Spearman: rawScore × actual_ord → ρ → weights│
-    │  Logistic: buildFeatures 60개 × top1/2/3  ×3  │
-    │  GBDT:     buildFeatures 60개 × top1/2/3  ×3  │
-    │  PL:       buildFeatures 60개 × ord 랭킹  ×1  │
-    └──────────────────────────────────────────────┘
+─────────────────────────────────────────────────
+ [게이트 A] 새 피처 상관계수 점검 (probe_feature_corr 로직 재활용)
+  - buildFeatures 피처 × 기존 피처 Pearson |r| 계산
+  - |r|>0.5 인 피처: "⚠️ [피처명] 기존 [피처명]과 상관 r=0.xx — 중복 가능성" 출력
+  - 자동 탈락 없음. 사람이 참고 후 직접 판단.
+─────────────────────────────────────────────────
          │
-    ┌────┴────────────────────────────────────────────┐
-    │ TEST: 2026-01-01 ~ 현재 (분기별 파티션)          │
-    │  각 경주 → 각 방법으로 1순위 예측 → actual_ord  │
-    │  단승(ord=1) / 연승(ord≤3) / 복승(top2조합) 집계│
-    └────────────────────────────────────────────────┘
+─────────────────────────────────────────────────
+ [게이트 B] 연승률 개선량 검증
+  - holdout: 2025-Q4 (학습 2024-01 ~ 2025-09)
+  - 항목별로 "포함 logistic" vs "미포함 logistic" 학습 후 holdout 연승률 비교
+  - 개선량 > 0: "✅ [항목명] +x.x%p → logistic/GBDT/PL 포함"
+  - 개선량 ≤ 0: "⚠️ [항목명] -x.x%p → Spearman에만 포함"
+─────────────────────────────────────────────────
          │
          ▼
-    ASCII 비교표 출력 (분기별 + 전체 요약)
+ [본 학습] TRAIN: 2024-01-01 ~ 2025-12-31
+  Spearman:  rawScore 21개 × actual_ord → ρ → weights
+  Logistic:  게이트B 통과 피처 × top1/top2/top3  ×3 모델
+  GBDT:      게이트B 통과 피처 × top1/top2/top3  ×3 모델
+  PL:        게이트B 통과 피처 × ord 랭킹        ×1 모델
+         │
+         ▼
+ [테스트] TEST: 2026-01-01 ~ 현재 (분기별 파티션)
+  각 경주 → 각 방법으로 1순위 예측 → actual_ord
+  단승(ord=1) / 연승(ord≤3) / 복승(top2조합) 집계
+         │
+         ▼
+ ASCII 비교표 출력 (분기별 상세 + 전체 요약)
 ```
 
 ---
 
-## 4. 비교 대상 방법 (11개 줄)
+## 4. 비교 대상 방법
 
 | 방법 | 학습 라벨 | 피처 공간 |
 |------|---------|---------|
 | 시장 배당 (벤치마크) | — | win_odds 오름차순 |
 | Spearman (rho-legacy) | ord 상관계수 | ScoreEngine 21개 **rawScore** |
-| Logistic (top1 학습) | binary: ord=1 | buildFeatures **60개 raw 피처** |
-| Logistic (top2 학습) | binary: ord≤2 | buildFeatures 60개 raw 피처 |
-| Logistic (top3 학습) | binary: ord≤3 | buildFeatures 60개 raw 피처 |
-| GBDT (top1 학습) | binary: ord=1 | buildFeatures 60개 raw 피처 |
-| GBDT (top2 학습) | binary: ord≤2 | buildFeatures 60개 raw 피처 |
-| GBDT (top3 학습) | binary: ord≤3 | buildFeatures 60개 raw 피처 |
-| Plackett-Luce | 전체 ord 랭킹 우도 | buildFeatures 60개 raw 피처 |
+| Logistic (top1 학습) | binary: ord=1 | buildFeatures **게이트B 통과 피처** |
+| Logistic (top2 학습) | binary: ord≤2 | buildFeatures 게이트B 통과 피처 |
+| Logistic (top3 학습) | binary: ord≤3 | buildFeatures 게이트B 통과 피처 |
+| GBDT (top1 학습) | binary: ord=1 | buildFeatures 게이트B 통과 피처 |
+| GBDT (top2 학습) | binary: ord≤2 | buildFeatures 게이트B 통과 피처 |
+| GBDT (top3 학습) | binary: ord≤3 | buildFeatures 게이트B 통과 피처 |
+| Plackett-Luce | 전체 ord 랭킹 우도 | buildFeatures 게이트B 통과 피처 |
 
-> **피처 공간이 두 종류:**
-> - Spearman: `ScoreEngine.calculateScores().items[*].rawScore` (항목 단위 집약값)
-> - Logistic/GBDT/PL: `buildFeatures(ScoreEngineInput)` (세분화된 raw 측정값)
+> **새 ScoreItem 추가 시 3군데 동기화:**
+> 1. `scoreItems/2x_xxx.ts` — rawScore 계산 (Spearman용, 필수)
+> 2. `buildFeatures.ts` — 세부 raw 피처 추가 (Logistic용, 선택)
+> 3. `featureItemMap.ts` — 피처명 → 항목 ID 매핑 등록 (선택)
 >
-> **새 ScoreItem 추가 시 3군데 반드시 동기화:**
-> 1. `scoreItems/2x_xxx.ts` — rawScore 계산 로직
-> 2. `buildFeatures.ts` — 세부 raw 피처 추가
-> 3. `featureItemMap.ts` — 피처명 → 항목 ID 매핑 등록
->
-> Step 0 검증이 이 3군데 정합성을 자동으로 확인함.
+> 2·3을 하지 않으면 해당 항목은 Spearman에만 포함됨. 에러 없음, 경고 출력.
 
 ---
 
 ## 5. 출력 형태
 
-### 5-A. 분기별 상세표 (단승률)
+### 5-A. 게이트 결과 요약 (리포트 상단)
 
 ```
-=== 단승률 (1순위 예측마가 1착) ===
+=== 항목 포함 현황 ===
+
+항목                   │ Spearman │ Logistic/GBDT/PL │ 게이트A       │ 게이트B
+───────────────────────┼──────────┼──────────────────┼───────────────┼────────
+01_rating              │    ✅    │        ✅        │ -             │ +1.2%p
+20_speed_figure        │    ✅    │        ✅        │ -             │ +0.8%p
+21_새항목              │    ✅    │        ⚠️ 제외   │ r=0.71(경고)  │ -0.3%p
+...
+```
+
+### 5-B. 분기별 상세표
+
+```
+=== 연승률 (1순위 예측마가 3착이내) ===
 
 방법                  │ 2026-Q1 │ 2026-Q2 │ ...
 ──────────────────────┼─────────┼─────────┼
-시장 배당             │  28.1%  │  27.5%  │
+시장 배당             │  60.3%  │  59.1%  │
 Spearman              │  xx.x%  │  xx.x%  │
 Logistic (top1)       │  xx.x%  │  xx.x%  │
 Logistic (top2)       │  xx.x%  │  xx.x%  │
@@ -109,9 +128,9 @@ GBDT     (top3)       │  xx.x%  │  xx.x%  │
 Plackett-Luce         │  xx.x%  │  xx.x%  │
 ```
 
-연승률(ord≤3), 복승률(top2 조합) 동일 형태로 반복 출력.
+단승률(ord=1), 복승률(top2 조합) 동일 형태로 반복 출력.
 
-### 5-B. 전체 요약표
+### 5-C. 전체 요약표
 
 ```
 === 전체 요약 (2026년) ===
@@ -130,50 +149,46 @@ Logistic (top1)       │ xx.x%  │ xx.x%  │ xx.x%  │  415
 
 ### 6-1. `src/engine/scorePredictor.ts` 수정 (필수)
 
-`gatherRaceInputs`의 DB 타입을 `SupabaseClient`에서 `ReadClient` 인터페이스로 추상화.
+`gatherRaceInputs`의 DB 타입을 `ReadClient` 인터페이스로 추상화.
 
 ```typescript
 // 변경 전
 export async function gatherRaceInputs(sb: SupabaseClient, ...)
 
-// 변경 후
+// 변경 후  
 import type { ReadClient } from '../db/localDb.js';
 export async function gatherRaceInputs(db: SupabaseClient | ReadClient, ...)
 ```
-
-기존 Supabase 호출부는 그대로 유지 (ReadClient가 동일 인터페이스 구현).
 
 ### 6-2. `scripts/benchmark_all.ts` 신규 작성
 
 ```typescript
 async function main() {
-  // Step 0: featureItemMap 정합성 검증
-  verifyFeatureMap();   // 불일치 시 throw
-
   const db = getLocalDb();   // DuckDB ReadClient
 
-  // TRAIN: 2024~2025 ScoreEngineInput 수집 후 두 피처 행렬 추출
-  const trainInputs = await collectAllRaces(db, 20240101, 20251231);
-  const rawScores  = extractRawScores(trainInputs);    // Spearman용 (21개)
-  const featureVec = extractBuildFeatures(trainInputs); // Logistic/GBDT/PL용 (60개+)
+  // 전 확정경주 피처 추출 (DuckDB 직접, 파일 불필요)
+  const allInputs = await collectAllRaces(db, 20240101, 99991231);
 
-  // 9개 모델 학습
-  const models = {
-    spearman: learnSpearman(rawScores),
-    logisticTop1: fitLogistic(featureVec.X, featureVec.labels.top1, featureVec.schema),
-    logisticTop2: fitLogistic(featureVec.X, featureVec.labels.top2, featureVec.schema),
-    logisticTop3: fitLogistic(featureVec.X, featureVec.labels.top3, featureVec.schema),
-    gbdtTop1: fitGBDT(featureVec.X, featureVec.labels.top1, featureVec.schema),
-    gbdtTop2: fitGBDT(featureVec.X, featureVec.labels.top2, featureVec.schema),
-    gbdtTop3: fitGBDT(featureVec.X, featureVec.labels.top3, featureVec.schema),
-    pl: fitPL(toPlRaces(featureVec), featureVec.schema),
-  };
+  // 게이트 A: 상관계수 점검 (probe_feature_corr 로직 재활용)
+  const gateAWarnings = runGateA(allInputs);
+  printGateAWarnings(gateAWarnings);
 
-  // TEST: 2026 분기별 평가
-  const testInputs = await collectAllRaces(db, 20260101, 99991231);
+  // 게이트 B: holdout(2025-Q4) 연승률 개선량
+  const gateBResult = runGateB(allInputs);   // 항목별 포함/제외 결정
+  // gateBResult: Map<항목id, { include: boolean; delta: number }>
+
+  // 피처 공간 확정 (게이트B 통과 항목만)
+  const approvedFeatures = getApprovedFeatures(gateBResult);
+
+  // 본 학습: TRAIN 2024~2025
+  const trainInputs = allInputs.filter(r => r.raceDate < 20260101);
+  const models = trainAllModels(trainInputs, approvedFeatures);
+
+  // 테스트: 2026
+  const testInputs = allInputs.filter(r => r.raceDate >= 20260101);
   const results = evaluate(testInputs, models);
 
-  printReport(results);
+  printReport(gateBResult, results);
 }
 ```
 
@@ -185,18 +200,21 @@ async function main() {
 
 ---
 
-## 7. 의존성
+## 7. 의존성 및 재활용
 
-- `src/db/localDb.ts` — DuckDB `ReadClient` (feat/duckdb-local-mirror 구현 완료 전제)
-- `src/engine/features/buildFeatures.ts` — `buildFeatures(ScoreEngineInput)`
-- `src/engine/features/featureItemMap.ts` — `featureToItem()` (Step 0 검증)
-- `src/engine/features/alignFeatures.ts` — `buildSchema`, `toVector`
-- `src/engine/models/logistic.ts` — `fitLogistic`, `predictLogit`
-- `src/engine/models/gbdt.ts` — `fitGBDT`, `predictGBDT`
-- `src/engine/models/plackettLuce.ts` — `fitPL`, `predictPL`
-- `src/engine/weightLearner.ts` — Spearman ρ 계산
-- `src/engine/scorePredictor.ts` — `gatherRaceInputs` (ReadClient 추상화 후)
-- `src/engine/index.ts` — `ScoreEngine`
+| 모듈 | 용도 | 재활용/신규 |
+|------|------|---------|
+| `src/db/localDb.ts` | DuckDB ReadClient | 재활용 |
+| `src/engine/scorePredictor.ts` | `gatherRaceInputs` (ReadClient 추상화 후) | 수정 |
+| `src/engine/features/buildFeatures.ts` | 60개 raw 피처 추출 | 재활용 |
+| `src/engine/features/featureItemMap.ts` | 피처 ↔ 항목 매핑 | 재활용 |
+| `src/engine/features/alignFeatures.ts` | 피처 벡터 정렬 | 재활용 |
+| `src/engine/models/logistic.ts` | fitLogistic | 재활용 |
+| `src/engine/models/gbdt.ts` | fitGBDT | 재활용 |
+| `src/engine/models/plackettLuce.ts` | fitPL | 재활용 |
+| `src/engine/weightLearner.ts` | Spearman ρ | 재활용 |
+| `scripts/archive/probe_feature_corr.ts` | 게이트 A 로직 (`pearson` 함수) | 로직 재활용 |
+| `src/engine/analysis/boxBacktest.ts` | 게이트 B `settleBox` | 재활용 |
 
 ---
 
@@ -205,7 +223,7 @@ async function main() {
 | 항목 | 내용 |
 |------|------|
 | db:pull 필요 | DuckDB 미러가 최신이어야 함. 경기 결과 반영 후 `npm run db:pull` 실행 필요. |
-| 복승 근사 | 복승은 1·2위 2마리 조합. 각 방법이 각 말을 독립 점수화해서 상위 2마리 선택. 정확한 조합 확률 모델 아님. |
-| 피처 공간 2개 | Spearman=rawScore(21개), Logistic/GBDT/PL=buildFeatures(60개+). 두 공간이 달라 직접 비교 불가. |
+| 게이트 B 판단 기준 | 연승률 개선량 > 0 기준. holdout이 작으면 노이즈 가능. 최소 n=50경주 권장. |
+| 복승 근사 | 복승은 1·2위 2마리 조합. 각 말을 독립 점수화해서 상위 2마리 선택. 정확한 조합 확률 모델 아님. |
+| 게이트 A 자동탈락 없음 | |r|>0.5 경고는 참고용. 최종 포함 여부는 게이트 B 결과로 결정. |
 | Spearman 라벨 불변 | Spearman은 학습 라벨 변경 없음. 단승/연승/복승은 평가 기준만 다름. |
-| Step 0 검증 범위 | featureItemMap 등록 여부만 확인. 피처 로직 자체의 정확성은 검증 범위 밖. |
