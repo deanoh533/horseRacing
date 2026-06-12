@@ -209,8 +209,9 @@ export function runGateB(races: RaceRecord[]): GateBResult[] {
     ))
   )].filter((id) => id !== 'context' && id !== '').sort();
 
-  // 전체 피처 스키마
-  const allFeatures = buildSchema(gateTrain.flatMap((r) => r.horses.map((h) => h.features)));
+  // 전체 피처 스키마 (__missing 제거 — trainAllModels와 동일 조건)
+  const allFeatures = buildSchema(gateTrain.flatMap((r) => r.horses.map((h) => h.features)))
+    .filter((n) => !n.endsWith('__missing'));
 
   // 학습 행렬
   const trainX = gateTrain.flatMap((r) =>
@@ -441,8 +442,8 @@ function evaluateRace(
 
   return {
     market: (() => {
-      const valid = horses.filter((h) => h.winOdds != null && h.winOdds > 0);
-      if (valid.length === 0) return { win: false, place: false, quinella: false };
+      const hasOdds = horses.some((h) => h.winOdds != null && h.winOdds > 0);
+      if (!hasOdds) return { win: false, place: false, quinella: false };
       return scoreHorses((h) => (h.winOdds != null && h.winOdds > 0) ? -h.winOdds! : -Infinity);
     })(),
     spearman: scoreHorses((h) => {
