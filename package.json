@@ -17,6 +17,7 @@
     "learn:candidate": "tsx scripts/learn_candidate.ts",
     "promote": "tsx scripts/promote_version.ts",
     "build:rho-history": "tsx scripts/build_rho_history.ts",
+    "benchmark": "tsx scripts/benchmark_all.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "lint": "eslint src --ext .ts",
