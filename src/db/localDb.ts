@@ -4,6 +4,39 @@ import { DuckDBInstance } from '@duckdb/node-api';
 type Row = Record<string, unknown>;
 type DbResult<T> = { data: T | null; error: Error | null };
 
+/**
+ * DuckDB 값 래퍼(Struct/List/Array/Map)와 BigInt를 supabase-js와 동일한
+ * 평범한 JS 값(객체/배열/number)으로 **재귀** 변환한다.
+ *
+ * 배경: db:pull의 read_json_auto가 jsonb 객체 컬럼(artifact·weights·item_scores 등)을
+ * DuckDB STRUCT/MAP으로 추론한다. @duckdb/node-api는 이를 DuckDBStructValue({entries})·
+ * DuckDBListValue({items}) 래퍼로 돌려주므로, 변환 없이는 `artifact.features` 같은 접근이
+ * undefined가 되어 scoreLogistic이 깨진다. 이 함수가 읽기 경계에서 그 차이를 흡수한다.
+ */
+export function unwrapDuck(v: unknown): unknown {
+  if (typeof v === 'bigint') return Number(v);
+  if (v === null || typeof v !== 'object') return v;
+  if (v instanceof Date) return v;
+  switch ((v as { constructor?: { name?: string } }).constructor?.name) {
+    case 'DuckDBStructValue':
+      return unwrapDuck((v as { entries: Record<string, unknown> }).entries);
+    case 'DuckDBMapValue': {
+      const out: Record<string, unknown> = {};
+      for (const e of (v as { entries: { key: unknown; value: unknown }[] }).entries) {
+        out[String(unwrapDuck(e.key))] = unwrapDuck(e.value);
+      }
+      return out;
+    }
+    case 'DuckDBListValue':
+    case 'DuckDBArrayValue':
+      return (v as { items: unknown[] }).items.map(unwrapDuck);
+  }
+  if (Array.isArray(v)) return v.map(unwrapDuck);
+  const out: Record<string, unknown> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) out[k] = unwrapDuck(val);
+  return out;
+}
+
 export interface ReadClient {
   from(table: string): QueryBuilder;
 }
@@ -98,12 +131,8 @@ export class QueryBuilder implements PromiseLike<DbResult<any>> {
       if (this._offset) sql += ` OFFSET ${this._offset}`;
 
       const reader = await this._conn.runAndReadAll(sql, params);
-      // DuckDB는 INTEGER를 BigInt로 반환 → supabase-js(number)와 호환되도록 변환
-      const rows = (reader.getRowObjects() as Row[]).map(row =>
-        Object.fromEntries(
-          Object.entries(row).map(([k, v]) => [k, typeof v === 'bigint' ? Number(v) : v])
-        )
-      ) as Row[];
+      // DuckDB 래퍼(Struct/List/Map)·BigInt를 supabase-js 호환 평범한 JS 값으로 재귀 변환
+      const rows = (reader.getRowObjects() as Row[]).map(row => unwrapDuck(row) as Row);
 
       if (this._mode === 'single') {
         if (rows.length !== 1) {

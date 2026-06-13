@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { existsSync } from 'node:fs';
-import { DuckDBInstance } from '@duckdb/node-api';
-import { makeLocalClient, getLocalDb } from './localDb.js';
+import {
+  DuckDBInstance,
+  DuckDBStructValue, DuckDBListValue, DuckDBArrayValue, DuckDBMapValue,
+} from '@duckdb/node-api';
+import { makeLocalClient, getLocalDb, unwrapDuck } from './localDb.js';
 
 let instance: any;
 let conn: any;
@@ -215,5 +218,61 @@ describe('single / maybeSingle', () => {
 describe('getLocalDb 에러', () => {
   it.skipIf(existsSync('data/local.duckdb'))('DB 파일 없으면 명확한 에러', async () => {
     await expect(getLocalDb()).rejects.toThrow('npm run db:pull');
+  });
+});
+
+describe('unwrapDuck — DuckDB 래퍼 → supabase-js 호환 평범한 JS 값', () => {
+  it('스칼라/BigInt', () => {
+    expect(unwrapDuck(3)).toBe(3);
+    expect(unwrapDuck('a')).toBe('a');
+    expect(unwrapDuck(null)).toBe(null);
+    expect(unwrapDuck(10n)).toBe(10);
+  });
+
+  it('Struct → 객체, List/Array → 배열, Map → {key:value}', () => {
+    expect(unwrapDuck(new DuckDBStructValue({ a: 1n, b: 'x' }))).toEqual({ a: 1, b: 'x' });
+    expect(unwrapDuck(new DuckDBListValue([1n, 2n, 3n]))).toEqual([1, 2, 3]);
+    expect(unwrapDuck(new DuckDBArrayValue(['a', 'b']))).toEqual(['a', 'b']);
+    expect(unwrapDuck(new DuckDBMapValue([
+      { key: '01_rating', value: 0.5 }, { key: '03_recent_form', value: 0.2 },
+    ]))).toEqual({ '01_rating': 0.5, '03_recent_form': 0.2 });
+  });
+
+  it('중첩 artifact(LogisticModel) 완전 복원 — 회귀 버그 재현', () => {
+    const artifact = new DuckDBStructValue({
+      type: 'logistic',
+      features: new DuckDBListValue(['age', 'rating_abs']),
+      means: new DuckDBListValue([4n, 80n]),          // read_json_auto가 BIGINT로 추론 가능
+      stds: new DuckDBListValue([1.5, 10.2]),
+      coef: new DuckDBStructValue({ age: -0.133, rating_abs: 0.42 }),
+      intercept: -1.0489,
+    });
+    const m = unwrapDuck(artifact) as Record<string, any>;
+    expect(m.features).toEqual(['age', 'rating_abs']); // 변환 전: undefined → forEach throw
+    expect(m.means).toEqual([4, 80]);                   // BigInt → number
+    expect(m.coef.age).toBeCloseTo(-0.133);             // 변환 전: undefined → 기여도 0
+    expect(m.entries).toBeUndefined();                  // 래퍼 흔적 없음
+  });
+});
+
+describe('읽기 경로 통합 — STRUCT/MAP 컬럼이 평범한 객체로 나온다 (jsonb 미러 회귀)', () => {
+  it('artifact STRUCT(+ 내부 MAP coef)를 select하면 LogisticModel 형태', async () => {
+    await conn.run(`CREATE TABLE mv (id INTEGER, artifact STRUCT(
+      type VARCHAR, features VARCHAR[], coef MAP(VARCHAR, DOUBLE), intercept DOUBLE))`);
+    await conn.run(`INSERT INTO mv VALUES (1, {
+      'type': 'logistic',
+      'features': ['age', 'rating_abs'],
+      'coef': MAP {'age': -0.133, 'rating_abs': 0.42},
+      'intercept': -1.0489 })`);
+
+    const { data, error } = await client.from('mv').select('*').eq('id', 1).single();
+    expect(error).toBeNull();
+    const a = (data as any).artifact;
+    expect(a.type).toBe('logistic');
+    expect(a.features).toEqual(['age', 'rating_abs']);
+    expect(a.coef.age).toBeCloseTo(-0.133);     // 핵심: coef가 {age:..} 객체 (MAP 래퍼 아님)
+    expect(a.coef.rating_abs).toBeCloseTo(0.42);
+    expect(a.intercept).toBeCloseTo(-1.0489);
+    expect(a.entries).toBeUndefined();
   });
 });
