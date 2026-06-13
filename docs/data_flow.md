@@ -168,8 +168,12 @@ npm run benchmark
 
 ```bash
 npm run promote -- --id N   # model_versions 테이블에서 id=N을 활성으로
-npm run walkforward          # 전분기 비교 검증
+npm run walkforward          # 전분기 비교 검증 (🔜 benchmark로 통합·삭제 예정)
 ```
+
+> **🔜 통합 예정 (스펙 2026-06-14, 미구현):** walkforward는 benchmark로 흡수되고, benchmark가
+> 고정분할 → 롤링으로 바뀌어 분기별 강건성·시장 진단·챔피언 대결을 한 도구에서 처리한다.
+> 상세 → [specs/2026-06-14-rolling-benchmark-integration-design.md](superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
 
 현재 활성: id=5 (logit-20260611) — 연승 60.1% / 단승 28.9%
 

@@ -206,6 +206,11 @@ npm run probe:corr -- --new class_move,dist_change
 
 ### walkforward_eval.ts (`npm run walkforward`)
 
+> **🔜 삭제 예정 (스펙 2026-06-14, 미구현):** 이 도구는 benchmark로 통합되며 통합 완료 시 삭제된다.
+> benchmark가 **롤링 확장 윈도우**로 바뀌고 아래의 시장 진단·챔피언 대결을 흡수한다.
+> 동기: 라이브가 Logistic인데 walkforward는 ρ 후보만 비교 → 비교 축 어긋남.
+> 상세 → [specs/2026-06-14-rolling-benchmark-integration-design.md](superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
+
 **Supabase 읽기 (predictions 테이블).** Spearman 전용 검증. benchmark와 다름.
 
 ```

@@ -147,6 +147,14 @@ npx tsx scripts/accuracy_stats.ts
 └──────────────────────────────────────────────────────┘
 ```
 
+> **🔜 통합 예정 (스펙 2026-06-14, 미구현):** 레이어 2(benchmark)와 레이어 3의 walkforward를
+> 하나로 통합한다. benchmark를 **고정분할 → 롤링 확장 윈도우**로 바꾸고, walkforward의
+> 깊은 시장 진단(불일치·순위별·상위3 묶음)과 챔피언 대결을 흡수한 뒤 `walkforward_eval.ts`는 삭제.
+> 라이브가 이미 Logistic인데 walkforward는 ρ 후보만 비교해 비교 축이 어긋난 게 동기.
+> 9개 모델 전부 롤링·`model_versions` 스키마(`model_type`/`feature_schema`/`params`) 확장 결정.
+> 착수는 6/23 egress 리셋 후 `db:pull → benchmark`로 Logistic 우위 확인 다음.
+> 상세 → [specs/2026-06-14-rolling-benchmark-integration-design.md](superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
+
 **신호 채택 후 문서화 체크리스트:**
 - [ ] `score_roadmap.md` §1 마스터 상태표에 ρ·가중치·상태 기록
 - [ ] 이 문서 §9 변경 이력에 날짜·결과·결정 기록

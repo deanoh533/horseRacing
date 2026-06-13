@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-06-14 — 롤링 벤치마크 통합 스펙 (benchmark ← walkforward)
+
+**목표:** "benchmark가 생겼는데 walkforward가 필요한가?" 질문에서 출발, 두 검증도구 관계 정리 + 통합 설계.
+
+**분석 결론:**
+- benchmark vs walkforward 차이: benchmark=아키텍처 탐색(고정분할, DuckDB), walkforward=ρ 버전 대결(롤링, Supabase).
+- **정정:** benchmark는 이미 시장 비교 행이 있음(`METHOD_KEYS`에 `market`). 없는 건 walkforward의 *깊은* 진단(불일치·순위별·상위3 묶음)·롤링·챔피언 대결.
+- **구조적 어긋남:** 라이브가 이미 Logistic(id=5/6)인데 walkforward는 ρ 후보만 비교 → 비교 축 불일치. 승격 사이클이 끊김.
+- → **통합이 필수** (선택 아님). benchmark를 롤링으로 바꾸고 walkforward 흡수·삭제.
+
+**산출물:**
+- 스펙: `docs/superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md`
+- 4 변경: ①고정분할→롤링 확장윈도우 ②깊은 시장진단 이식 ③챔피언 대결(model_versions) ④Supabase 의존 제거
+- 코드 분리안: `src/engine/eval/{collect,gateA,gateB,models,rolling,market,champion,report}.ts` + 얇은 `scripts/benchmark_all.ts`
+
+**확정 결정 (미결 2개 해소):**
+- **9개 모델 전부 롤링** (한 루프 단순·모델별 안정성 확보. >5분이면 핵심3개 하이브리드 후퇴).
+- **model_versions 스키마 준비만 지금**(`model_type`/`feature_schema`/`params`), 적용·params 채우기는 6/23 후. id=5 params 비면 ρ 챔피언만 비교(점진 이행).
+- Gate A/B는 롤링과 분리, 1회만 유지.
+
+**착수 조건:** 6/23 egress 리셋 후 `db:pull → benchmark`로 Logistic 실측 우위 확인 다음. 구현 0.
+
+**문서 갱신:** accuracy_metrics·pipeline_guide·data_flow에 "통합 예정/삭제 예정" 표시 + 스펙 링크 추가.
+
+**미해소 메모:** 활성 모델 id 불일치 — 메모리=id=6(v6-class-move) vs CLAUDE.md=id=5. 6/23 착수 전 확인 필요.
+
+---
+
 ## 2026-06-12 — 파이프라인 문서화 세션
 
 **목표:** API 수집→가공→학습→예측 전체 흐름 문서 정리 + 새 검증/학습방법 추가 시 문서 갱신 규칙 확립.

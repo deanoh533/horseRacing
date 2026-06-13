@@ -167,9 +167,10 @@ npm run test:run     # vitest 단위 테스트
 
 **브랜치:** `feat/duckdb-local-mirror` (main 미머지)  
 **Supabase 제한:** 2026-06-23 리셋 (egress 소진 — 읽기·쓰기·웹앱 전부 차단)  
-**활성 모델:** id=5 (logit-20260611) — 연승 60.1% / 단승 28.9% / 시장 −8.1%p  
+**활성 모델:** id=6 (v6-class-move, logistic) — DuckDB is_active 확인(2026-06-14). 벤치 연승 62.5% / 단승 30.6% / 시장 68.2%(−5.7%p)  
 **DuckDB 스펙:** `docs/superpowers/specs/2026-06-12-duckdb-local-mirror-design.md`  
-**Benchmark 스크립트:** `scripts/benchmark_all.ts` 구현 완료 — `npm run benchmark` (db:pull 후 사용)
+**Benchmark 스크립트:** `scripts/benchmark_all.ts` 구현 완료 — `npm run benchmark` (db:pull 후 사용)  
+**롤링 통합 스펙 (2026-06-14, 미구현):** benchmark←walkforward 통합 → `docs/superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md`. 고정분할→롤링·walkforward 삭제·9모델 전부 롤링·model_versions 스키마 확장. 6/23 후 Logistic 우위 확인 다음 착수.
 
 **브랜치 상태 (2026-06-12 세션 완료):**
 - `gatherRaceInputs` / `predictRace` → `ReadClient` 추상화 완료 (`src/engine/scorePredictor.ts` 외 관련 파일)
@@ -178,10 +179,11 @@ npm run test:run     # vitest 단위 테스트
 - 플랜: `docs/superpowers/plans/2026-06-12-multi-model-benchmark.md`
 
 **다음 단계 (우선순위):**
-1. **db:pull 실행** (6/23 이후) — `npm run db:pull` → `npm run benchmark` 실행
-2. **마체중 직전수집** — KRA 직전정보/계량 API 조사 (gate B +7.2%p, 가장 유망)
-3. **시장격차(−8%p) 좁힐 새 raw 신호** — 다분기 gate B 기준
-4. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
+1. **db:pull 실행** (6/23 이후) — `npm run db:pull` → `npm run benchmark` 실행 → Logistic 실측 우위 확인
+2. **롤링 벤치마크 통합 구현** — 위 확인 후 착수 (스펙 2026-06-14). benchmark 롤링화 + walkforward 흡수·삭제
+3. **마체중 직전수집** — KRA 직전정보/계량 API 조사 (gate B +7.2%p, 가장 유망)
+4. **시장격차(−8%p) 좁힐 새 raw 신호** — 다분기 gate B 기준
+5. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
 
 **롤백:** 이전 model_version id로 promote
 
