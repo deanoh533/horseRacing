@@ -4,6 +4,7 @@
  * 사용: npm run benchmark
  */
 import 'dotenv/config';
+import { pathToFileURL } from 'node:url';
 import { getLocalDb } from '../src/db/localDb.js';
 import { gatherRaceInputs } from '../src/engine/scorePredictor.js';
 import { ScoreEngine } from '../src/engine/index.js';
@@ -575,4 +576,7 @@ async function main(): Promise<void> {
   printReport(evalResult, gateBResults);
 }
 
-main().catch((e) => { console.error('💥', e); process.exit(1); });
+// 직접 실행 시에만 main() 구동 (import 부작용 방지 — getLocalDb 중복 오픈 race 차단)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) => { console.error('💥', e); process.exit(1); });
+}
