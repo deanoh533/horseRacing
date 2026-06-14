@@ -142,17 +142,17 @@ npx tsx scripts/accuracy_stats.ts
 │  레이어 3: 승격 + 운영 검증                             │
 │                                                      │
 │  npm run promote -- --id N                           │
-│  npm run walkforward   (전분기 강건성 확인)             │
+│  npm run benchmark     (롤링 분기 + 시장 진단)          │
 │  accuracy_stats.ts     (운영 적중률 모니터링)          │
 └──────────────────────────────────────────────────────┘
 ```
 
-> **🔜 통합 예정 (스펙 2026-06-14, 미구현):** 레이어 2(benchmark)와 레이어 3의 walkforward를
-> 하나로 통합한다. benchmark를 **고정분할 → 롤링 확장 윈도우**로 바꾸고, walkforward의
-> 깊은 시장 진단(불일치·순위별·상위3 묶음)과 챔피언 대결을 흡수한 뒤 `walkforward_eval.ts`는 삭제.
-> 라이브가 이미 Logistic인데 walkforward는 ρ 후보만 비교해 비교 축이 어긋난 게 동기.
-> 9개 모델 전부 롤링·`model_versions` 스키마(`model_type`/`feature_schema`/`params`) 확장 결정.
-> 착수는 6/23 egress 리셋 후 `db:pull → benchmark`로 Logistic 우위 확인 다음.
+> **✅ 통합 완료 (2026-06-14):** 레이어 2(benchmark)가 **롤링 확장 윈도우**로 동작하며,
+> 옛 walkforward의 깊은 시장 진단(불일치·순위별·상위3 묶음)과 챔피언 대결을 흡수했다.
+> `walkforward_eval.ts`는 삭제됨 — `npm run benchmark` 하나로 일원화.
+> 분기마다 9모델 재학습(확장윈도우) + 저장된 챔피언(`model_versions`) 대결 + 시장 비교.
+> CLI: `--gate-only`(게이트만) / `--no-gate`(롤링만) / `--champion <id>`(챔피언 지정).
+> 코드: `src/engine/eval/{collect,gates,models,score,rolling,market,champion,report}.ts`.
 > 상세 → [specs/2026-06-14-rolling-benchmark-integration-design.md](superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
 
 **신호 채택 후 문서화 체크리스트:**

@@ -32,7 +32,6 @@ DuckDB     ─────────  (안 씀)      ◀── 모든 분석·
 | 쓰기 | apply_learned_weights | weight_history INSERT, predictions UPDATE |
 | 쓰기 | promote_version | model_versions is_active 변경 |
 | 읽기 | Vercel 프론트엔드 | 출전마 화면, 예측 점수 |
-| 읽기 | walkforward_eval | predictions 테이블 (Spearman 검증) |
 
 - **주의:** egress(데이터 전송량) 한도 있음. 대량 분석 쿼리는 DuckDB 사용.
 - **6/23 리셋** 이후 egress 복구 예정.
@@ -146,16 +145,17 @@ DuckDB → collectRaces()
   ↓
 Gate A: 피처 간 Pearson r 경고 (|r|>0.5)
   ↓
-Gate B: holdout(2025-Q4) 연승률 개선량으로 항목 포함/탈락
+Gate B: holdout(2025-Q4) 연승률 개선량으로 항목 포함/탈락  (1회, 롤링과 분리)
   ↓
-trainAllModels() — 9개 동시:
-  spearman | logisticTop1/2/3 | gbdtTop1/2/3 | pl
+rollingBlocks() — 분기 확장윈도우 (2024 부트스트랩, 2025-Q1부터 테스트)
+  ↓ 분기마다 trainAllModels() 재학습 (spearman·logistic·gbdt·pl)
+  ↓ 저장된 챔피언(model_versions) + 시장(win_odds)과 함께 채점
   ↓
-evaluate() → TEST(2026~) 단/연/복승
-  ↓
-ASCII 리포트
+롤링 연승율 표 + 시장 깊은 진단(불일치·순위별·상위3 묶음)
 ```
 
+CLI: `--gate-only`(게이트만) · `--no-gate`(롤링만) · `--champion <id>`(챔피언 지정).
+코드: `src/engine/eval/{collect,gates,models,score,rolling,market,champion,report}.ts` (얇은 `scripts/benchmark_all.ts` 오케스트레이터).
 DuckDB 직접 쓰는 이유: `ScoreEngine.calculateScores()`(rawScores)와 `buildFeatures()`(features) 둘 다 필요하기 때문.
 
 ### backtest_box.ts (`npm run backtest:box`)
@@ -204,32 +204,11 @@ npm run probe:corr -- --new class_move,dist_change
 
 경고 = 자동 탈락 아님. 사람이 판단 후 Gate B 진행.
 
-### walkforward_eval.ts (`npm run walkforward`)
+### ~~walkforward_eval.ts~~ → benchmark에 통합 (2026-06-14)
 
-> **🔜 삭제 예정 (스펙 2026-06-14, 미구현):** 이 도구는 benchmark로 통합되며 통합 완료 시 삭제된다.
-> benchmark가 **롤링 확장 윈도우**로 바뀌고 아래의 시장 진단·챔피언 대결을 흡수한다.
-> 동기: 라이브가 Logistic인데 walkforward는 ρ 후보만 비교 → 비교 축 어긋남.
-> 상세 → [specs/2026-06-14-rolling-benchmark-integration-design.md](superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
-
-**Supabase 읽기 (predictions 테이블).** Spearman 전용 검증. benchmark와 다름.
-
-```
-Supabase의 predictions + item_scores 읽기
-  ↓
-분기별 확장 윈도우 (2024 부트스트랩, 2025-Q1부터 테스트)
-  ↓
-후보 가중치 vs 현재 활성 가중치 연승률 비교
-  ↓
-분기별 단승/연승 + 시장 배당 대비 표
-```
-
-```bash
-npm run walkforward                   # ρ 재학습 후보 vs 챔피언
-npm run walkforward -- --candidate 3  # model_versions[id=3] 고정 비교
-npm run walkforward -- --champion 1   # 챔피언 버전 지정
-```
-
-benchmark과의 차이: benchmark는 DuckDB에서 처음부터 학습·평가. walkforward는 이미 DB에 저장된 predictions.item_scores 기반 Spearman 재계산.
+> **✅ 삭제됨.** 옛 walkforward의 롤링 검증·시장 진단·챔피언 대결은 모두 `npm run benchmark`로
+> 흡수됐다. benchmark가 DuckDB 위에서 롤링 확장윈도우로 분기별 강건성을 채점한다.
+> 아래 `benchmark_all.ts` 항목 참조.
 
 ---
 
@@ -241,7 +220,6 @@ benchmark과의 차이: benchmark는 DuckDB에서 처음부터 학습·평가. w
 | `backtest_box` | 매트릭스 | features만 필요, 빠른 반복 가능 |
 | `probe:corr` | 매트릭스 | features만 필요, 빠른 반복 가능 |
 | `learn_logistic` | 매트릭스 | 동일 |
-| `walkforward` | Supabase | predictions.item_scores (이미 저장된 것) 기반 |
 | `apply_learned_weights` | Supabase | 읽기+쓰기 모두 필요 (weight_history, predictions 갱신) |
 
 ---
@@ -318,8 +296,8 @@ npx tsx scripts/apply_learned_weights.ts # 실제 적용 (Supabase 쓰기)
 ### 검증 + 승격
 
 ```bash
-npm run walkforward                       # Spearman 분기별 비교 (Supabase 읽기)
-npm run walkforward -- --candidate 3      # 특정 model_versions id 비교
+npm run benchmark                         # 롤링 분기 검증 + 챔피언 대결 + 시장 진단
+npm run benchmark -- --champion 3         # 특정 model_versions id를 챔피언으로 비교
 npm run promote -- --id N                 # 모델 활성화 (Supabase 쓰기)
 npm run backfill                          # predictions 전체 재계산
 npm run backfill -- --date YYYYMMDD       # 특정 날짜만
