@@ -17,7 +17,12 @@ import { printRollingTable, type RollingRow } from '../src/engine/eval/report.js
 
 const FIRST_TEST = { year: 2025, q: 1 };
 
-const METHODS = ['시장', '챔피언', 'Spearman', 'Logistic(t2)', 'GBDT(t2)', 'PL'] as const;
+const METHODS = [
+  '시장', '챔피언', 'Spearman',
+  'Logistic(t1)', 'Logistic(t2)', 'Logistic(t3)',
+  'GBDT(t1)', 'GBDT(t2)', 'GBDT(t3)',
+  'PL',
+] as const;
 type Method = typeof METHODS[number];
 
 async function main(): Promise<void> {
@@ -64,8 +69,12 @@ async function main(): Promise<void> {
     const scorers: Map<Method, ScorableModel> = new Map([
       ['챔피언', champ.model],
       ['Spearman', { kind: 'weights', weights: tm.spearmanWeights } as ScorableModel],
+      ['Logistic(t1)', { kind: 'logistic', model: tm.logisticTop1 } as ScorableModel],
       ['Logistic(t2)', { kind: 'logistic', model: tm.logisticTop2 } as ScorableModel],
+      ['Logistic(t3)', { kind: 'logistic', model: tm.logisticTop3 } as ScorableModel],
+      ['GBDT(t1)', { kind: 'gbdt', model: tm.gbdtTop1, schema: tm.featureSchema } as ScorableModel],
       ['GBDT(t2)', { kind: 'gbdt', model: tm.gbdtTop2, schema: tm.featureSchema } as ScorableModel],
+      ['GBDT(t3)', { kind: 'gbdt', model: tm.gbdtTop3, schema: tm.featureSchema } as ScorableModel],
       ['PL', { kind: 'pl', model: tm.pl, schema: tm.featureSchema } as ScorableModel],
     ]);
 
