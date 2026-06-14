@@ -73,22 +73,31 @@ Supabase `training_logs` upsert로 영구화.
 ### 4.2 As-of 조교이력 수집 — collect 층 (`src/engine/eval/collect.ts` + ReadClient)
 
 - race별로 각 출주마의 `training_logs`에서 `train_date < race_date` 행을 조회(최근→과거 정렬)
-- 윈도우 컷오프(예: 직전 90일)로 잘라 `ScoreEngineInput`에 새 필드로 부착:
-  - `trainingHistory: { trainDate, trTerm, run1Cnt, run2Cnt, prGubun }[]` (as-of 정렬)
+- **주 윈도우 = `[직전 경주일, 대상 경주일)`** — 이번 경주를 위한 prep 사이클만 본다(이전 경주 prep과
+  섞이지 않도록). 직전 경주일은 말의 경주이력(race_entries)에서 `race_date < target_race_date`의 최댓값.
+- `ScoreEngineInput`에 새 필드로 부착:
+  - `prevRaceDate: number | null` (직전 경주일; 신마는 null)
+  - `trainingHistory: { trainDate, trTerm, run1Cnt, run2Cnt, prGubun }[]` (직전경주~대상경주 사이, as-of 정렬)
+- **신마/직전경주 없음(`prevRaceDate=null`):** fallback으로 직전 90일 사용. 피처에 `train_window_is_fallback`
+  플래그를 두어 모델이 구분 가능하게.
 - 사전/사후 모드 동일 산식 원칙 유지 (둘 다 train_date 기준 as-of).
 
 ### 4.3 피처 추출 — `src/engine/features/buildFeatures.ts` (확장)
 
 raw 측정값만 add() (가치판단·정규화 없음 — 모델이 학습). 데이터 없으면 해당 피처 미add 또는 0/중립.
 
+모든 윈도우-의존 피처의 윈도우 = **`[직전 경주일, 대상 경주일)`** (4.2 참조).
+
 | 가설 | raw 피처 | 비고 |
 |---|---|---|
-| ① 최근성·간격 | `train_days_since_last`, `train_count_14d`, `train_count_30d`, `train_count_60d` | 날짜만 필요 — 가장 견고 |
-| ③ 기승자 격 | `train_jockey_ridden_ratio` (직전 N회 중 pr_gubun=기수 비율), `train_last_rider_is_jockey` | 범례: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더 |
-| ② 강도 | `train_term_mean`, `train_term_last`, `train_run_cnt_mean` | ⚠️ `run1/2_cnt`·`tr_term` 의미 구현 중 KRA 매뉴얼/샘플로 확정 |
-| ④ 추세 | `train_term_slope`, `train_freq_slope` (직전 2~3주, 기존 `slope()` 재사용) | ①②에서 파생 → 나중에 추가 |
+| ① 최근성·간격 | `train_days_since_last`(윈도우 무관), `train_count`(prep 사이클 내 조교 횟수), `train_count_per_week`(횟수/주, prep 길이 정규화) | 날짜만 필요 — 가장 견고 |
+| ③ 기승자 격 | `train_jockey_ridden_ratio` (prep 사이클 내 pr_gubun=기수 비율), `train_last_rider_is_jockey` | 범례: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더 |
+| ② 강도 | `train_term_mean`, `train_term_last`, `train_run_cnt_mean` (prep 사이클 내) | ⚠️ `run1/2_cnt`·`tr_term` 의미 구현 중 KRA 매뉴얼/샘플로 확정 |
+| ④ 추세 | `train_term_slope`, `train_freq_slope` (prep 사이클 내, 기존 `slope()` 재사용) | ①②에서 파생 → 나중에 추가 |
+| (공통) | `train_window_is_fallback` (신마/직전경주 없음 시 1) | 모델이 fallback 구분 |
 
-- 윈도우(14/30/60d)는 직관 고정 대신 **여러 개를 raw로 내보내 게이트가 변별력으로 고르게** 한다.
+- prep 사이클 길이(직전경주~대상경주 일수)가 말마다 다르므로, 횟수는 `train_count_per_week`로도 정규화해
+  **길이 편향을 모델이 보정**할 수 있게 한다.
 
 ### 4.4 검증 — `npm run benchmark` (기존 그대로)
 
