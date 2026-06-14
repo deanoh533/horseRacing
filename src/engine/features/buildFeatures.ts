@@ -6,6 +6,7 @@
 import type { ScoreEngineInput } from '../index.js';
 import type { Feature, FeatureVector } from './types.js';
 import { slope, mean, std } from './mathUtils.js';
+import { trainingFeatures } from './trainingFeatures.js';
 
 export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   const f: Feature[] = [];
@@ -249,6 +250,17 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   add('sex_gelding', input.sex === '거' ? 1 : 0);
   add('pace_hot', input.paceType === 'HOT' ? 1 : 0);
   add('pace_slow', input.paceType === 'SLOW' ? 1 : 0);
+
+  // 조교 신호 (raceDate 있을 때만 — 기존 호출부 영향 없음)
+  if (input.raceDate != null) {
+    for (const tf of trainingFeatures({
+      trainingHistory: input.trainingHistory ?? [],
+      prevRaceDate: input.prevRaceDate ?? null,
+      raceDate: input.raceDate,
+    })) {
+      f.push(tf);
+    }
+  }
 
   return f;
 }
