@@ -5,7 +5,7 @@
  * model_versions에 **비활성(is_active=false) 후보**로 저장한다. (라이브 영향 없음)
  *
  * 사용: npm run learn:candidate
- * 이후: npm run walkforward -- --candidate <id>  (검증)
+ * 이후: npm run benchmark                          (검증)
  *       npm run promote -- --version <id>        (사람 판단 후 승격)
  */
 import 'dotenv/config';
@@ -60,7 +60,7 @@ async function main() {
     .slice(0, 8)
     .forEach(([id, v]) => console.log(`  ${names[id] ?? id}: ${(v as number).toFixed(2)}`));
 
-  console.log(`\n검증: npm run walkforward -- --candidate ${inserted.id}`);
+  console.log(`\n검증: npm run benchmark`);
   console.log(`승격: npm run promote -- --version ${inserted.id}  (사람 판단 후)`);
 }
 
