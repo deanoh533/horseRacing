@@ -6,7 +6,7 @@
  *   - ord가 있음  → 사후 모드 (결과 포함 백테스트)
  */
 import type { ReadClient } from '../db/localDb.js';
-import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput } from './index.js';
+import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput, type TrainingSession } from './index.js';
 import { getActiveModelVersion } from './modelVersion.js';
 import { scoreLogistic } from './logisticScorer.js';
 import { parseClassBand } from './features/intentSignals.js';
@@ -202,7 +202,29 @@ export async function gatherRaceInputs(
     (async () => { if (trainerNos.length === 0) return; for (let off = 0; ; off += 1000) { const { data, error } = await sb.from('race_entries').select('trar_no, ord').in('trar_no', trainerNos).gte('race_date', sixtyAgo).lt('race_date', rcDate).not('ord', 'is', null).order('race_date').order('meet').order('rc_no').order('trar_no').range(off, off + 999); if (error) throw error; if (!data || data.length === 0) break; for (const r of data as { trar_no: string; ord: number }[]) { const a = trainer60Map.get(r.trar_no); if (a) a.push(r.ord); else trainer60Map.set(r.trar_no, [r.ord]); } if (data.length < 1000) break; } })(),
     (async () => { if (lastDates.size === 0) return; const { data } = await sb.from('races').select('race_date, meet, rc_no, prize_cond').in('race_date', [...lastDates]); for (const r of (data ?? []) as { race_date: number; meet: number; rc_no: number; prize_cond: string | null }[]) racePrizeCondMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, r.prize_cond ?? null); })(),
   ]);
-  const batch: RaceBatch = { histByHorse, histRaceBudams, pedigreeMap, jockeyCareerMap, trainer60Map, racePrizeCondMap };
+  // (G) 조교이력 as-of: hr_no별 train_date<rcDate (최근 365일 캡). 누수 0.
+  const trainingByHorse = new Map<string, TrainingSession[]>();
+  if (hrNosU.length > 0) {
+    const trainFloor = subtractDays(rcDate, 365);
+    for (let off = 0; ; off += 1000) {
+      const { data, error } = await sb.from('training_logs')
+        .select('hr_no, train_date, tr_term, run1_cnt, run2_cnt, pr_gubun')
+        .in('hr_no', hrNosU)
+        .gte('train_date', trainFloor)
+        .lt('train_date', rcDate)
+        .order('hr_no').order('train_date', { ascending: false })
+        .range(off, off + 999);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const r of data as Array<{ hr_no: string; train_date: number; tr_term: number | null; run1_cnt: number | null; run2_cnt: number | null; pr_gubun: string | null }>) {
+        const s: TrainingSession = { trainDate: r.train_date, trTerm: r.tr_term, run1Cnt: r.run1_cnt, run2Cnt: r.run2_cnt, prGubun: r.pr_gubun };
+        const a = trainingByHorse.get(r.hr_no); if (a) a.push(s); else trainingByHorse.set(r.hr_no, [s]);
+      }
+      if (data.length < 1000) break;
+    }
+  }
+
+  const batch: RaceBatch = { histByHorse, histRaceBudams, pedigreeMap, jockeyCareerMap, trainer60Map, racePrizeCondMap, trainingByHorse };
 
   const rows = await Promise.all(
     entryList.map(async (e) => {
@@ -213,6 +235,9 @@ export async function gatherRaceInputs(
       input.allRaceRatings = allRaceRatings;
       input.bodyWeight = e.wg_hr ?? undefined;
       input.allRaceBodyWeights = allRaceBodyWeights;
+      input.raceDate = e.race_date;
+      input.prevRaceDate = batch.histByHorse.get(e.hr_name)?.[0]?.race_date ?? null;
+      input.trainingHistory = e.hr_no ? (batch.trainingByHorse.get(e.hr_no) ?? []) : [];
       return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: e.ord, input };
     })
   );
@@ -269,6 +294,7 @@ interface RaceBatch {
   jockeyCareerMap: Map<string, { win_rate_t: number | null; qu_rate_t: number | null }>;
   trainer60Map: Map<string, number[]>;
   racePrizeCondMap: Map<string, string | null>;
+  trainingByHorse: Map<string, TrainingSession[]>; // key: hr_no
 }
 
 function buildEngineInput(
