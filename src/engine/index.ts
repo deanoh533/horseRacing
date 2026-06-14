@@ -44,6 +44,15 @@ import {
 } from './scoreItems/19_running_style_pace.js';
 import { calculateSpeedFigureScore } from './scoreItems/20_speed_figure.js';
 
+/** training_logs의 조교 세션 한 건 (as-of: train_date < race_date). */
+export interface TrainingSession {
+  trainDate: number;          // YYYYMMDD
+  trTerm: number | null;      // 소요시간(초) — 강도 proxy (의미 미확정 ⚠️)
+  run1Cnt: number | null;
+  run2Cnt: number | null;
+  prGubun: string | null;     // 기승자 구분: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더
+}
+
 /**
  * 점수 계산을 위한 입력 데이터
  */
@@ -151,6 +160,11 @@ export interface ScoreEngineInput {
   careerPlaceRate?: number | null;
   careerN?: number;
   earningsAsof?: number | null;  // ⑱ 진짜 as-of 누적 수득상금(API156 rk_purse 합)
+
+  // 조교 신호 (training signals) — 2026-06-15
+  raceDate?: number;                    // 오늘 경주일 YYYYMMDD (조교 윈도우 계산용)
+  prevRaceDate?: number | null;         // 직전 경주일 YYYYMMDD (prep 사이클 시작; 신마 null)
+  trainingHistory?: TrainingSession[];  // as-of(train_date<raceDate) 조교이력
 }
 
 /**
