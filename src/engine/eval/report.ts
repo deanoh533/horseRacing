@@ -6,6 +6,7 @@ import type { RaceRecord, HorseRecord } from './types.js';
 import type { TrainedModels } from './models.js';
 import type { GateBResult } from './gates.js';
 import { printGateB } from './gates.js';
+import type { Tally } from './market.js';
 
 // ── 평가 ──────────────────────────────────────────────────────────
 
@@ -152,4 +153,20 @@ export function printReport(
   // 게이트 B 요약 (상단 참고용)
   console.log('\n=== 항목 포함 현황 (게이트 B 결과) ===');
   printGateB(gateBResults);
+}
+
+// ── 롤링 벤치마크 리포트 ──────────────────────────────────────────
+
+export interface RollingRow { method: string; byQuarter: Map<string, Tally>; overall: Tally; }
+
+export function printRollingTable(rows: RollingRow[], quarters: string[]): void {
+  const pctShow = (t: Tally | undefined) => (t && t.n ? `${(t.show / t.n * 100).toFixed(1)}%` : '-');
+  console.log('\n=== 롤링 연승율 (분기별, 1순위 픽 3착내) ===\n');
+  const header = '방법'.padEnd(16) + '│' + quarters.map((q) => ` ${q} `).join('│') + '│ 전체';
+  console.log(header);
+  console.log('─'.repeat(header.length));
+  for (const r of rows) {
+    const cells = quarters.map((q) => ` ${pctShow(r.byQuarter.get(q)).padStart(7)} `).join('│');
+    console.log(r.method.padEnd(16) + '│' + cells + '│ ' + pctShow(r.overall));
+  }
 }

@@ -2,8 +2,8 @@ import type { RaceRecord, HorseRecord } from './types.js';
 import { rankHorses, type ScorableModel } from './score.js';
 
 export interface Tally { win: number; place: number; show: number; n: number; }
-const empty = (): Tally => ({ win: 0, place: 0, show: 0, n: 0 });
-function add(t: Tally, ord: number | null) {
+export const emptyTally = (): Tally => ({ win: 0, place: 0, show: 0, n: 0 });
+export function addTally(t: Tally, ord: number | null): void {
   if (ord === null || ord > 50) return;
   t.n++;
   if (ord === 1) t.win++;
@@ -32,7 +32,7 @@ export interface MarketDiag {
 /** 한 경주 집합에 대해 모델 vs 시장 깊은 진단. model로 채점, win_odds로 시장순위. */
 export function marketDiagnostics(races: RaceRecord[], model: ScorableModel): MarketDiag {
   const d: MarketDiag = {
-    model: empty(), market: empty(), disModel: empty(), disFav: empty(),
+    model: emptyTally(), market: emptyTally(), disModel: emptyTally(), disFav: emptyTally(),
     rankModel: [0, 0, 0].map(() => ({ hit: 0, n: 0 })),
     rankMkt: [0, 0, 0].map(() => ({ hit: 0, n: 0 })),
     setModelSum: 0, setMktSum: 0, setN: 0,
@@ -42,11 +42,11 @@ export function marketDiagnostics(races: RaceRecord[], model: ScorableModel): Ma
     const mktOrder = rankByOdds(race.horses);
     const mPick = modelOrder[0] ?? null;
     const fPick = mktOrder[0] ?? null;
-    add(d.model, mPick?.ord ?? null);
-    add(d.market, fPick?.ord ?? null);
+    addTally(d.model, mPick?.ord ?? null);
+    addTally(d.market, fPick?.ord ?? null);
     if (mPick && fPick && mPick.hrName !== fPick.hrName) {
-      add(d.disModel, mPick.ord);
-      add(d.disFav, fPick.ord);
+      addTally(d.disModel, mPick.ord);
+      addTally(d.disFav, fPick.ord);
     }
     for (let k = 0; k < 3; k++) {
       const mh = modelOrder[k];

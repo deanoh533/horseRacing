@@ -1,7 +1,6 @@
 /**
- * Multi-Model Benchmark
- * TRAIN: 2024-01-01 ~ 2025-12-31  TEST: 2026-01-01 ~ 현재
- * 사용: npm run benchmark
+ * Rolling Benchmark — 분기 확장윈도우로 9모델 + 챔피언 + 시장 진단.
+ * 사용: npm run benchmark  [-- --gate-only | --no-gate | --champion <id>]
  */
 import 'dotenv/config';
 import { pathToFileURL } from 'node:url';
@@ -9,46 +8,99 @@ import { getLocalDb } from '../src/db/localDb.js';
 import { collectRaces } from '../src/engine/eval/collect.js';
 import { runGateA, printGateA, runGateB, printGateB } from '../src/engine/eval/gates.js';
 import { trainAllModels } from '../src/engine/eval/models.js';
-import { evaluate, printReport } from '../src/engine/eval/report.js';
+import { rollingBlocks } from '../src/engine/eval/rolling.js';
+import { marketDiagnostics, printMarketDiag, emptyTally, addTally } from '../src/engine/eval/market.js';
+import type { Tally } from '../src/engine/eval/market.js';
+import { rankHorses, type ScorableModel } from '../src/engine/eval/score.js';
+import { loadVersion } from '../src/engine/eval/champion.js';
+import { printRollingTable, type RollingRow } from '../src/engine/eval/report.js';
 
-// Re-export types for backward compatibility
-export type { RaceRecord, HorseRecord } from '../src/engine/eval/types.js';
-export type { GateAWarning, GateBResult } from '../src/engine/eval/gates.js';
-export type { TrainedModels } from '../src/engine/eval/models.js';
-export { collectRaces, runGateA, printGateA, runGateB, printGateB, trainAllModels, evaluate, printReport };
+const FIRST_TEST = { year: 2025, q: 1 };
 
-// ── main ──────────────────────────────────────────────────────────
+const METHODS = ['시장', '챔피언', 'Spearman', 'Logistic(t2)', 'GBDT(t2)', 'PL'] as const;
+type Method = typeof METHODS[number];
 
 async function main(): Promise<void> {
-  const TRAIN_FROM = 20240101, TRAIN_TO = 20251231;
-  const TEST_FROM  = 20260101, TEST_TO   = 99991231;
+  const args = process.argv.slice(2);
+  const gateOnly = args.includes('--gate-only');
+  const noGate = args.includes('--no-gate');
+  const champIdx = args.indexOf('--champion');
+  const championId = champIdx >= 0 ? Number(args[champIdx + 1]) : undefined;
 
   const db = await getLocalDb();
+  console.log('📊 Rolling Benchmark 시작\n데이터 수집 중...');
+  const races = await collectRaces(db, 20240101, 99991231);
+  console.log(`  ${races.length}경주`);
 
-  console.log('📊 Multi-Model Benchmark 시작\n');
-  console.log(`데이터 수집 중 (${TRAIN_FROM}~${TEST_TO})...`);
-  const allRaces = await collectRaces(db, TRAIN_FROM, TEST_TO);
-  const trainRaces = allRaces.filter((r) => r.raceDate <= TRAIN_TO);
-  const testRaces  = allRaces.filter((r) => r.raceDate >= TEST_FROM);
-  console.log(`  TRAIN: ${trainRaces.length}경주 / TEST: ${testRaces.length}경주`);
+  let approved: Set<string>;
+  if (noGate) {
+    approved = new Set(races.flatMap((r) => r.horses.flatMap((h) => Object.keys(h.rawScores))));
+  } else {
+    console.log('\n[게이트 A]'); printGateA(runGateA(races));
+    console.log('\n[게이트 B]');
+    const gb = runGateB(races); printGateB(gb);
+    approved = new Set(gb.filter((g) => g.include).map((g) => g.itemId));
+  }
+  if (gateOnly) return;
 
-  console.log('\n[게이트 A] 상관계수 점검...');
-  const gateAWarnings = runGateA(trainRaces);
-  printGateA(gateAWarnings);
+  const champ = await loadVersion(db, championId !== undefined ? { id: championId } : {});
+  if (!champ) throw new Error('챔피언 버전 없음');
+  console.log(`\n챔피언: ${champ.row.label} (id=${champ.row.id}, kind=${champ.model.kind})`);
 
-  console.log('\n[게이트 B] 연승률 개선량 계산 중...');
-  const gateBResults = runGateB(trainRaces);
+  const blocks = rollingBlocks(races, FIRST_TEST);
+  const quarters = blocks.map((b) => b.key);
 
-  const approvedItems = new Set(gateBResults.filter((r) => r.include).map((r) => r.itemId));
-  console.log(`  → ${approvedItems.size}개 항목 승인됨`);
+  const tallies = new Map<Method, Map<string, Tally>>(
+    METHODS.map((m) => [m, new Map<string, Tally>()])
+  );
+  const overall = new Map<Method, Tally>(
+    METHODS.map((m) => [m, emptyTally()])
+  );
+  const allTest = blocks.flatMap((b) => b.test);
 
-  const models = trainAllModels(trainRaces, approvedItems);
-  console.log('  ✅ 학습 완료');
+  for (const block of blocks) {
+    console.log(`  [${block.key}] train=${block.train.length} test=${block.test.length} 학습중...`);
+    const tm = trainAllModels(block.train, approved);
+    const scorers: Map<Method, ScorableModel> = new Map([
+      ['챔피언', champ.model],
+      ['Spearman', { kind: 'weights', weights: tm.spearmanWeights } as ScorableModel],
+      ['Logistic(t2)', { kind: 'logistic', model: tm.logisticTop2 } as ScorableModel],
+      ['GBDT(t2)', { kind: 'gbdt', model: tm.gbdtTop2, schema: tm.featureSchema } as ScorableModel],
+      ['PL', { kind: 'pl', model: tm.pl, schema: tm.featureSchema } as ScorableModel],
+    ]);
 
-  console.log('\n[테스트] 2026년 평가 중...');
-  const evalResult = evaluate(testRaces, models);
+    for (const race of block.test) {
+      const favorite = [...race.horses]
+        .filter((h) => h.winOdds != null && h.winOdds > 0)
+        .sort((a, b) => (a.winOdds as number) - (b.winOdds as number))[0] ?? null;
 
-  printReport(evalResult, gateBResults);
+      for (const m of METHODS) {
+        const tmap = tallies.get(m)!;
+        if (!tmap.has(block.key)) tmap.set(block.key, emptyTally());
+
+        let pickOrd: number | null;
+        if (m === '시장') {
+          pickOrd = favorite?.ord ?? null;
+        } else {
+          const scorer = scorers.get(m)!;
+          pickOrd = rankHorses(scorer, race.horses)[0]?.ord ?? null;
+        }
+
+        addTally(tmap.get(block.key)!, pickOrd);
+        addTally(overall.get(m)!, pickOrd);
+      }
+    }
+  }
+
+  const rows: RollingRow[] = METHODS.map((m) => ({
+    method: m,
+    byQuarter: tallies.get(m)!,
+    overall: overall.get(m)!,
+  }));
+  printRollingTable(rows, quarters);
+
+  console.log('\n=== 시장 깊은 진단 (챔피언 vs 시장, 전체 test) ===');
+  printMarketDiag(marketDiagnostics(allTest, champ.model));
 }
 
 // 직접 실행 시에만 main() 구동 (import 부작용 방지 — getLocalDb 중복 오픈 race 차단)
