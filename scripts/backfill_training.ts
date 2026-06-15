@@ -78,6 +78,17 @@ async function main() {
     existsSync(DONE_PATH) ? (JSON.parse(readFileSync(DONE_PATH, 'utf8')) as string[]) : []
   );
 
+  // 대체 키: --key-env KRA_API_KEY_FRIEND → .env의 해당 변수를 KRA_API_KEY로 주입(셸 히스토리 노출 X).
+  // getKRAClient() 첫 호출 전에 설정해야 함.
+  const keyEnvIdx = args.indexOf('--key-env');
+  if (keyEnvIdx >= 0) {
+    const v = args[keyEnvIdx + 1]!;
+    const k = process.env[v];
+    if (!k) { console.error(`환경변수 ${v} 없음 — .env에 ${v}=<키> 추가 필요`); process.exit(1); }
+    process.env.KRA_API_KEY = k;
+    console.log(`🔑 대체 키 사용: ${v}`);
+  }
+
   const kra = getKRAClient();
   const dates = enumerateDates(from, to);
   console.log(`backfill: ${from}~${to} (${dates.length}일) × meets ${meets.join(',')}`);
