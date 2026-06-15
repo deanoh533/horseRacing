@@ -177,7 +177,7 @@ npm run test:run     # vitest 단위 테스트
 - **⑲ 스코어맵 종결:** SCORE_MAP=죽은코드(라이브 로지스틱은 buildFeatures one-hot으로 직접학습). "재설계 대기" 아님 — 종결.
 - **신규 산출물:** `docs/feature_hypotheses.md`(가설 카탈로그: 재도전7·현역재검2·탈락확정·메타패턴) + `docs/strategy/2026-06-16-market-edge-and-korean-winning-conditions.md`(방법론 전환 전략).
 - **방향 전환:** "공개 피처 더 짜기" 중단 → 4갈래(서비스 캘리브레이션 / 반공개 신호 / 조건부 엣지 / Benter 2단계). 상세 [[project_market_edge_strategy]].
-- **⚠️ 웹 검증 보류:** WebSearch 한도(06:10 KST 리셋) — 전략문서 ⚠️ 항목(KRA 공제율·노면·Benter 원논문·draw편향) 리셋 후 보강.
+- **✅ 웹 검증 완료(2026-06-16):** 전략문서 ⚠️ 4항목 외부출처 확인. **반증 1건: KRA 엑조틱 공제율 26% > 단복승 20%** → 엑조틱이 오히려 더 어려움(A4(d) 하향). 나머지(공제율 높음·dirt-only·Benter 2단계 구조차이·draw 안쪽우위) 기존 서술 확증. 검증로그 = 전략문서 끝.
 
 **브랜치 상태 (2026-06-12 세션 완료):**
 - `gatherRaceInputs` / `predictRace` → `ReadClient` 추상화 완료 (`src/engine/scorePredictor.ts` 외 관련 파일)
@@ -188,7 +188,7 @@ npm run test:run     # vitest 단위 테스트
 **다음 단계 (우선순위 — 2026-06-16 갱신):**
 1. **조교(training) 신호** — 본류. KRA 전체서비스 복구(**6/17 09:00**) 후 사용자가 `scripts/backfill_training.ts` 실행(쿼터벽=최근12개월 먼저) → 커버리지 → `npm run benchmark` 게이트A/B. 코드 Task1~6 완료(325테스트). [[project_training_signals]]
 2. **방법론 전환 후보 (각각 구현 전 brainstorm)** — ① Benter 2단계 + 캘리브레이션/EV 평가축(win_odds=0 재시험) ② 조건부 엣지 마이닝(모델·시장 불일치 적중 경주의 조건분포) ③ 마체중 직전수집(KRA 직전정보 API, +7.2%p 보류분). 상세 [[project_market_edge_strategy]] / `docs/strategy/2026-06-16-*`.
-3. **웹 검증 보강** (06:10 KST 이후) — 전략문서 ⚠️ 항목.
+3. ~~웹 검증 보강~~ **✅ 완료(2026-06-16)** — 전략문서 ⚠️ 4항목 외부출처 확인. **핵심 수정: KRA 엑조틱 공제율 26% > 단복승 20%** (엑조틱이 더 어려움, A4(d) 기대 하향). 공제율(단연 20/그외 26)·dirt-only·Benter 2단계 구조·draw편향(단거리 안쪽 35~38%) 확증. 검증로그 = `docs/strategy/2026-06-16-*` 문서 끝.
 4. **model_versions 스키마 영구화** (6/23 이후) — `feature_schema`/`params` Supabase 반영 + 챔피언 artifact 저장.
 5. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
 
