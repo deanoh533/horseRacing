@@ -165,6 +165,11 @@ export interface ScoreEngineInput {
   raceDate?: number;                    // 오늘 경주일 YYYYMMDD (조교 윈도우 계산용)
   prevRaceDate?: number | null;         // 직전 경주일 YYYYMMDD (prep 사이클 시작; 신마 null)
   trainingHistory?: TrainingSession[];  // as-of(train_date<raceDate) 조교이력
+
+  // 의료/컨디션 신호 (race_entries raw, 박힌 날짜로 as-of) — 2026-06-15
+  latstBledg1?: string | null;          // 최근 출혈 이력 "YYYY.MM.DD N회"
+  latstBledg2?: string | null;          // 차순위 출혈 이력
+  latstTrea1?: string | null;           // 최근 치료 "YYYY.MM.DD<내용>"
 }
 
 /**
