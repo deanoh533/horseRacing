@@ -26,32 +26,41 @@ describe('classifyRunningStyleFromData', () => {
 });
 
 describe('calculateRunningStylePaceScore', () => {
-  it('도주 + HOT → 0.30 (불리)', () => {
+  it('도주 + HOT → 0.65 (실측 역전 반영: 빠른 페이스서 도주 유리)', () => {
     expect(
       calculateRunningStylePaceScore({
         avgPositionRatio: 0.1,
         stddevPositionRatio: 0.1,
         paceType: 'HOT',
       })
-    ).toBe(0.30);
+    ).toBe(0.65);
   });
-  it('도주 + SLOW → 1.00 (유리)', () => {
+  it('도주 + SLOW → 0.75', () => {
     expect(
       calculateRunningStylePaceScore({
         avgPositionRatio: 0.1,
         stddevPositionRatio: 0.1,
         paceType: 'SLOW',
       })
-    ).toBe(1.00);
+    ).toBe(0.75);
   });
-  it('추입 + HOT → 0.90 (유리)', () => {
+  it('추입 + HOT → 0.60 (도주+HOT 0.65보다 낮음 = 역전 교정)', () => {
     expect(
       calculateRunningStylePaceScore({
         avgPositionRatio: 0.8,
         stddevPositionRatio: 0.1,
         paceType: 'HOT',
       })
-    ).toBe(0.90);
+    ).toBe(0.60);
+  });
+  it('추입 + SLOW → 0.20 (최하 — 가장 불리)', () => {
+    expect(
+      calculateRunningStylePaceScore({
+        avgPositionRatio: 0.8,
+        stddevPositionRatio: 0.1,
+        paceType: 'SLOW',
+      })
+    ).toBe(0.20);
   });
   it('unknown → 0.55 중립', () => {
     expect(
