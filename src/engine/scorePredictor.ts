@@ -33,6 +33,9 @@ interface EntryRow {
   popularity: number | null;
   erng_sump: number | null;
   erng_sump_asof: number | null;
+  latst_bledg1: string | null;
+  latst_bledg2: string | null;
+  latst_trea1_txt: string | null;
 }
 
 export interface PredictionRow {
@@ -54,6 +57,8 @@ export interface RaceInputRow {
   input: ScoreEngineInput;
 }
 
+let warnedNoTraining = false; // training_logs 조회 실패 경고 1회만
+
 export async function gatherRaceInputs(
   sb: ReadClient,
   rcDate: number,
@@ -63,7 +68,7 @@ export async function gatherRaceInputs(
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
-    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, wg_hr, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof')
+    .select('race_date, meet, rc_no, pthr_no, hr_name, hr_no, ag, gndr, ratg, ord, rc_dist, track_type, burd_wgt, wg_hr, jcky_no, trar_no, popularity, erng_sump, erng_sump_asof, latst_bledg1, latst_bledg2, latst_trea1_txt')
     .eq('race_date', rcDate)
     .eq('meet', meet)
     .eq('rc_no', rcNo)
@@ -203,24 +208,32 @@ export async function gatherRaceInputs(
     (async () => { if (lastDates.size === 0) return; const { data } = await sb.from('races').select('race_date, meet, rc_no, prize_cond').in('race_date', [...lastDates]); for (const r of (data ?? []) as { race_date: number; meet: number; rc_no: number; prize_cond: string | null }[]) racePrizeCondMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, r.prize_cond ?? null); })(),
   ]);
   // (G) 조교이력 as-of: hr_no별 train_date<rcDate (최근 365일 캡). 누수 0.
+  // training_logs 미적재/스키마 불일치여도 조교 피처는 선택적 enrichment → 비워두고 진행(파이프라인 보호).
   const trainingByHorse = new Map<string, TrainingSession[]>();
-  if (hrNosU.length > 0) {
-    const trainFloor = subtractDays(rcDate, 365);
-    for (let off = 0; ; off += 1000) {
-      const { data, error } = await sb.from('training_logs')
-        .select('hr_no, train_date, tr_term, run1_cnt, run2_cnt, pr_gubun')
-        .in('hr_no', hrNosU)
-        .gte('train_date', trainFloor)
-        .lt('train_date', rcDate)
-        .order('hr_no').order('train_date', { ascending: false })
-        .range(off, off + 999);
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      for (const r of data as Array<{ hr_no: string; train_date: number; tr_term: number | null; run1_cnt: number | null; run2_cnt: number | null; pr_gubun: string | null }>) {
-        const s: TrainingSession = { trainDate: r.train_date, trTerm: r.tr_term, run1Cnt: r.run1_cnt, run2Cnt: r.run2_cnt, prGubun: r.pr_gubun };
-        const a = trainingByHorse.get(r.hr_no); if (a) a.push(s); else trainingByHorse.set(r.hr_no, [s]);
+  try {
+    if (hrNosU.length > 0) {
+      const trainFloor = subtractDays(rcDate, 365);
+      for (let off = 0; ; off += 1000) {
+        const { data, error } = await sb.from('training_logs')
+          .select('hr_no, train_date, tr_term, run1_cnt, run2_cnt, pr_gubun')
+          .in('hr_no', hrNosU)
+          .gte('train_date', trainFloor)
+          .lt('train_date', rcDate)
+          .order('hr_no').order('train_date', { ascending: false })
+          .range(off, off + 999);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        for (const r of data as Array<{ hr_no: string; train_date: number; tr_term: number | null; run1_cnt: number | null; run2_cnt: number | null; pr_gubun: string | null }>) {
+          const s: TrainingSession = { trainDate: r.train_date, trTerm: r.tr_term, run1Cnt: r.run1_cnt, run2Cnt: r.run2_cnt, prGubun: r.pr_gubun };
+          const a = trainingByHorse.get(r.hr_no); if (a) a.push(s); else trainingByHorse.set(r.hr_no, [s]);
+        }
+        if (data.length < 1000) break;
       }
-      if (data.length < 1000) break;
+    }
+  } catch (e) {
+    if (!warnedNoTraining) {
+      console.warn('⚠️ training_logs 조회 실패 — 조교 피처 생략하고 진행:', (e as Error).message.slice(0, 80));
+      warnedNoTraining = true;
     }
   }
 
@@ -238,6 +251,9 @@ export async function gatherRaceInputs(
       input.raceDate = e.race_date;
       input.prevRaceDate = batch.histByHorse.get(e.hr_name)?.[0]?.race_date ?? null;
       input.trainingHistory = e.hr_no ? (batch.trainingByHorse.get(e.hr_no) ?? []) : [];
+      input.latstBledg1 = e.latst_bledg1;
+      input.latstBledg2 = e.latst_bledg2;
+      input.latstTrea1 = e.latst_trea1_txt;
       return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: e.ord, input };
     })
   );
