@@ -41,5 +41,9 @@ for (const s of ['front', 'pace', 'stalker', 'closer'])
 /** 피처명 → 항목id. `__missing` 접미사는 본체와 같은 항목. 미매핑은 'context'. */
 export function featureToItem(feature: string): string {
   const base = feature.endsWith('__missing') ? feature.slice(0, -'__missing'.length) : feature;
+  // 신규 raw 신호군 — 게이트B 개별 ablation 대상이 되도록 'context'가 아닌 고유 id 부여
+  if (base.startsWith('med_bled')) return 'med_bleed';
+  if (base.startsWith('med_fatigue')) return 'med_fatigue';
+  if (base.startsWith('train_')) return 'train_signal';
   return MAP[base] ?? 'context';
 }

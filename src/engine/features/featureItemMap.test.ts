@@ -33,4 +33,15 @@ describe('featureToItem', () => {
   it('제거된 earnings_log는 미매핑(context)', () => {
     expect(featureToItem('earnings_log')).toBe('context');
   });
+  it('신규 raw 신호군은 고유 그룹(게이트B ablation 대상)', () => {
+    expect(featureToItem('med_bled_asof')).toBe('med_bleed');
+    expect(featureToItem('med_bled_days_since')).toBe('med_bleed');
+    expect(featureToItem('med_fatigue_asof')).toBe('med_fatigue');
+    expect(featureToItem('med_fatigue_days_since')).toBe('med_fatigue');
+    expect(featureToItem('train_has_data')).toBe('train_signal');
+    expect(featureToItem('train_jockey_ridden_ratio')).toBe('train_signal');
+    // 기존 trainer_* 와 충돌 없음
+    expect(featureToItem('trainer_top3')).toBe('10_trainer_form');
+    expect(featureToItem('trainer_recent_n')).toBe('10b_trainer_recent');
+  });
 });
