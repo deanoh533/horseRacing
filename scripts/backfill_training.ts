@@ -119,13 +119,18 @@ async function main() {
 
   // ── 저장 (쿼터 중단이어도 진행분 보존) ──
   const merged = dedupTrainingRows([...existingRows, ...fresh]);
-  writeFileSync(JSONL_PATH, merged.map((r) => JSON.stringify(r)).join('\n'));
   writeFileSync(DONE_PATH, JSON.stringify([...doneSet]));
-  await reloadDuckDB(merged);
 
-  console.log(`\njsonl ${merged.length}행 (신규 ${fresh.length}) → ${JSONL_PATH}`);
-  console.log(`완료 원장 ${doneSet.size} date-meet → ${DONE_PATH}`);
-  console.log(`DuckDB training_logs 적재 완료 (${merged.length}행)`);
+  // ⚠️ 0행이면 적재 건너뜀 — read_json_auto(빈파일)이 기존 training_logs를 파괴하는 것 방지
+  if (merged.length > 0) {
+    writeFileSync(JSONL_PATH, merged.map((r) => JSON.stringify(r)).join('\n'));
+    await reloadDuckDB(merged);
+    console.log(`\njsonl ${merged.length}행 (신규 ${fresh.length}) → ${JSONL_PATH}`);
+    console.log(`완료 원장 ${doneSet.size} date-meet → ${DONE_PATH}`);
+    console.log(`DuckDB training_logs 적재 완료 (${merged.length}행)`);
+  } else {
+    console.log(`\n수집 0행 — DuckDB 적재 건너뜀(기존 테이블 보존). 완료 원장 ${doneSet.size} date-meet.`);
+  }
   if (quotaHit) console.log(`\n⛔ API 쿼터 소진 — 중단. 쿼터 리셋(보통 다음날) 후 같은 명령 재실행하면 skip하고 이어서 진행.`);
   if (failed.length) console.log(`⚠️ 비쿼터 실패 ${failed.length}건(재실행 보충): ${failed.slice(0, 20).join(', ')}${failed.length > 20 ? ' …' : ''}`);
   if (!quotaHit && !failed.length) console.log(`\n✅ 요청 범위 완료.`);
