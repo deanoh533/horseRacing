@@ -1,7 +1,8 @@
 import { featureToItem } from '../features/featureItemMap.js';
 import { buildSchema, toVector } from '../features/alignFeatures.js';
-import { fitLogistic, predictLogit } from '../models/logistic.js';
+import { fitLogistic } from '../models/logistic.js';
 import type { RaceRecord } from './types.js';
+import { scoreHoldout, placeHitRate, fadeHitRate, quinellaHitRate } from './gateMetrics.js';
 
 // ── 게이트 A: 피처 상관계수 ───────────────────────────────────────
 
@@ -84,9 +85,11 @@ export const GATE_B_HOLDOUT_END   = 20251231;
 export interface GateBResult {
   itemId: string;
   include: boolean;
-  delta: number;
+  delta: number;       // = placeDelta (하위호환·채택기준)
   withRate: number;
   withoutRate: number;
+  fadeDelta: number;   // fade 개선량
+  quinDelta: number;   // 복승 개선량
 }
 
 export function runGateB(races: RaceRecord[]): GateBResult[] {
@@ -117,35 +120,18 @@ export function runGateB(races: RaceRecord[]): GateBResult[] {
     r.horses.map((h) => (h.ord <= 3 ? 1 : 0))
   );
 
-  // holdout 연승률 헬퍼
-  function placeRate(
-    model: ReturnType<typeof fitLogistic>,
-    holdout: RaceRecord[],
-    schema: string[]
-  ): number {
-    let hit = 0, n = 0;
-    for (const race of holdout) {
-      const scored = race.horses.map((h) => ({
-        h,
-        score: predictLogit(model, toVector(h.features, schema)),
-      }));
-      const top = scored.sort((a, b) => b.score - a.score)[0];
-      if (!top) continue;
-      n++;
-      if (top.h.ord <= 3) hit++;
-    }
-    return n ? hit / n : 0;
-  }
-
-  // 기준선: 전체 피처 모델
+  // 기준선: 전체 피처 모델 → holdout 3지표
   const modelAll = fitLogistic(trainX, trainY, allFeatures);
-  const baseRate = placeRate(modelAll, gateHoldout, allFeatures);
+  const baseScored = scoreHoldout(modelAll, gateHoldout, allFeatures);
+  const basePlace = placeHitRate(baseScored);
+  const baseFade = fadeHitRate(baseScored);
+  const baseQuin = quinellaHitRate(baseScored);
 
   const results: GateBResult[] = [];
   for (const itemId of itemIds) {
     const itemFeats = allFeatures.filter((n) => featureToItem(n) === itemId);
     if (itemFeats.length === 0) {
-      results.push({ itemId, include: false, delta: 0, withRate: baseRate, withoutRate: baseRate });
+      results.push({ itemId, include: false, delta: 0, withRate: basePlace, withoutRate: basePlace, fadeDelta: 0, quinDelta: 0 });
       continue;
     }
 
@@ -156,23 +142,34 @@ export function runGateB(races: RaceRecord[]): GateBResult[] {
       r.horses.map((h) => toVector(h.features, reducedFeatures))
     );
     const modelWithout = fitLogistic(withoutX, trainY, reducedFeatures);
-    const withoutRate = placeRate(modelWithout, gateHoldout, reducedFeatures);
-    const delta = baseRate - withoutRate;
+    const woScored = scoreHoldout(modelWithout, gateHoldout, reducedFeatures);
 
-    results.push({ itemId, include: delta > 0, delta, withRate: baseRate, withoutRate });
+    const placeDelta = basePlace - placeHitRate(woScored);
+    const fadeDelta = baseFade - fadeHitRate(woScored);
+    const quinDelta = baseQuin - quinellaHitRate(woScored);
+
+    results.push({
+      itemId,
+      include: placeDelta > 0,
+      delta: placeDelta,
+      withRate: basePlace,
+      withoutRate: basePlace - placeDelta,
+      fadeDelta,
+      quinDelta,
+    });
   }
   return results;
 }
 
 export function printGateB(results: GateBResult[]): void {
-  console.log('\n=== 항목 포함 현황 ===\n');
-  console.log('항목                   │ Logistic/GBDT/PL │ 게이트B 개선량');
-  console.log('─'.repeat(60));
+  console.log('\n=== 항목 포함 현황 (연승 채택 / fade·복승 진단) ===\n');
+  console.log('항목                   │ 채택      │   연승 │   fade │   복승');
+  console.log('─'.repeat(66));
+  const pct = (d: number) => `${d >= 0 ? '+' : ''}${(d * 100).toFixed(1)}%p`.padStart(7);
   for (const r of [...results].sort((a, b) => b.delta - a.delta)) {
     const mark = r.include ? '✅ 포함  ' : '⚠️  제외  ';
-    const sign = r.delta >= 0 ? '+' : '';
     console.log(
-      `${r.itemId.padEnd(23)}│ ${mark.padEnd(16)}│ ${sign}${(r.delta * 100).toFixed(1)}%p`
+      `${r.itemId.padEnd(23)}│ ${mark.padEnd(9)}│ ${pct(r.delta)} │ ${pct(r.fadeDelta)} │ ${pct(r.quinDelta)}`
     );
   }
 }
