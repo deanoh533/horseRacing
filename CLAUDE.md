@@ -1,7 +1,7 @@
 # KRA 경마 분석 도구 — Claude 컨텍스트
 
 > 새 세션에서 이 파일을 가장 먼저 읽습니다.
-> 마지막 업데이트: 2026-06-12 (DuckDB 로컬 미러 설계 완료)
+> 마지막 업데이트: 2026-06-16 (시장격파 방법론 전환 — 공개 피처 발굴 종결)
 
 ---
 
@@ -172,17 +172,25 @@ npm run test:run     # vitest 단위 테스트
 **Benchmark 스크립트:** `scripts/benchmark_all.ts` — `npm run benchmark`. **롤링 통합 완료(2026-06-14).**  
 **롤링 통합 완료 (2026-06-14):** benchmark가 walkforward 흡수 → `walkforward_eval.ts` 삭제. 분기 확장윈도우 9모델 + 챔피언(model_versions) 대결 + 시장 깊은 진단(불일치·순위별·묶음). CLI `--gate-only`/`--no-gate`/`--champion <id>`. 코드 `src/engine/eval/`. 실측: 챔피언 롤링 연승 61.4%(시장 68.8%, −7.4%p). 스펙/플랜 `docs/superpowers/{specs,plans}/2026-06-14-rolling-benchmark-integration*`.
 
+**▶ 2026-06-16 세션 인수인계 (다음 세션 여기부터):**
+- **공개 피처 발굴 3건 음성으로 종결** — ① fade/복승 보조채택(게이트 Phase0서 후보0, 스펙/플랜 `2026-06-15-gate-aux-adoption*` CLOSED-null) ② ⑪ 긴요양 골짜기(91-180일 우승 5.7% 실재하나 헤드라인 불변, 되돌림) ③ ⑲ SCORE_MAP 교정(`b842c61`, 레거시용·라이브무관, Spearman 61.8→61.5 노이즈). 셋 다 **흡수 천장** 재확인.
+- **⑲ 스코어맵 종결:** SCORE_MAP=죽은코드(라이브 로지스틱은 buildFeatures one-hot으로 직접학습). "재설계 대기" 아님 — 종결.
+- **신규 산출물:** `docs/feature_hypotheses.md`(가설 카탈로그: 재도전7·현역재검2·탈락확정·메타패턴) + `docs/strategy/2026-06-16-market-edge-and-korean-winning-conditions.md`(방법론 전환 전략).
+- **방향 전환:** "공개 피처 더 짜기" 중단 → 4갈래(서비스 캘리브레이션 / 반공개 신호 / 조건부 엣지 / Benter 2단계). 상세 [[project_market_edge_strategy]].
+- **⚠️ 웹 검증 보류:** WebSearch 한도(06:10 KST 리셋) — 전략문서 ⚠️ 항목(KRA 공제율·노면·Benter 원논문·draw편향) 리셋 후 보강.
+
 **브랜치 상태 (2026-06-12 세션 완료):**
 - `gatherRaceInputs` / `predictRace` → `ReadClient` 추상화 완료 (`src/engine/scorePredictor.ts` 외 관련 파일)
 - `scripts/benchmark_all.ts` 신규 (560줄): collectRaces → Gate A(상관계수) → Gate B(연승률 개선) → 9개 모델 학습 → 평가 → ASCII 리포트
 - 스펙: `docs/superpowers/specs/2026-06-12-multi-model-benchmark-design.md`
 - 플랜: `docs/superpowers/plans/2026-06-12-multi-model-benchmark.md`
 
-**다음 단계 (우선순위):**
-1. **model_versions 스키마 영구화** (6/23 이후) — `feature_schema`/`params` 컬럼 Supabase 반영 + 챔피언 artifact 저장 정착 (현재 읽기는 동작, 쓰기만 대기)
-2. **마체중 직전수집** — KRA 직전정보/계량 API 조사 (gate B +7.2%p, 가장 유망)
-3. **시장격차(−7.4%p) 좁힐 새 raw 신호** — 롤링 benchmark Gate B 기준
-4. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
+**다음 단계 (우선순위 — 2026-06-16 갱신):**
+1. **조교(training) 신호** — 본류. KRA 전체서비스 복구(**6/17 09:00**) 후 사용자가 `scripts/backfill_training.ts` 실행(쿼터벽=최근12개월 먼저) → 커버리지 → `npm run benchmark` 게이트A/B. 코드 Task1~6 완료(325테스트). [[project_training_signals]]
+2. **방법론 전환 후보 (각각 구현 전 brainstorm)** — ① Benter 2단계 + 캘리브레이션/EV 평가축(win_odds=0 재시험) ② 조건부 엣지 마이닝(모델·시장 불일치 적중 경주의 조건분포) ③ 마체중 직전수집(KRA 직전정보 API, +7.2%p 보류분). 상세 [[project_market_edge_strategy]] / `docs/strategy/2026-06-16-*`.
+3. **웹 검증 보강** (06:10 KST 이후) — 전략문서 ⚠️ 항목.
+4. **model_versions 스키마 영구화** (6/23 이후) — `feature_schema`/`params` Supabase 반영 + 챔피언 artifact 저장.
+5. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
 
 **롤백:** 이전 model_version id로 promote
 
@@ -194,7 +202,7 @@ npm run test:run     # vitest 단위 테스트
 - **21항목 ρ·가중치·개선 상태** → [docs/score_roadmap.md](docs/score_roadmap.md) (Living Doc, §1 마스터 상태표)
 - **의문·검토 중** → [docs/troubleshooting.md](docs/troubleshooting.md)
 
-> 현재 최우선 개선 후보: ⑧ 부담중량 산식(ρ=0.316, 자문 대기) · ⑲ 스코어맵 재설계(한국 실측 역전). 상세는 위 문서 참조.
+> 현재 최우선 개선 후보: ⑧ 부담중량 산식(ρ=0.316, 자문 대기). (⑲ 스코어맵은 2026-06-16 종결 — SCORE_MAP=죽은코드, 로지스틱이 직접학습) 상세는 위 문서 참조.
 
 ---
 
