@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { enumerateDates, dedupTrainingRows } from './backfill_training.js';
+import { enumerateDates, dedupTrainingRows, doneKey } from './backfill_training.js';
+
+describe('doneKey', () => {
+  it('date-meet 키 생성', () => {
+    expect(doneKey(20260521, 1)).toBe('20260521-1');
+    expect(doneKey(20260521, 3)).toBe('20260521-3');
+  });
+});
 
 describe('enumerateDates', () => {
   it('월 경계 포함 일별 열거', () => {
