@@ -147,3 +147,24 @@ export function aggregate(rows: EdgeRow[], opts: AggOptions): SegmentStat[] {
   }
   return stats;
 }
+
+/** 분기별 +/− 한눈 표시. 표본부족(n<minCellN)은 · */
+export function sparkline(quarters: QuarterCell[], minCellN: number): string {
+  return quarters.map((q) => (q.n < minCellN ? '·' : q.placeEdge > 0 ? '+' : '−')).join(' ');
+}
+
+export function formatReport(stats: SegmentStat[], _minCellN: number): string {
+  const order: Record<SegmentStat['verdict'], number> = { '채택후보': 0, '혼조': 1, '보류': 2 };
+  const sorted = [...stats].sort((a, b) =>
+    order[a.verdict] - order[b.verdict] || b.pooledPlaceEdge - a.pooledPlaceEdge);
+  const pct = (d: number) => `${d >= 0 ? '+' : ''}${(d * 100).toFixed(1)}%p`.padStart(7);
+  const lines: string[] = [];
+  lines.push('구간                                          │ 총n │ +/유효 │  연승 │  단승 │   2착 │ 판정');
+  lines.push('─'.repeat(108));
+  for (const s of sorted) {
+    lines.push(
+      `${s.segment.padEnd(44).slice(0, 44)} │ ${String(s.totalN).padStart(3)} │ ${String(s.positiveQuarters).padStart(2)}/${String(s.qualifyingQuarters).padEnd(3)}│ ${pct(s.pooledPlaceEdge)} │ ${pct(s.pooledWinEdge)} │ ${pct(s.pooledTop2Edge)} │ ${s.verdict}`
+    );
+  }
+  return lines.join('\n');
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { conditionRace, recordEdges, aggregate, type EdgeRow } from './edgeMining.js';
+import { conditionRace, recordEdges, aggregate, formatReport, sparkline, type EdgeRow } from './edgeMining.js';
 import type { RaceRecord } from './types.js';
 import type { ScorableModel } from './score.js';
 
@@ -102,5 +102,24 @@ describe('aggregate — 분기 안정성 가드', () => {
     const rows = quarterRows('2025-Q1', 12, true);
     const stats = aggregate(rows, { minCellN: 10, minQuarters: 1, positiveRatio: 0.6, combos: true });
     expect(stats.some((s) => s.segment === 'favOddsBand=fav>2.9 ∩ fieldBand=field>=12')).toBe(true);
+  });
+});
+
+describe('Reporter', () => {
+  it('sparkline: 표본부족=· / 양수=+ / 음수=−', () => {
+    const quarters = [
+      { key: '2025-Q1', n: 12, placeEdge: 0.1 },
+      { key: '2025-Q2', n: 5, placeEdge: -0.2 },
+      { key: '2025-Q3', n: 12, placeEdge: -0.05 },
+    ];
+    expect(sparkline(quarters, 10)).toBe('+ · −');
+  });
+  it('formatReport: 채택후보가 보류보다 먼저', () => {
+    const stats = [
+      { segment: 'X', totalN: 10, quarters: [], qualifyingQuarters: 1, positiveQuarters: 0, pooledWinEdge: 0, pooledTop2Edge: 0, pooledPlaceEdge: -0.1, verdict: '보류' as const },
+      { segment: 'Y', totalN: 50, quarters: [], qualifyingQuarters: 6, positiveQuarters: 5, pooledWinEdge: 0.02, pooledTop2Edge: 0.03, pooledPlaceEdge: 0.04, verdict: '채택후보' as const },
+    ];
+    const out = formatReport(stats, 10);
+    expect(out.indexOf('Y')).toBeLessThan(out.indexOf('X'));
   });
 });
