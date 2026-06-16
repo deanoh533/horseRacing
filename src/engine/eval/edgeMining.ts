@@ -1,3 +1,8 @@
+import { rankHorses, type ScorableModel } from './score.js';
+import { rankByOdds } from './market.js';
+import { quarterKey } from './rolling.js';
+import type { RaceRecord } from './types.js';
+
 export interface SegmentLabels {
   favOddsBand: string;
   fieldBand: string;
@@ -31,4 +36,39 @@ export function conditionRace(p: {
     : p.favModelRank === 3 ? 'dis3'
     : 'dis>=4';
   return { favOddsBand, fieldBand, distBand, disagreeStrength };
+}
+
+export interface EdgeRow {
+  quarterKey: string;
+  labels: SegmentLabels;
+  modelPickOrd: number;
+  favPickOrd: number;
+}
+
+/** 모델top1 ≠ 인기top1 인 경주만 1행으로 기록. */
+export function recordEdges(races: RaceRecord[], model: ScorableModel): EdgeRow[] {
+  const rows: EdgeRow[] = [];
+  for (const race of races) {
+    const modelOrder = rankHorses(model, race.horses);
+    const mktOrder = rankByOdds(race.horses); // win_odds 오름차순, 유효 배당만
+    const mPick = modelOrder[0];
+    const fPick = mktOrder[0];
+    if (!mPick || !fPick) continue;
+    if (mPick.hrName === fPick.hrName) continue;
+    if (mPick.ord == null || fPick.ord == null) continue;
+    const favModelRank = modelOrder.findIndex((h) => h.hrName === fPick.hrName) + 1;
+    const labels = conditionRace({
+      favWinOdds: fPick.winOdds as number,
+      fieldSize: race.horses.length,
+      rcDist: race.rcDist ?? 0,
+      favModelRank,
+    });
+    rows.push({
+      quarterKey: quarterKey(race.raceDate),
+      labels,
+      modelPickOrd: mPick.ord,
+      favPickOrd: fPick.ord,
+    });
+  }
+  return rows;
 }

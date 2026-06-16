@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { conditionRace } from './edgeMining.js';
+import { conditionRace, recordEdges } from './edgeMining.js';
+import type { RaceRecord } from './types.js';
+import type { ScorableModel } from './score.js';
 
 describe('conditionRace — 버킷 경계', () => {
   it('배당대(분위수 기반): 1.8 이하 강한본명 / 2.9 초과 혼전', () => {
@@ -17,5 +19,39 @@ describe('conditionRace — 버킷 경계', () => {
   it('불일치 강도: 인기1위가 모델 2등=약 / 4등 이상=강', () => {
     expect(conditionRace({ favWinOdds: 3, fieldSize: 10, rcDist: 1200, favModelRank: 2 }).disagreeStrength).toBe('dis2');
     expect(conditionRace({ favWinOdds: 3, fieldSize: 10, rcDist: 1200, favModelRank: 5 }).disagreeStrength).toBe('dis>=4');
+  });
+});
+
+describe('recordEdges — 불일치 경주만 기록', () => {
+  const model: ScorableModel = { kind: 'weights', weights: { r: 1 } };
+  const hr = (name: string, r: number, winOdds: number, ord: number) =>
+    ({ hrName: name, pthrNo: 0, ord, winOdds, rawScores: { r }, features: [] });
+
+  it('모델top1≠인기top1이면 1행, 착순·라벨·분기 기록', () => {
+    const race: RaceRecord = {
+      raceDate: 20250115, meet: 1, rcNo: 1, rcDist: 1200,
+      horses: [
+        hr('A', 0.9, 5.0, 4),
+        hr('B', 0.8, 1.5, 1),
+        hr('C', 0.5, 3.0, 2),
+        hr('D', 0.2, 8.0, 5),
+      ],
+    };
+    const rows = recordEdges([race], model);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.modelPickOrd).toBe(4);
+    expect(rows[0]!.favPickOrd).toBe(1);
+    expect(rows[0]!.quarterKey).toBe('2025-Q1');
+    expect(rows[0]!.labels.favOddsBand).toBe('fav<=1.8');
+    expect(rows[0]!.labels.fieldBand).toBe('field<=9');
+    expect(rows[0]!.labels.disagreeStrength).toBe('dis2');
+  });
+
+  it('모델top1=인기top1(일치)이면 제외', () => {
+    const race: RaceRecord = {
+      raceDate: 20250115, meet: 1, rcNo: 2, rcDist: 1200,
+      horses: [hr('A', 0.9, 1.5, 1), hr('B', 0.5, 3.0, 2), hr('C', 0.2, 8.0, 3)],
+    };
+    expect(recordEdges([race], model)).toHaveLength(0);
   });
 });
