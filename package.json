@@ -17,6 +17,7 @@
     "promote": "tsx scripts/promote_version.ts",
     "build:rho-history": "tsx scripts/build_rho_history.ts",
     "benchmark": "tsx scripts/benchmark_all.ts",
+    "mine:edge": "tsx scripts/mine_conditional_edge.ts",
     "sync:pg": "tsx scripts/sync_daily_pg.ts",
     "test": "vitest",
     "test:run": "vitest run",
