@@ -54,6 +54,14 @@ describe('recordEdges — 불일치 경주만 기록', () => {
     };
     expect(recordEdges([race], model)).toHaveLength(0);
   });
+
+  it('거리(rcDist) 결측 경주는 제외 (distBand 오분류 방지)', () => {
+    const race: RaceRecord = {
+      raceDate: 20250115, meet: 1, rcNo: 3, // rcDist 없음
+      horses: [hr('A', 0.9, 5.0, 4), hr('B', 0.8, 1.5, 1), hr('C', 0.5, 3.0, 2)],
+    };
+    expect(recordEdges([race], model)).toHaveLength(0);
+  });
 });
 
 describe('aggregate — 분기 안정성 가드', () => {

@@ -56,11 +56,12 @@ export function recordEdges(races: RaceRecord[], model: ScorableModel): EdgeRow[
     if (!mPick || !fPick) continue;
     if (mPick.hrName === fPick.hrName) continue;
     if (mPick.ord == null || fPick.ord == null) continue;
+    if (race.rcDist == null) continue; // 거리 결측 → distBand 오분류 방지(코드리뷰 2026-06-16)
     const favModelRank = modelOrder.findIndex((h) => h.hrName === fPick.hrName) + 1;
     const labels = conditionRace({
       favWinOdds: fPick.winOdds as number,
       fieldSize: race.horses.length,
-      rcDist: race.rcDist ?? 0,
+      rcDist: race.rcDist,
       favModelRank,
     });
     rows.push({
