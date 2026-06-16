@@ -23,9 +23,11 @@
 
 ---
 
-## Task 1: 분포 probe로 버킷 임계값 확정
+## Task 1: 분포 probe로 버킷 임계값 확정 ✅ 완료(2026-06-16)
 
-**목적:** 잠정 버킷(배당 2.0/3.5/6.0, 두수 9/11)을 실제 분포로 검증·조정. (작업방식: 임계값은 직관 아닌 데이터로.)
+**결과:** 인기1위 배당 분위수 p25=1.8·p50=2.3·p75=2.9·p90=3.4(최대 23.6) → 배당대 `≤1.8/1.8-2.3/2.3-2.9/>2.9`로 확정(Task 3 반영 완료). 두수 분포 8~12 집중 → `≤9/10-11/≥12` 유지. 아래는 재현용 절차(이미 수행됨, 재실행 불필요).
+
+**목적:** 잠정 버킷을 실제 분포로 검증·조정. (작업방식: 임계값은 직관 아닌 데이터로.)
 
 **Files:**
 - Create(임시): `scripts/_probe_edge_buckets.mts` (실행 후 삭제)
@@ -141,9 +143,9 @@ import { describe, it, expect } from 'vitest';
 import { conditionRace } from './edgeMining.js';
 
 describe('conditionRace — 버킷 경계', () => {
-  it('배당대: 2.0 이하 강한본명 / 6 초과 혼전', () => {
-    expect(conditionRace({ favWinOdds: 1.8, fieldSize: 10, rcDist: 1200, favModelRank: 2 }).favOddsBand).toBe('fav<=2.0');
-    expect(conditionRace({ favWinOdds: 7.0, fieldSize: 10, rcDist: 1200, favModelRank: 2 }).favOddsBand).toBe('fav>6');
+  it('배당대(분위수 기반): 1.8 이하 강한본명 / 2.9 초과 혼전', () => {
+    expect(conditionRace({ favWinOdds: 1.8, fieldSize: 10, rcDist: 1200, favModelRank: 2 }).favOddsBand).toBe('fav<=1.8');
+    expect(conditionRace({ favWinOdds: 3.0, fieldSize: 10, rcDist: 1200, favModelRank: 2 }).favOddsBand).toBe('fav>2.9');
   });
   it('두수: 9 이하 / 10~11 / 12 이상', () => {
     expect(conditionRace({ favWinOdds: 3, fieldSize: 9, rcDist: 1200, favModelRank: 2 }).fieldBand).toBe('field<=9');
@@ -184,11 +186,12 @@ export function conditionRace(p: {
   rcDist: number;
   favModelRank: number; // 1-based: 인기1위가 모델 순위에서 몇 등인가
 }): SegmentLabels {
+  // 배당대 경계 = 인기1위 win_odds 분위수(2026-06-16 probe: p25=1.8·p50=2.3·p75=2.9).
   const favOddsBand =
-    p.favWinOdds <= 2.0 ? 'fav<=2.0'
-    : p.favWinOdds <= 3.5 ? 'fav2-3.5'
-    : p.favWinOdds <= 6.0 ? 'fav3.5-6'
-    : 'fav>6';
+    p.favWinOdds <= 1.8 ? 'fav<=1.8'
+    : p.favWinOdds <= 2.3 ? 'fav1.8-2.3'
+    : p.favWinOdds <= 2.9 ? 'fav2.3-2.9'
+    : 'fav>2.9';
   const fieldBand =
     p.fieldSize <= 9 ? 'field<=9'
     : p.fieldSize <= 11 ? 'field10-11'
@@ -254,7 +257,7 @@ describe('recordEdges — 불일치 경주만 기록', () => {
     expect(rows[0]!.modelPickOrd).toBe(4); // A 착순
     expect(rows[0]!.favPickOrd).toBe(1);   // B 착순
     expect(rows[0]!.quarterKey).toBe('2025-Q1');
-    expect(rows[0]!.labels.favOddsBand).toBe('fav<=2.0');
+    expect(rows[0]!.labels.favOddsBand).toBe('fav<=1.8');
     expect(rows[0]!.labels.fieldBand).toBe('field<=9');
     expect(rows[0]!.labels.disagreeStrength).toBe('dis2'); // B는 모델 2등
   });
