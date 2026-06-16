@@ -19,6 +19,7 @@
     "benchmark": "tsx scripts/benchmark_all.ts",
     "mine:edge": "tsx scripts/mine_conditional_edge.ts",
     "calib": "tsx scripts/calibration_report.ts",
+    "calib:recal": "tsx scripts/recalibration_report.ts",
     "sync:pg": "tsx scripts/sync_daily_pg.ts",
     "test": "vitest",
     "test:run": "vitest run",
