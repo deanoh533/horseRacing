@@ -24,9 +24,9 @@
 collectRaces(2024~)  →  rollingBlocks(FIRST_TEST=2025Q1)
    각 블록 {train, test}:
      fitLogistic(train, yTop1) → P1모델 ;  fitLogistic(train, yTop3) → P3모델
-     test 각 말:
-       modelWinP   = predictLogit(P1, x) ;  경주내 정규화(합=1)
-       modelTop3P  = predictLogit(P3, x)         (정규화 안 함 — 독립 이진확률)
+     test 각 말:  (⚠️ predictLogit은 logit 반환 → sigmoid로 확률화 필수)
+       modelWinP   = sigmoid(predictLogit(P1, x)) ;  경주내 정규화(합=1)
+       modelTop3P  = sigmoid(predictLogit(P3, x))    (정규화 안 함 — 독립 이진확률)
        marketWinP  = (1/winOdds) ;  경주내 정규화(오버라운드 제거)
        winOutcome  = (ord==1) ;  top3Outcome = (ord<=3)
    → 쌍 수집: {quarterKey, modelWinP, modelTop3P, marketWinP, winOutcome, top3Outcome}
