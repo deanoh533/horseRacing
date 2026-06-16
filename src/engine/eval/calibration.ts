@@ -1,6 +1,11 @@
 export interface Pair { p: number; y: number; }
 export interface Bin { avgPred: number; actualRate: number; n: number; }
 
+/** 로지스틱 확률 = 1/(1+e^−z). predictLogit은 logit을 주므로 확률 변환에 필요. */
+export function sigmoid(z: number): number {
+  return 1 / (1 + Math.exp(-z));
+}
+
 /** 값들을 합으로 나눠 합=1 분포로. 합이 0 이하면 전부 0(방어). */
 export function normalizeProbs(values: number[]): number[] {
   const sum = values.reduce((s, v) => s + v, 0);

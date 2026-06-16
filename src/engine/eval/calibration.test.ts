@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { reliabilityBins, ece, brier, logLoss, normalizeProbs } from './calibration.js';
+import { reliabilityBins, ece, brier, logLoss, normalizeProbs, sigmoid } from './calibration.js';
 import { formatCalibration, type CalibrationReport } from './calibration.js';
+
+describe('sigmoid', () => {
+  it('0 → 0.5, 큰 양수 → ~1, 큰 음수 → ~0', () => {
+    expect(sigmoid(0)).toBeCloseTo(0.5, 9);
+    expect(sigmoid(20)).toBeGreaterThan(0.99);
+    expect(sigmoid(-20)).toBeLessThan(0.01);
+  });
+});
 
 describe('normalizeProbs', () => {
   it('합으로 나눠 합=1', () => {
