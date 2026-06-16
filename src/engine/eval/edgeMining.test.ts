@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { conditionRace, recordEdges } from './edgeMining.js';
+import { conditionRace, recordEdges, aggregate, type EdgeRow } from './edgeMining.js';
 import type { RaceRecord } from './types.js';
 import type { ScorableModel } from './score.js';
 
@@ -53,5 +53,54 @@ describe('recordEdges — 불일치 경주만 기록', () => {
       horses: [hr('A', 0.9, 1.5, 1), hr('B', 0.5, 3.0, 2), hr('C', 0.2, 8.0, 3)],
     };
     expect(recordEdges([race], model)).toHaveLength(0);
+  });
+});
+
+describe('aggregate — 분기 안정성 가드', () => {
+  const labels = { favOddsBand: 'fav>2.9', fieldBand: 'field>=12', distBand: 'dist<=1400', disagreeStrength: 'dis>=4' };
+  const quarterRows = (qk: string, n: number, modelWins: boolean): EdgeRow[] =>
+    Array.from({ length: n }, () => ({
+      quarterKey: qk, labels,
+      modelPickOrd: modelWins ? 1 : 5,
+      favPickOrd: modelWins ? 5 : 1,
+    }));
+
+  it('유효분기 충분 + 다수 양수 → 채택후보', () => {
+    const rows = [
+      ...quarterRows('2025-Q1', 12, true), ...quarterRows('2025-Q2', 12, true),
+      ...quarterRows('2025-Q3', 12, true), ...quarterRows('2025-Q4', 12, true),
+      ...quarterRows('2026-Q1', 12, false),
+    ];
+    const stats = aggregate(rows, { minCellN: 10, minQuarters: 4, positiveRatio: 0.6, combos: false });
+    const seg = stats.find((s) => s.segment === 'favOddsBand=fav>2.9')!;
+    expect(seg.qualifyingQuarters).toBe(5);
+    expect(seg.positiveQuarters).toBe(4);
+    expect(seg.verdict).toBe('채택후보');
+    expect(seg.pooledPlaceEdge).toBeGreaterThan(0);
+  });
+
+  it('유효분기 부족 → 보류', () => {
+    const rows = [...quarterRows('2025-Q1', 12, true), ...quarterRows('2025-Q2', 12, true)];
+    const stats = aggregate(rows, { minCellN: 10, minQuarters: 4, positiveRatio: 0.6, combos: false });
+    const seg = stats.find((s) => s.segment === 'favOddsBand=fav>2.9')!;
+    expect(seg.verdict).toBe('보류');
+  });
+
+  it('표본 부족 분기는 유효분기서 제외', () => {
+    const rows = [
+      ...quarterRows('2025-Q1', 12, true), ...quarterRows('2025-Q2', 12, true),
+      ...quarterRows('2025-Q3', 12, true), ...quarterRows('2025-Q4', 12, true),
+      ...quarterRows('2026-Q1', 5, false),
+    ];
+    const stats = aggregate(rows, { minCellN: 10, minQuarters: 4, positiveRatio: 0.6, combos: false });
+    const seg = stats.find((s) => s.segment === 'favOddsBand=fav>2.9')!;
+    expect(seg.qualifyingQuarters).toBe(4);
+    expect(seg.positiveQuarters).toBe(4);
+  });
+
+  it('combos=true면 2차 조합 구간도 생성', () => {
+    const rows = quarterRows('2025-Q1', 12, true);
+    const stats = aggregate(rows, { minCellN: 10, minQuarters: 1, positiveRatio: 0.6, combos: true });
+    expect(stats.some((s) => s.segment === 'favOddsBand=fav>2.9 ∩ fieldBand=field>=12')).toBe(true);
   });
 });
