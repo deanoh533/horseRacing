@@ -144,6 +144,8 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   if (input.intervalDays != null) add('interval_days', input.intervalDays);
 
   // ⑫ 출발번호 상대위치 (raw, ⓑ multiplier 제거)
+  // ⑫b draw×거리 상호작용 시험(2026-06-16): 단거리 안쪽우위 실측은 실재하나
+  //     게이트B 연승 −0.7%p(흡수) → 기각. flat gate_relative+rc_dist가 이미 담음.
   if (input.stOrd != null && input.totalHorses != null && input.totalHorses > 1) {
     add('gate_relative', (input.totalHorses - input.stOrd) / (input.totalHorses - 1));
   }

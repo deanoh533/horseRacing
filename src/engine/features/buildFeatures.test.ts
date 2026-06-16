@@ -172,4 +172,5 @@ describe('buildFeatures — 버킷·교차항', () => {
     const fs = buildFeatures({ rating: 0, age: 6, rcDist: 1800 });
     expect(fs.find((f) => f.name === 'x_old_long')?.value).toBe(1);
   });
+  // ⑫b draw×거리 상호작용: 2026-06-16 게이트B 기각(연승 −0.7%p, 흡수). 피처 제거됨.
 });
