@@ -17,7 +17,7 @@ export async function collectRaces(
 ): Promise<RaceRecord[]> {
   const { data: raceList, error } = await db
     .from('races')
-    .select('race_date, meet, rc_no')
+    .select('race_date, meet, rc_no, rc_dist')
     .gte('race_date', fromDate)
     .lte('race_date', toDate)
     .order('race_date')
@@ -29,7 +29,7 @@ export async function collectRaces(
   const races: RaceRecord[] = [];
   const engine = new ScoreEngine({});
 
-  for (const r of raceList as { race_date: number; meet: number; rc_no: number }[]) {
+  for (const r of raceList as { race_date: number; meet: number; rc_no: number; rc_dist: number | null }[]) {
     const rows = await gatherRaceInputs(db, r.race_date, r.meet, r.rc_no);
     if (rows.length === 0) continue;
 
@@ -68,7 +68,7 @@ export async function collectRaces(
       };
     });
 
-    races.push({ raceDate: r.race_date, meet: r.meet, rcNo: r.rc_no, horses });
+    races.push({ raceDate: r.race_date, meet: r.meet, rcNo: r.rc_no, rcDist: r.rc_dist ?? undefined, horses });
   }
 
   return races;
