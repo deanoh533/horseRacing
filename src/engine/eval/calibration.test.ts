@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { reliabilityBins, ece, brier, logLoss, normalizeProbs } from './calibration.js';
+import { formatCalibration, type CalibrationReport } from './calibration.js';
 
 describe('normalizeProbs', () => {
   it('합으로 나눠 합=1', () => {
@@ -53,5 +54,24 @@ describe('logLoss', () => {
   });
   it('완벽예측이면 ~0', () => {
     expect(logLoss([{ p: 1, y: 1 }])).toBeCloseTo(0, 6);
+  });
+});
+
+describe('formatCalibration — 스모크', () => {
+  it('모델·시장·P3·분기 섹션 포함', () => {
+    const mk = (n: number, p: number, y: number): { p: number; y: number }[] =>
+      Array.from({ length: n }, () => ({ p, y }));
+    const report: CalibrationReport = {
+      modelWin: [...mk(50, 0.1, 0), ...mk(50, 0.3, 1)],
+      marketWin: [...mk(50, 0.12, 0), ...mk(50, 0.28, 1)],
+      modelTop3: [...mk(50, 0.2, 0), ...mk(50, 0.5, 1)],
+      perQuarter: [{ key: '2025-Q1', modelEce: 0.05, marketEce: 0.04 }],
+    };
+    const out = formatCalibration(report);
+    expect(out).toContain('P(1착)');
+    expect(out).toContain('시장');
+    expect(out).toContain('P(3착내)');
+    expect(out).toContain('ECE');
+    expect(out).toContain('2025-Q1');
   });
 });

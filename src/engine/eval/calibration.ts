@@ -49,3 +49,49 @@ export function logLoss(pairs: Pair[]): number {
   }, 0);
   return -sum / pairs.length;
 }
+
+export interface CalibrationReport {
+  modelWin: Pair[];
+  marketWin: Pair[];
+  modelTop3: Pair[];
+  perQuarter: { key: string; modelEce: number; marketEce: number }[];
+}
+
+/** 신뢰도 표(P1착 모델 vs 시장 + P3착내 모델) + 요약수 + 분기별 ECE. ASCII. */
+export function formatCalibration(r: CalibrationReport, nBins = 10): string {
+  const f3 = (x: number) => x.toFixed(3);
+  const lines: string[] = [];
+
+  const mWin = reliabilityBins(r.modelWin, nBins);
+  const kWin = reliabilityBins(r.marketWin, nBins);
+  lines.push('=== P(1착) 신뢰도: 모델 vs 시장 (OOS 풀링) ===');
+  lines.push('bin │ 모델예측 모델실제    n  │ 시장예측 시장실제    n');
+  lines.push('─'.repeat(62));
+  const cell = (b?: Bin) =>
+    b ? `${f3(b.avgPred)}    ${f3(b.actualRate)}  ${String(b.n).padStart(4)}` : '   -        -       -';
+  const nrows = Math.max(mWin.length, kWin.length);
+  for (let i = 0; i < nrows; i++) {
+    lines.push(`${String(i + 1).padStart(2)}  │ ${cell(mWin[i])} │ ${cell(kWin[i])}`);
+  }
+  lines.push('');
+  lines.push('요약           모델       시장');
+  lines.push(`ECE        ${f3(ece(mWin)).padStart(8)}  ${f3(ece(kWin)).padStart(8)}`);
+  lines.push(`Brier      ${f3(brier(r.modelWin)).padStart(8)}  ${f3(brier(r.marketWin)).padStart(8)}`);
+  lines.push(`log-loss   ${f3(logLoss(r.modelWin)).padStart(8)}  ${f3(logLoss(r.marketWin)).padStart(8)}`);
+  lines.push('');
+
+  const mT3 = reliabilityBins(r.modelTop3, nBins);
+  lines.push('=== P(3착내) 신뢰도: 모델 단독 ===');
+  lines.push('bin │ 모델예측 모델실제    n');
+  for (let i = 0; i < mT3.length; i++) {
+    const b = mT3[i]!;
+    lines.push(`${String(i + 1).padStart(2)}  │ ${f3(b.avgPred)}    ${f3(b.actualRate)}  ${String(b.n).padStart(4)}`);
+  }
+  lines.push(`ECE=${f3(ece(mT3))}  Brier=${f3(brier(r.modelTop3))}  log-loss=${f3(logLoss(r.modelTop3))}`);
+  lines.push('');
+
+  lines.push('분기별 ECE(P1착)  [모델 / 시장]');
+  for (const q of r.perQuarter) lines.push(`  ${q.key}: ${f3(q.modelEce)} / ${f3(q.marketEce)}`);
+
+  return lines.join('\n');
+}
