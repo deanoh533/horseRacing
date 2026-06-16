@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reliabilityBins, ece, brier, logLoss, normalizeProbs, sigmoid, fitPlatt, applyPlatt } from './calibration.js';
+import { reliabilityBins, ece, brier, logLoss, normalizeProbs, sigmoid, fitPlatt, applyPlatt, fitIsotonic, applyIsotonic, type IsotonicModel } from './calibration.js';
 import { formatCalibration, type CalibrationReport } from './calibration.js';
 
 describe('sigmoid', () => {
@@ -135,5 +135,40 @@ describe('fitPlatt', () => {
     const cal = fitPlatt(pairs);
     const after = ece(reliabilityBins(pairs.map((pr) => ({ p: applyPlatt(cal, pr.p), y: pr.y })), 10));
     expect(after).toBeLessThan(before);
+  });
+});
+
+describe('fitIsotonic — PAV 단조회귀', () => {
+  it('역전 입력도 출력 y 단조 비감소', () => {
+    const pairs = [
+      { p: 0.1, y: 1 }, { p: 0.2, y: 0 }, { p: 0.3, y: 1 },
+      { p: 0.4, y: 0 }, { p: 0.5, y: 1 },
+    ];
+    const m = fitIsotonic(pairs);
+    for (let i = 1; i < m.y.length; i++) {
+      expect(m.y[i]!).toBeGreaterThanOrEqual(m.y[i - 1]!);
+    }
+  });
+  it('이미 단조면 그룹 평균 유지 (저=0, 고=1)', () => {
+    const m = fitIsotonic([
+      { p: 0.1, y: 0 }, { p: 0.2, y: 0 }, { p: 0.8, y: 1 }, { p: 0.9, y: 1 },
+    ]);
+    expect(m.y[0]!).toBeCloseTo(0, 6);
+    expect(m.y[m.y.length - 1]!).toBeCloseTo(1, 6);
+  });
+  it('빈 입력 → 빈 모델', () => {
+    expect(fitIsotonic([])).toEqual({ x: [], y: [] });
+  });
+});
+
+describe('applyIsotonic', () => {
+  it('보간 + 경계 클램프', () => {
+    const cal: IsotonicModel = { x: [0.2, 0.8], y: [0.1, 0.9] };
+    expect(applyIsotonic(cal, 0.05)).toBeCloseTo(0.1, 6);
+    expect(applyIsotonic(cal, 0.95)).toBeCloseTo(0.9, 6);
+    expect(applyIsotonic(cal, 0.5)).toBeCloseTo(0.5, 6);
+  });
+  it('빈 모델 → 입력 그대로', () => {
+    expect(applyIsotonic({ x: [], y: [] }, 0.4)).toBe(0.4);
   });
 });

@@ -94,6 +94,48 @@ export function applyPlatt(cal: { a: number; b: number }, p: number): number {
   return 1 / (1 + Math.exp(-(cal.a * clipLogit(p) + cal.b)));
 }
 
+/** Isotonic 보정자: 분기점 x(블록 평균예측)·값 y(블록 실제비율), 단조 비감소. */
+export interface IsotonicModel { x: number[]; y: number[]; }
+
+/** PAV 단조회귀. p 오름차순 정렬 후 인접 위반 블록을 병합(가중평균). */
+export function fitIsotonic(pairs: Pair[]): IsotonicModel {
+  if (pairs.length === 0) return { x: [], y: [] };
+  const sorted = [...pairs].sort((a, b) => a.p - b.p);
+  const blocks: { sumY: number; sumX: number; n: number }[] = [];
+  for (const pr of sorted) {
+    blocks.push({ sumY: pr.y, sumX: pr.p, n: 1 });
+    while (blocks.length > 1) {
+      const last = blocks[blocks.length - 1]!;
+      const prev = blocks[blocks.length - 2]!;
+      if (prev.sumY / prev.n <= last.sumY / last.n) break;
+      prev.sumY += last.sumY;
+      prev.sumX += last.sumX;
+      prev.n += last.n;
+      blocks.pop();
+    }
+  }
+  return {
+    x: blocks.map((b) => b.sumX / b.n),
+    y: blocks.map((b) => b.sumY / b.n),
+  };
+}
+
+/** Isotonic 적용: 분기점 사이 선형보간, 경계는 끝값 클램프. 빈 모델→입력 그대로. */
+export function applyIsotonic(cal: IsotonicModel, p: number): number {
+  const { x, y } = cal;
+  if (x.length === 0) return p;
+  if (p <= x[0]!) return y[0]!;
+  if (p >= x[x.length - 1]!) return y[y.length - 1]!;
+  let i = 1;
+  while (i < x.length && x[i]! < p) i++;
+  const x0 = x[i - 1]!;
+  const x1 = x[i]!;
+  const y0 = y[i - 1]!;
+  const y1 = y[i]!;
+  if (x1 === x0) return y0;
+  return y0 + ((p - x0) / (x1 - x0)) * (y1 - y0);
+}
+
 export interface CalibrationReport {
   modelWin: Pair[];
   marketWin: Pair[];
