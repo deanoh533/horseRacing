@@ -355,10 +355,10 @@ export class ScoreEngine {
       })
     );
 
-    // ⑱ 수득상금 (race_cards.erng_sump)
+    // ⑱ 수득상금 — as-of(과거 누적, 현재경주 제외)로 누수 제거. erng_sump(현재 스냅샷)는 누수라 미사용.
     items['18_earnings'] = this.make(
       '18_earnings',
-      calculateEarningsScore({ erngSump: input.erngSump })
+      calculateEarningsScore({ erngSump: input.earningsAsof ?? undefined })
     );
 
     // ⑲ 주행성향 × 페이스

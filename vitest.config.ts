@@ -21,6 +21,7 @@ export default defineConfig({
       '@ai': path.resolve(__dirname, './src/ai'),
       '@utils': path.resolve(__dirname, './src/utils'),
       '@types': path.resolve(__dirname, './src/types'),
+      '@app-types': path.resolve(__dirname, './src/types'),
     },
   },
 });
