@@ -55,6 +55,45 @@ export function logLoss(pairs: Pair[]): number {
   return -sum / pairs.length;
 }
 
+/** 확률을 [1e−9, 1−1e−9]로 클립 후 logit. Platt 입출력 공용. */
+function clipLogit(p: number): number {
+  const c = Math.min(1 - 1e-9, Math.max(1e-9, p));
+  return Math.log(c / (1 - c));
+}
+
+/** Platt 보정자: sigmoid(a·logit(p)+b)를 실제결과에 경사하강 적합. 빈 입력→항등. */
+export function fitPlatt(
+  pairs: Pair[],
+  opts: { iters?: number; lr?: number } = {},
+): { a: number; b: number } {
+  const iters = opts.iters ?? 2000;
+  const lr = opts.lr ?? 0.3;
+  const n = pairs.length;
+  if (n === 0) return { a: 1, b: 0 };
+  const xs = pairs.map((pr) => clipLogit(pr.p));
+  const ys = pairs.map((pr) => pr.y);
+  let a = 1;
+  let b = 0;
+  for (let it = 0; it < iters; it++) {
+    let ga = 0;
+    let gb = 0;
+    for (let i = 0; i < n; i++) {
+      const pred = 1 / (1 + Math.exp(-(a * xs[i]! + b)));
+      const err = pred - ys[i]!;
+      ga += err * xs[i]!;
+      gb += err;
+    }
+    a -= (lr * ga) / n;
+    b -= (lr * gb) / n;
+  }
+  return { a, b };
+}
+
+/** Platt 적용: sigmoid(a·logit(p)+b). 단조 증가, (0,1). */
+export function applyPlatt(cal: { a: number; b: number }, p: number): number {
+  return 1 / (1 + Math.exp(-(cal.a * clipLogit(p) + cal.b)));
+}
+
 export interface CalibrationReport {
   modelWin: Pair[];
   marketWin: Pair[];
