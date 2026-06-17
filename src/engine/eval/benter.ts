@@ -23,10 +23,18 @@ export function marketProbsFromOdds(odds: number[]): number[] {
 
 const LN = (p: number) => Math.log(Math.max(p, 1e-12));
 
-/** 합성확률 = softmax(a·ln시장 + b·ln모델). 경주 내 합=1. */
+/**
+ * 합성확률 = softmax(a·ln시장 + b·ln모델). 경주 내 합=1.
+ * b=0,a=1이면 출력=marketProb(항등).
+ */
 export function combinedProbs(a: number, b: number, marketProb: number[], modelProb: number[]): number[] {
   const scores = marketProb.map((m, k) => a * LN(m) + b * LN(modelProb[k]!));
   return softmax(scores);
+}
+
+/** 로그 사전계산 배열에서 합성확률을 직접 만드는 내부 헬퍼. */
+function combinedFromLn(a: number, b: number, lnM: number[], lnMod: number[]): number[] {
+  return softmax(lnM.map((m, k) => a * m + b * lnMod[k]!));
 }
 
 export interface BenterFit { a: number; b: number; }
@@ -37,17 +45,20 @@ export function fitBenter(races: BenterRace[], opts: { iters?: number; lr?: numb
   const lr = opts.lr ?? 0.5;
   const n = races.length;
   if (n === 0) return { a: 1, b: 0 };
+  // marketProb/modelProb는 루프 내에서 변하지 않으므로 로그를 한 번만 계산.
+  const lnMkt = races.map((r) => r.marketProb.map(LN));
+  const lnMod = races.map((r) => r.modelProb.map(LN));
   let a = 1, b = 0;
   for (let it = 0; it < iters; it++) {
     let ga = 0, gb = 0;
-    for (const r of races) {
-      const u = r.marketProb.map(LN);
-      const v = r.modelProb.map(LN);
-      const probs = combinedProbs(a, b, r.marketProb, r.modelProb);
+    for (let ri = 0; ri < n; ri++) {
+      const u = lnMkt[ri]!;
+      const v = lnMod[ri]!;
+      const probs = combinedFromLn(a, b, u, v);
       let ea = 0, eb = 0;
       for (let k = 0; k < probs.length; k++) { ea += probs[k]! * u[k]!; eb += probs[k]! * v[k]!; }
-      ga += u[r.winnerIdx]! - ea;
-      gb += v[r.winnerIdx]! - eb;
+      ga += u[races[ri]!.winnerIdx]! - ea;
+      gb += v[races[ri]!.winnerIdx]! - eb;
     }
     a += (lr * ga) / n;
     b += (lr * gb) / n;
@@ -55,7 +66,10 @@ export function fitBenter(races: BenterRace[], opts: { iters?: number; lr?: numb
   return { a, b };
 }
 
-/** 경주단위 우승 NLL = 평균(−ln 우승마확률). selector가 경주별 확률배열 반환. */
+/**
+ * 경주단위 우승 NLL = 평균(−ln 우승마확률). selector가 경주별 확률배열 반환.
+ * 레이스 없으면 0(호출자가 n=0 체크 책임).
+ */
 export function winNLL(races: BenterRace[], selector: (r: BenterRace) => number[]): number {
   if (races.length === 0) return 0;
   let s = 0;

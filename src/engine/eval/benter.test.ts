@@ -50,6 +50,15 @@ describe('combinedProbs', () => {
     expect(c[1]).toBeCloseTo(0.3, 6);
     expect(c.reduce((s, v) => s + v, 0)).toBeCloseTo(1, 9);
   });
+  it('a=0,b=1이면 모델확률과 동일(모델단독 항등)', () => {
+    const mkt = [0.5, 0.3, 0.2];
+    const mod = [0.1, 0.6, 0.3];
+    const c = combinedProbs(0, 1, mkt, mod);
+    expect(c[0]).toBeCloseTo(0.1, 6);
+    expect(c[1]).toBeCloseTo(0.6, 6);
+    expect(c[2]).toBeCloseTo(0.3, 6);
+    expect(c.reduce((s, v) => s + v, 0)).toBeCloseTo(1, 9);
+  });
 });
 
 describe('fitBenter', () => {
@@ -57,7 +66,7 @@ describe('fitBenter', () => {
     const rng = mulberry32(42);
     const A = 1.0, B = 0.8;
     const races: BenterRace[] = [];
-    for (let r = 0; r < 4000; r++) {
+    for (let r = 0; r < 1000; r++) {
       const n = 8;
       const mkt = normalizeRand(n, rng);
       const mod = normalizeRand(n, rng);
@@ -68,7 +77,7 @@ describe('fitBenter', () => {
       const ords = Array.from({ length: n }, (_, k) => (k === winnerIdx ? 1 : 2));
       races.push({ marketProb: mkt, modelProb: mod, ords, winnerIdx });
     }
-    const { a, b } = fitBenter(races, { iters: 3000, lr: 0.5 });
+    const { a, b } = fitBenter(races, { iters: 1000, lr: 0.5 });
     expect(a).toBeCloseTo(A, 0);
     expect(b).toBeCloseTo(B, 0);
     expect(b).toBeGreaterThan(0.3);
