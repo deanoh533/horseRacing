@@ -76,7 +76,8 @@ async function main(): Promise<void> {
     for (const m of MODELS) {
       const fn = probFns[m];
       const trainBR = block.train.map((r) => toBenterRace(r, fn)).filter((x): x is BenterRace => x !== null);
-      const { a, b } = fitBenter(trainBR);
+      // 2-파라미터 오목 GLM이라 수백 iter면 수렴. 3000은 과함 → 800.
+      const { a, b } = fitBenter(trainBR, { iters: 800 });
       acc.get(m)!.bTrend.push({ key: block.key, a, b });
       for (const r of block.test) {
         const br = toBenterRace(r, fn);
