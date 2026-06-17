@@ -187,7 +187,7 @@ npm run test:run     # vitest 단위 테스트
 
 **다음 단계 (우선순위 — 2026-06-16 갱신):**
 1. **조교(training) 신호** — 본류. KRA 전체서비스 복구(**6/17 09:00**) 후 사용자가 `scripts/backfill_training.ts` 실행(쿼터벽=최근12개월 먼저) → 커버리지 → `npm run benchmark` 게이트A/B. 코드 Task1~6 완료(325테스트). [[project_training_signals]]
-2. **방법론 전환 후보 (각각 구현 전 brainstorm)** — ✅완료: ~~조건부 엣지 마이닝~~(`npm run mine:edge`, §C6, **채택후보 0**) · ~~캘리브레이션 평가축~~(`npm run calib`, §C7) · ~~재보정 Platt/isotonic~~(`npm run calib:recal`, §C8, **✅ 양성 첫 채택후보 — Platt이 P(1착) ECE 0.017→0.004 시장동률, 본명 과소확신 제거. 단 Brier/log-loss는 시장 우세=정직성만 따라잡음**). **신규 후속 ⓪ Platt 라이브 경로 연결**(predictRace/scorePredictor, 별 brainstorm). 남은 후보: ① Benter 2단계 + EV(win_odds=0 재시험) ② 마체중 직전수집(+7.2%p 보류분). 상세 [[project_market_edge_strategy]] / `docs/strategy/2026-06-16-*`.
+2. **방법론 전환 후보 (각각 구현 전 brainstorm)** — ✅완료: ~~조건부 엣지 마이닝~~(§C6, 채택후보 0) · ~~캘리브레이션 평가축~~(§C7) · ~~재보정 Platt/isotonic~~(`npm run calib:recal`, §C8, **✅ Platt이 P(1착) ECE 0.017→0.004 시장동률**·정직성만 따라잡음) · ~~적중률 7각도 천장검증~~(§C9, **전부 음성**: 거스르기·reach·깜짝마·깜짝마학습·카스케이드/블렌드·B단독·조건별강점(통제 안정성서 노이즈). 공개피처 천장 확정). **★다음 세션 1순위 = Benter 2단계(예측 정확도판)** — `a·log(시장확률)+b·log(모델확률)` 적합→OOS 합성vs시장. "모델이 시장 *위에* 직교정보 더하나"(미검증 유일). b>0이면 첫 돌파. 후속: ⓪ Platt 라이브 연결 · 조교 신호 · 마체중 직전수집. 상세 [[project_market_edge_strategy]] / `docs/strategy/2026-06-16-*` §C9.
 3. ~~웹 검증 보강~~ **✅ 완료(2026-06-16)** — 전략문서 ⚠️ 4항목 외부출처 확인. **핵심 수정: KRA 엑조틱 공제율 26% > 단복승 20%** (엑조틱이 더 어려움, A4(d) 기대 하향). 공제율(단연 20/그외 26)·dirt-only·Benter 2단계 구조·draw편향(단거리 안쪽 35~38%) 확증. 검증로그 = `docs/strategy/2026-06-16-*` 문서 끝.
 4. **model_versions 스키마 영구화** (6/23 이후) — `feature_schema`/`params` Supabase 반영 + 챔피언 artifact 저장.
 5. **복승 배당 결손** — 2026-05-10~06-05 미수집 (6/23 이후 친구 키로 보충)
