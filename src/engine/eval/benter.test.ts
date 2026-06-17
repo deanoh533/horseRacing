@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { softmax, marketProbsFromOdds, fitBenter, combinedProbs } from './benter.js';
+import { softmax, marketProbsFromOdds, fitBenter, combinedProbs, winNLL, pickStats } from './benter.js';
 import type { BenterRace } from './benter.js';
 
 function mulberry32(seed: number): () => number {
@@ -72,5 +72,28 @@ describe('fitBenter', () => {
     expect(a).toBeCloseTo(A, 0);
     expect(b).toBeCloseTo(B, 0);
     expect(b).toBeGreaterThan(0.3);
+  });
+});
+
+describe('winNLL', () => {
+  it('우승마 확률이 높을수록 NLL 낮음', () => {
+    const good: BenterRace[] = [{ marketProb: [0.8, 0.2], modelProb: [0.8, 0.2], ords: [1, 2], winnerIdx: 0 }];
+    const bad: BenterRace[] = [{ marketProb: [0.2, 0.8], modelProb: [0.2, 0.8], ords: [1, 2], winnerIdx: 0 }];
+    const sel = (r: BenterRace) => r.marketProb;
+    expect(winNLL(good, sel)).toBeLessThan(winNLL(bad, sel));
+    expect(winNLL(good, sel)).toBeCloseTo(-Math.log(0.8), 6);
+  });
+});
+
+describe('pickStats', () => {
+  it('argmax 픽의 단승·연승 집계', () => {
+    const races: BenterRace[] = [
+      { marketProb: [0.6, 0.4], modelProb: [0.6, 0.4], ords: [1, 2], winnerIdx: 0 },
+      { marketProb: [0.7, 0.3], modelProb: [0.7, 0.3], ords: [4, 1], winnerIdx: 1 },
+    ];
+    const s = pickStats(races, (r) => r.marketProb);
+    expect(s.n).toBe(2);
+    expect(s.win).toBe(1);
+    expect(s.show).toBe(1);
   });
 });
