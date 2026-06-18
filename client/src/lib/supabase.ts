@@ -157,6 +157,8 @@ export interface Prediction {
   predicted_rank: number;
   item_scores: Record<string, ItemScore>;
   actual_ord: number | null;
+  p_win: number | null;
+  p_top3: number | null;
 }
 
 /**

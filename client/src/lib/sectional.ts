@@ -41,6 +41,10 @@ export function fmtSec(time: number | null): string | null {
   return time != null ? `${time.toFixed(1)}` : null;
 }
 
+/** 0~1 확률 → 정수 %. null/undefined면 빈 문자열. */
+export const fmtPct = (p: number | null | undefined): string =>
+  p == null ? '' : `${Math.round(p * 100)}%`;
+
 export interface SameDistStats {
   bestTime: number;
   bestBurdWgt: number | null;
