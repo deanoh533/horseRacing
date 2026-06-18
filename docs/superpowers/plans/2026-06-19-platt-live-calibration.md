@@ -578,15 +578,9 @@ ALTER TABLE predictions ADD COLUMN IF NOT EXISTS p_win REAL;
 ALTER TABLE predictions ADD COLUMN IF NOT EXISTS p_top3 REAL;
 ```
 
-- [ ] **Step 2: 로컬 DuckDB에 동일 컬럼 추가 (검증용)**
+> **옵션 A 참고:** 로컬 DuckDB predictions 컬럼은 별도 ALTER 불필요. (1) 로컬 검증(Task 6)은 `predictRace`가 p_win/p_top3를 **메모리에서 반환**하므로 컬럼이 필요 없고, (2) 저장 경로는 Supabase backfill(Task 7) → 이후 `db:pull` 시 로컬 미러에 자동 반영. 즉 이 Task는 **Supabase 마이그 파일 작성**만.
 
-Run:
-```bash
-npx tsx -e "import('@duckdb/node-api').then(async m=>{const i=await m.DuckDBInstance.create('data/local.duckdb');const c=await i.connect();await c.run('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS p_win REAL');await c.run('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS p_top3 REAL');console.log('local predictions 컬럼 추가 완료');})"
-```
-Expected: "local predictions 컬럼 추가 완료". (`db:pull` 재실행 시 스키마 정합 확인 — 컬럼 존재.)
-
-- [ ] **Step 3: 커밋**
+- [ ] **Step 2: 커밋**
 
 ```bash
 git add supabase/migrations/014_prediction_calibrated_probs.sql
