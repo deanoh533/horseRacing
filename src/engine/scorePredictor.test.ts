@@ -22,6 +22,7 @@ describe('attachCalibratedProbs', () => {
       },
     };
     const r = attachCalibratedProbs(artifact, [[0], [1], [2]]);
+    expect(r).toHaveLength(3);
     for (const row of r) {
       expect(row.p_win!).toBeGreaterThan(0); expect(row.p_win!).toBeLessThan(1);
       expect(row.p_top3!).toBeGreaterThan(0); expect(row.p_top3!).toBeLessThan(1);

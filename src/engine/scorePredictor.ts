@@ -293,6 +293,7 @@ export async function predictRace(
   const results = rows.map((row) => ({ row, score: scoreOne(row.input) }));
 
   // 보정 확률(로지스틱 + calibration 있을 때만). 랭킹과 무관.
+  // buildFeatures가 scoreLogistic 내부에서도 호출되지만, 경주당 수 마리·CPU-only라 중복 허용.
   const artifact = activeVersion.artifact;
   const probRows = artifact
     ? attachCalibratedProbs(
