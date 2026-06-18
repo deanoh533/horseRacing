@@ -12,6 +12,9 @@ import { scoreLogistic } from './logisticScorer.js';
 import { parseClassBand } from './features/intentSignals.js';
 import { fetchAsOfHorseStats, distCategoryOf, type AsOfHorseStats } from './asOfHorseStats.js';
 import { loadParMap } from './speedFigure.js';
+import { calibratedRaceProbs, type CalibratedArtifact } from './eval/calibratedProbs.js';
+import { buildFeatures } from './features/buildFeatures.js';
+import { toVector } from './features/alignFeatures.js';
 
 interface EntryRow {
   race_date: number;
@@ -48,6 +51,8 @@ export interface PredictionRow {
   item_scores: HorseScoreResult['items'];
   actual_ord: number | null;
   model_version: number | null;   // 이 예측을 만든 활성 버전 도장
+  p_win: number | null;     // 보정 우승확률 (calibration 없으면 null)
+  p_top3: number | null;    // 보정 연승확률(3착내)
 }
 
 export interface RaceInputRow {
@@ -261,6 +266,15 @@ export async function gatherRaceInputs(
   return rows;
 }
 
+/** 경주 내 벡터(=artifact.features 순서)로 보정 확률 산출. calibration 없으면 null. */
+export function attachCalibratedProbs(
+  artifact: CalibratedArtifact,
+  vectors: number[][],
+): { p_win: number | null; p_top3: number | null }[] {
+  const { pWin, pTop3 } = calibratedRaceProbs(artifact, vectors);
+  return vectors.map((_, i) => ({ p_win: pWin[i]!, p_top3: pTop3[i]! }));
+}
+
 export async function predictRace(
   sb: ReadClient,
   rcDate: number,
@@ -278,11 +292,20 @@ export async function predictRace(
 
   const results = rows.map((row) => ({ row, score: scoreOne(row.input) }));
 
+  // 보정 확률(로지스틱 + calibration 있을 때만). 랭킹과 무관.
+  const artifact = activeVersion.artifact;
+  const probRows = artifact
+    ? attachCalibratedProbs(
+        artifact,
+        results.map((r) => toVector(buildFeatures(r.row.input), artifact.features)),
+      )
+    : results.map(() => ({ p_win: null, p_top3: null }));
+
   const sorted = [...results].sort((a, b) => b.score.total - a.score.total);
   const rankMap = new Map<number, number>();
   sorted.forEach((r, idx) => rankMap.set(r.row.pthr_no, idx + 1));
 
-  return results.map((r) => ({
+  return results.map((r, i) => ({
     race_date: rcDate,
     meet,
     rc_no: rcNo,
@@ -292,6 +315,8 @@ export async function predictRace(
     item_scores: r.score.items,
     actual_ord: r.row.ord,
     model_version: activeVersion.id,
+    p_win: probRows[i]!.p_win,
+    p_top3: probRows[i]!.p_top3,
   }));
 }
 

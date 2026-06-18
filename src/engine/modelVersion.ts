@@ -4,14 +4,14 @@
  */
 import type { ReadClient } from '../db/localDb.js';
 import { ITEM_WEIGHTS } from '../types/index.js';
-import type { LogisticModel } from './models/logistic.js';
+import type { CalibratedArtifact } from './eval/calibratedProbs.js';
 
 export interface ActiveModelVersion {
   id: number | null;
   label: string;
   model_type: string;                 // 'rho-legacy' | 'logistic'
   weights: Record<string, number>;
-  artifact: LogisticModel | null;
+  artifact: CalibratedArtifact | null;
 }
 
 export async function getActiveModelVersion(
@@ -29,7 +29,7 @@ export async function getActiveModelVersion(
       label: data.label as string,
       model_type: (data.model_type as string) ?? 'rho-legacy',
       weights: (data.weights as Record<string, number>) ?? {},
-      artifact: (data.artifact as LogisticModel | null) ?? null,
+      artifact: (data.artifact as CalibratedArtifact | null) ?? null,
     };
   }
   return { id: null, label: 'v1-fallback', model_type: 'rho-legacy', weights: { ...ITEM_WEIGHTS }, artifact: null };
