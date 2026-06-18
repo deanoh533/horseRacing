@@ -66,7 +66,9 @@ async function fetchDateMeet(
 
 function reloadDuckDB(rows: TrainingLogRow[]): Promise<void> {
   const tmp = join(tmpdir(), 'backfill_training.json').replace(/\\/g, '/');
-  writeFileSync(tmp, JSON.stringify(rows));
+  // 방어: hr_no를 7자리 문자열로 통일해 read_json_auto가 VARCHAR로 추론하게 한다(JSON 타입 방지).
+  const norm = rows.map((r) => ({ ...r, hr_no: String(r.hr_no).padStart(7, '0') }));
+  writeFileSync(tmp, JSON.stringify(norm));
   return (async () => {
     const inst = await DuckDBInstance.create(DB_PATH);
     const conn = await inst.connect();

@@ -457,7 +457,10 @@ export function toTrainingRow(r: KRATrainingRecord): TrainingLogRow {
   return {
     train_date: r.trDate,
     meet: meetCode,
-    hr_no: r.hrNo,
+    // KRA가 hrNo를 문자열("0050860") 또는 숫자(50860, 선행 0 탈락)로 혼재 반환 →
+    // 7자리 zero-pad 문자열로 정규화. 혼재 시 read_json_auto가 컬럼을 JSON 타입으로 추론해
+    // IN 비교가 "Malformed JSON: number with leading zero"로 깨지는 것 방지 + 선행 0 복원.
+    hr_no: String(r.hrNo).padStart(7, '0'),
     hr_name: r.hrName,
     trar_nm: r.trName ?? null,
     part: r.part ?? null,
