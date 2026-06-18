@@ -303,7 +303,7 @@ function PodiumCards({
               <ScoreBar score={p.total_score} maxScore={100} color={s.accent} />
               <div className="text-right text-xs font-mono-num font-semibold" style={{ color: s.accent }}>
                 {p.total_score.toFixed(1)}점
-                {p.p_win != null && (
+                {p.p_win != null && p.p_top3 != null && (
                   <span className="text-xs text-[var(--color-text-secondary)] ml-2">
                     우승 {fmtPct(p.p_win)} · 연승 {fmtPct(p.p_top3)}
                   </span>
@@ -1031,7 +1031,7 @@ function CardHeader({
       )}
 
       {/* AI 점수바 + 총점 + 순위 이모지 + 실제 결과 */}
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
         {pRank < 999 && (
           <>
             <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
@@ -1043,7 +1043,7 @@ function CardHeader({
             <span className="text-[11px] font-mono-num font-semibold" style={{ color: accent }}>
               {pScore.toFixed(1)}
             </span>
-            {prediction?.p_win != null && (
+            {prediction?.p_win != null && prediction?.p_top3 != null && (
               <span className="text-xs text-[var(--color-text-secondary)]">
                 우승 {fmtPct(prediction.p_win)} · 연승 {fmtPct(prediction.p_top3)}
               </span>
