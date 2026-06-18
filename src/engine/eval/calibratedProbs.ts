@@ -3,7 +3,7 @@
  * 순수 함수. calibration 없으면 전부 null(구 아티팩트 무중단 호환).
  * 설계: docs/superpowers/specs/2026-06-19-platt-live-calibration-design.md
  */
-import type { LogisticModel } from '../models/logistic.js';
+import { predictLogit, type LogisticModel } from '../models/logistic.js';
 import { sigmoid, normalizeProbs, applyPlatt } from './calibration.js';
 
 export interface Calibration {
@@ -11,18 +11,15 @@ export interface Calibration {
   platt1: { a: number; b: number };  // 경주내 정규화된 P1에 적용
   platt3: { a: number; b: number };  // base(top3) 모델 raw 확률에 적용
   renormWin: boolean;                // p_win에 Platt 후 경주내 재정규화 여부
+  // from/to = race_date(YYYYMMDD) 범위, fitAt = ISO 시각, baseModelId = 보정 기준 활성 버전 id
   fitMeta: { rows: number; from: number; to: number; fitAt: string; baseModelId: number };
 }
 
 export type CalibratedArtifact = LogisticModel & { calibration?: Calibration };
 
-/** model.features 순서의 raw 벡터로 logit → sigmoid. */
+/** model.features 순서의 raw 벡터로 확률 = sigmoid(predictLogit). 표준화는 predictLogit이 담당. */
 function rawProb(model: LogisticModel, vec: number[]): number {
-  let z = model.intercept;
-  model.features.forEach((f, j) => {
-    z += (model.coef[f] ?? 0) * ((vec[j]! - model.means[j]!) / model.stds[j]!);
-  });
-  return sigmoid(z);
+  return sigmoid(predictLogit(model, vec));
 }
 
 /**
