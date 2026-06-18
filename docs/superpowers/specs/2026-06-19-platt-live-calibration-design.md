@@ -30,7 +30,7 @@
 | 방법 | **Platt만**(isotonic 제외). | §C8에서 Platt≈isotonic이고 Platt이 2파라미터·소표본 안정·해석 쉬움 |
 | 접근법 | **A. 아티팩트 확장** — P1 전용 모델 + Platt 2개를 활성 아티팩트에 임베드. 랭킹 모델(top3)은 불변. | §C8 검증 경로 그대로, 버전 원자성, 스키마 변경 없음, 랭킹 회귀 위험 0 |
 | 저장 | 보정자는 **활성 모델의 학습행렬(`training_matrix.jsonl`)과 같은 데이터로 fit** → 아티팩트 임베드. | `recalibration_report`가 train-fit→test-apply로 OOS 일반화 입증(경미한 in-sample 낙관만 주석) |
-| 재정규화 | P(1착)은 §C8과 동일하게 **경주내 정규화된 확률(normWin)에 Platt 적용**. **재정규화 여부(plain vs +재정규화)는 구현 중 `calib:recal` 실제 수치로 확정**(데이터로 결정). P(3착내)는 정규화 안 함. | §C8 승자=plain Platt 0.004이나 표에 +재정규화도 있어 실측 확인 필요 |
+| 재정규화 | P(1착)은 경주내 정규화된 확률(normWin)에 Platt 적용. **`renormWin = false`(plain Platt) 확정** (2026-06-19 calib:recal, 2025Q1~2026Q2·27,311말 OOS: plain ECE **0.003** < +재정규화 0.004 < 시장 0.004 < 원본 0.016). P(3착내)는 정규화 안 함(Platt 0.015 < 원본 0.018). | calib:recal 실측 — plain이 +재정규화·시장보다 우수 |
 
 ## 3. 배경: 현재 라이브 경로의 사실
 
