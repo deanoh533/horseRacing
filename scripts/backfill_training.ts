@@ -35,14 +35,29 @@ export function doneKey(trDate: number, meet: number): string {
 
 class QuotaError extends Error {}
 
-async function fetchDateMeet(kra: any, meet: MeetCode, trDate: number, tries = 5): Promise<TrainingLogRow[] | null> {
+// data.go.kr 쿼터 신호 — 하드 429 외에 HTTP 200 SOAP 스로틀 봉투(LIMITED_NUMBER, 코드 22)도 있음.
+// 후자는 parseResponse가 resultCode를 못 읽어 일반 에러처럼 보이므로 메시지로도 판별한다.
+function isQuotaSignal(e: any): boolean {
+  if (e?.response?.status === 429) return true;
+  const msg = String(e?.message ?? '');
+  return /LIMITED_NUMBER|EXCEEDS?|초과|quota|\(22\)/i.test(msg);
+}
+
+async function fetchDateMeet(
+  kra: any, meet: MeetCode, trDate: number, errSink: Map<string, number>, tries = 5
+): Promise<TrainingLogRow[] | null> {
+  let lastMsg = '';
   for (let i = 1; i <= tries; i++) {
     try {
       const recs = await kra.getAllTrainingHistory({ meet, trDate });
       return recs.map(toTrainingRow);
     } catch (e: any) {
-      if (e?.response?.status === 429) throw new QuotaError('API token quota exceeded'); // 재시도 무의미 → 즉시 중단
-      if (i === tries) return null; // 502 등 일시 장애: 실패로 두고 다음 재실행에 보충
+      lastMsg = String(e?.message ?? e);
+      if (isQuotaSignal(e)) throw new QuotaError(lastMsg); // 재시도 무의미 → 즉시 중단(증폭 방지)
+      if (i === tries) {
+        errSink.set(lastMsg, (errSink.get(lastMsg) ?? 0) + 1); // 실제 원인 가시화
+        return null; // 502 등 일시 장애: 실패로 두고 다음 재실행에 보충
+      }
       await new Promise((r) => setTimeout(r, 1500 * i)); // 지수 백오프
     }
   }
@@ -96,6 +111,7 @@ async function main() {
 
   const fresh: TrainingLogRow[] = [];
   const failed: string[] = [];
+  const errSink = new Map<string, number>(); // 실제 실패 메시지 → 건수
   let quotaHit = false;
   let processed = 0, skipped = 0;
 
@@ -106,7 +122,7 @@ async function main() {
       if (doneSet.has(key)) { skipped++; continue; }
       let rows: TrainingLogRow[] | null;
       try {
-        rows = await fetchDateMeet(kra, meet, trDate);
+        rows = await fetchDateMeet(kra, meet, trDate, errSink);
       } catch (e) {
         if (e instanceof QuotaError) { quotaHit = true; break outer; }
         throw e;
@@ -131,8 +147,14 @@ async function main() {
   } else {
     console.log(`\n수집 0행 — DuckDB 적재 건너뜀(기존 테이블 보존). 완료 원장 ${doneSet.size} date-meet.`);
   }
-  if (quotaHit) console.log(`\n⛔ API 쿼터 소진 — 중단. 쿼터 리셋(보통 다음날) 후 같은 명령 재실행하면 skip하고 이어서 진행.`);
-  if (failed.length) console.log(`⚠️ 비쿼터 실패 ${failed.length}건(재실행 보충): ${failed.slice(0, 20).join(', ')}${failed.length > 20 ? ' …' : ''}`);
+  if (quotaHit) console.log(`\n⛔ API 쿼터 소진(하드 429/소프트 스로틀) — 중단. 쿼터 리셋(보통 다음날) 후 같은 명령 재실행하면 skip하고 이어서 진행.`);
+  if (failed.length) {
+    console.log(`⚠️ 비쿼터 실패 ${failed.length}건(재실행 보충): ${failed.slice(0, 20).join(', ')}${failed.length > 20 ? ' …' : ''}`);
+    console.log(`   실패 원인 분포:`);
+    for (const [msg, cnt] of [...errSink.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
+      console.log(`     ${cnt}건  ${msg.slice(0, 120)}`);
+    }
+  }
   if (!quotaHit && !failed.length) console.log(`\n✅ 요청 범위 완료.`);
 }
 
