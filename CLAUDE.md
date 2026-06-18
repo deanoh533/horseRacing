@@ -172,7 +172,14 @@ npm run test:run     # vitest 단위 테스트
 **Benchmark 스크립트:** `scripts/benchmark_all.ts` — `npm run benchmark`. **롤링 통합 완료(2026-06-14).**  
 **롤링 통합 완료 (2026-06-14):** benchmark가 walkforward 흡수 → `walkforward_eval.ts` 삭제. 분기 확장윈도우 9모델 + 챔피언(model_versions) 대결 + 시장 깊은 진단(불일치·순위별·묶음). CLI `--gate-only`/`--no-gate`/`--champion <id>`. 코드 `src/engine/eval/`. 실측: 챔피언 롤링 연승 61.4%(시장 68.8%, −7.4%p). 스펙/플랜 `docs/superpowers/{specs,plans}/2026-06-14-rolling-benchmark-integration*`.
 
-**▶ 2026-06-16 세션 인수인계 (다음 세션 여기부터):**
+**▶ 2026-06-18 세션 인수인계 (다음 세션 여기부터):**
+- **Benter 2단계 음성 종결** — 롤링 6분기 OOS 2,559경주+유의성 probe. 방향은 실재(b 6/6분기 양수 p=0.031)이나 크기 0(Δ=+0.00035, 95%CI 0포함 p=0.43)·감쇠(b 0.32→0.13). "실재하나 무가치한 엣지" → 공개피처+시장블렌드 트랙 완전종결. 기록 `docs/benter_twostage_20260617.txt`·`benter_significance_20260617.txt`. 커밋 f51da87·8153453.
+- **조교(training) 신호 backfill 착수 — 반공개 본류:** 친구 키(`KRA_API_KEY_FRIEND`)로 266,657행 적재(2025-06~2026-01 + 2026-05-18~06-18). **갭 2026-02~2026-05-17 미수집**(친구 키 쿼터소진). 내 키는 아직 쿼터 미복구(2026-06-18 확인).
+- **버그 2건 수정:** ① backfill이 data.go.kr 소프트 스로틀(HTTP200 SOAP `LIMITED_NUMBER`)을 일반에러로 5회재시도·오분류 → `isQuotaSignal` 즉시중단+`errSink` 가시화(커밋 80ce526). ② **hr_no JSON 타입 추론 → 조교 피처 통째 누락**(KRA가 hrNo 문자열/숫자 혼재 → read_json_auto JSON추론 → IN비교 "Malformed JSON: number with leading zero"). `toTrainingRow` 7자리 패딩+마이그+회귀테스트(커밋 다음).
+- **예비 게이트 양성(미확정):** train_signal 게이트B 연승 **+1.8%p**(②마체중·⑫출발 동급, 의료신호~0과 대조). **단 커버리지 8/12개월 → 갭 메운 클린런 전 채택 X.**
+- **★다음:** 쿼터 복구 후 갭 backfill(`scripts/backfill_training.ts --from 20250601 --to 20260517`, 548 skip→갭부터) → `npm run benchmark` 클린런 → train_signal 채택 판정. 양성이면 첫 반공개 신호 채택. 상세 [[project_training_signals]].
+
+**▶ 2026-06-16 세션 인수인계:**
 - **공개 피처 발굴 3건 음성으로 종결** — ① fade/복승 보조채택(게이트 Phase0서 후보0, 스펙/플랜 `2026-06-15-gate-aux-adoption*` CLOSED-null) ② ⑪ 긴요양 골짜기(91-180일 우승 5.7% 실재하나 헤드라인 불변, 되돌림) ③ ⑲ SCORE_MAP 교정(`b842c61`, 레거시용·라이브무관, Spearman 61.8→61.5 노이즈). 셋 다 **흡수 천장** 재확인.
 - **⑲ 스코어맵 종결:** SCORE_MAP=죽은코드(라이브 로지스틱은 buildFeatures one-hot으로 직접학습). "재설계 대기" 아님 — 종결.
 - **신규 산출물:** `docs/feature_hypotheses.md`(가설 카탈로그: 재도전7·현역재검2·탈락확정·메타패턴) + `docs/strategy/2026-06-16-market-edge-and-korean-winning-conditions.md`(방법론 전환 전략).
