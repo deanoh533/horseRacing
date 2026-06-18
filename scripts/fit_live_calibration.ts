@@ -1,11 +1,17 @@
 /**
  * 라이브 Platt 보정자 학습 — P1 전용 모델 + Platt(P1·P3)을 활성 아티팩트에 임베드.
  * 보정자는 활성 모델의 학습행렬과 같은 데이터로 fit(누수 노트: 설계 §9).
- * 사용: npm run calib:fit-live -- [--matrix data/training_matrix.jsonl] [--renorm] [--target local|supabase]
+ *
+ * 저장 전략(설계 2026-06-19, 옵션 A): Supabase(jsonb)에 직접 기록 → 로컬은 `npm run db:pull`로 갱신.
+ * (로컬 DuckDB artifact 컬럼은 read_json_auto가 STRUCT로 추론 → 새 calibration 필드가 캐스트 시
+ *  유실되므로 로컬 직접 쓰기는 쓰지 않는다. Supabase jsonb는 임의 구조를 그대로 보존.)
+ *
+ * 사용: npm run calib:fit-live -- [--matrix data/training_matrix.jsonl] [--renorm]
+ *       이후: npm run db:pull   (로컬 검증 전 로컬 미러 갱신)
  */
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
-import { getReadClient } from '../src/db/localDb.js';
+import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fitLogistic, predictLogit, type LogisticModel } from '../src/engine/models/logistic.js';
 import { toVector } from '../src/engine/features/alignFeatures.js';
 import { sigmoid, normalizeProbs, fitPlatt, type Pair } from '../src/engine/eval/calibration.js';
@@ -25,6 +31,7 @@ export function buildCalibration(
   rows: MatrixRow[],
   opts: { renormWin: boolean; baseModelId: number },
 ): Calibration {
+  if (rows.length === 0) throw new Error('학습행렬이 비어 있음 — 보정자 학습 불가');
   const schema = base.features;
   const X = rows.map((r) => toVector(r.features, schema));
   const y1 = rows.map((r) => (r.ord === 1 ? 1 : 0));
@@ -60,34 +67,26 @@ export function buildCalibration(
   };
 }
 
+/** 활성 로지스틱 모델의 base 아티팩트를 Supabase에서 읽는다(로컬 락과 무관). */
 async function readActiveArtifact(): Promise<{ id: number; artifact: LogisticModel }> {
-  const sb = await getReadClient();
+  const sb = getSupabaseAdmin();
   const { data, error } = await sb.from('model_versions')
     .select('id, model_type, artifact').eq('is_active', true).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('활성 model_versions 없음');
   if (data.model_type !== 'logistic') throw new Error(`활성 모델이 logistic 아님: ${data.model_type}`);
+  // supabase-js는 jsonb를 객체로 반환하지만, 문자열로 올 가능성도 방어.
   const artifact = typeof data.artifact === 'string' ? JSON.parse(data.artifact) : data.artifact;
   return { id: Number(data.id), artifact: artifact as LogisticModel };
 }
 
-async function writeLocal(id: number, artifact: object): Promise<void> {
-  const { DuckDBInstance } = await import('@duckdb/node-api');
-  const inst = await DuckDBInstance.create('data/local.duckdb');
-  const conn = await inst.connect();
-  // conn.run() supports positional $1/$2 parameters via DuckDBValue[] (string|number are native DuckDBValue)
-  const json = JSON.stringify(artifact);
-  await conn.run(
-    `UPDATE model_versions SET artifact = $1 WHERE id = $2`,
-    [json, id],
-  );
-}
-
+/** 증강 아티팩트를 Supabase jsonb에 기록. 0행 업데이트(잘못된 id 등)를 명시적으로 검출. */
 async function writeSupabase(id: number, artifact: object): Promise<void> {
-  const { getSupabaseAdmin } = await import('../src/db/supabase.js');
   const sb = getSupabaseAdmin();
-  const { error } = await sb.from('model_versions').update({ artifact }).eq('id', id);
+  const { data, error } = await sb.from('model_versions')
+    .update({ artifact }).eq('id', id).select('id');
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error(`id=${id} 업데이트된 행 없음 — 활성 버전 확인 필요`);
 }
 
 async function main(): Promise<void> {
@@ -95,7 +94,6 @@ async function main(): Promise<void> {
   const arg = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1]! : d; };
   const matrixPath = arg('--matrix', 'data/training_matrix.jsonl');
   const renormWin = args.includes('--renorm');
-  const target = arg('--target', 'local');
 
   const rows: MatrixRow[] = readFileSync(matrixPath, 'utf8')
     .split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
@@ -107,8 +105,8 @@ async function main(): Promise<void> {
   console.log(`platt1={a:${calibration.platt1.a.toFixed(3)},b:${calibration.platt1.b.toFixed(3)}} ` +
               `platt3={a:${calibration.platt3.a.toFixed(3)},b:${calibration.platt3.b.toFixed(3)}}`);
 
-  if (target === 'supabase') { await writeSupabase(id, augmented); console.log('✅ Supabase 기록'); }
-  else { await writeLocal(id, augmented); console.log('✅ 로컬 DuckDB 기록'); }
+  await writeSupabase(id, augmented);
+  console.log('✅ Supabase 기록 완료 — 로컬 검증 전 `npm run db:pull` 실행하세요.');
 }
 
 main().catch((e) => { console.error('💥', e); process.exit(1); });

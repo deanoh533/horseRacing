@@ -10,6 +10,8 @@
 
 **설계:** `docs/superpowers/specs/2026-06-19-platt-live-calibration-design.md`
 
+> **⚠️ 변경 (2026-06-19, 옵션 A 확정 — 코드리뷰 발견 반영):** 보정자 저장은 **로컬 DuckDB 직접 쓰기 금지**. 로컬 `model_versions.artifact` 컬럼은 `read_json_auto`가 STRUCT로 추론 → 새 `calibration` 필드가 JSON→STRUCT 캐스트 시 **유실**되고, 로컬 파일은 backfill 등에 의해 **쓰기 락**이 걸린다. 대신 **`calib:fit-live`가 Supabase(jsonb)에 직접 기록 → `npm run db:pull`로 로컬 미러 갱신**(로컬=Supabase 읽기미러 설계와 일치). Supabase egress는 조직 이전으로 복구됨. 영향: Task 3 `writeLocal` 제거(Supabase 전용), Task 6/7 순서 아래 갱신본 사용.
+
 ---
 
 ## 파일 구조
@@ -21,7 +23,7 @@
 | `src/engine/modelVersion.ts` | `ActiveModelVersion.artifact` 타입에 `calibration?` 반영 | 수정 |
 | `src/engine/scorePredictor.ts` | `predictRace`가 보정 확률 산출, `PredictionRow`에 `p_win`/`p_top3` | 수정 |
 | `src/engine/scorePredictor.test.ts` | predictRace 회귀(랭킹 불변·확률 범위·null 호환) | 신규/수정 |
-| `scripts/fit_live_calibration.ts` | P1 모델 학습 + Platt fit → 아티팩트 임베드 → DuckDB/Supabase 기록 | 신규 |
+| `scripts/fit_live_calibration.ts` | P1 모델 학습 + Platt fit → 아티팩트 임베드 → **Supabase 기록**(옵션 A) | 신규 |
 | `scripts/fit_live_calibration.test.ts` | fit 통합테스트(합성 매트릭스) | 신규 |
 | `supabase/migrations/014_prediction_calibrated_probs.sql` | `predictions`에 `p_win`/`p_top3` 컬럼 | 신규 |
 | `client/src/lib/supabase.ts` | `Prediction` 인터페이스에 `p_win`/`p_top3` | 수정 |
@@ -663,44 +665,42 @@ git commit -m "feat(ui): 예상지·출마정보에 보정 우승/연승확률 %
 
 ---
 
-## Task 6: 로컬 엔드투엔드 검증 + renormWin 확정
+## Task 6: 검증 + renormWin 확정 (옵션 A: Supabase fit → db:pull → 로컬 predictRace)
 
-**Files:** (검증 — 코드 변경은 결과에 따라 Task 3 재커밋)
+> ⚠️ Step 1·3은 로컬 DuckDB를 읽기/쓰기 → **backfill 등 로컬 쓰기 프로세스가 끝나 락이 풀린 뒤** 실행. Step 2(Supabase fit)는 로컬 락과 무관하게 언제든 가능.
 
 - [ ] **Step 1: 학습행렬 최신화 (필요 시)**
 
-`data/training_matrix.jsonl`이 최신인지 확인. 없거나 오래됐으면:
+`data/training_matrix.jsonl`이 최신인지 확인. 없거나 오래됐으면(로컬 DuckDB 읽기 — 락 풀린 뒤):
 Run: `npm run extract:matrix -- --from 20240101 --to 20991231 --out data/training_matrix.jsonl`
-(KRA API 호출 아님 — 로컬 DuckDB 읽기. 토큰/쿼터 무관.)
+(KRA API 호출 아님 — 토큰/쿼터 무관.)
 
-- [ ] **Step 2: 보정자 학습 (로컬, plain Platt)**
+- [ ] **Step 2: 보정자 학습 → Supabase 기록 (plain Platt)**
 
 Run: `npm run calib:fit-live`
-Expected: "활성 모델 id=6 ...", "platt1={...} platt3={...}", "✅ 로컬 DuckDB 기록".
+Expected: "활성 모델 id=6 ...", "platt1={...} platt3={...}", "✅ Supabase 기록 완료 — ... db:pull 실행하세요." (랭킹·계수 불변, calibration만 추가.)
 
-- [ ] **Step 3: 샘플 경주 확률 출력**
+- [ ] **Step 3: 로컬 미러 갱신**
 
-임의 확정 경주 하나에 대해 `predictRace`(로컬 ReadClient)로 p_win/p_top3 출력하는 일회용 확인:
+Run: `npm run db:pull`  (락 풀린 뒤. 로컬 `model_versions.artifact`가 calibration 포함 STRUCT로 재추론됨.)
+
+- [ ] **Step 4: 샘플 경주 확률 출력 (로컬 predictRace)**
+
 Run:
 ```bash
 npx tsx -e "import('dotenv/config').then(async()=>{const {getReadClient}=await import('./src/db/localDb.js');const {predictRace}=await import('./src/engine/scorePredictor.js');const sb=await getReadClient();const {data}=await sb.from('races').select('race_date,meet,rc_no').not('rc_dist','is',null).limit(1);const r=data[0];const rows=await predictRace(sb,r.race_date,r.meet,r.rc_no);console.log(rows.map(x=>({hr:x.hr_name,rank:x.predicted_rank,p_win:x.p_win,p_top3:x.p_top3})));})"
 ```
-Expected: 각 말에 p_win·p_top3가 0~1 숫자. 1위 말의 p_win이 가장 큼(또는 상위권). 합리성 눈검사.
+Expected: 각 말에 p_win·p_top3가 0~1 숫자(null 아님 = calibration 적재 확인). 상위 랭크 말의 p_win이 큼. 합리성 눈검사.
 
-- [ ] **Step 4: `calib:recal`과 대조**
+- [ ] **Step 5: `calib:recal`과 대조 + renormWin 결정**
 
 Run: `npm run calib:recal`
-대조: 위 보정 확률대(특히 P1착 상위 bin의 보정 효과)가 `calib:recal`의 OOS Platt 행(ECE 0.004대)과 **일관**한지 확인. plain vs `--renorm` 중 `calib:recal`에서 ECE 낮은 쪽 식별.
-
-- [ ] **Step 5: renormWin 확정**
-
-`calib:recal`에서 **+재정규화가 우세**면: `npm run calib:fit-live -- --renorm` 재실행(로컬). 아니면 plain 유지. 결정 근거를 설계 §2 표 renormWin 행에 한 줄 기록(커밋).
+대조: 보정 확률이 OOS Platt 행(ECE 0.004대)과 **일관**한지. plain vs +재정규화 중 ECE 낮은 쪽 식별. **+재정규화가 우세면** `npm run calib:fit-live -- --renorm` 재실행 → `npm run db:pull` 재실행. 아니면 plain 유지. 결정 근거를 설계 §2 renormWin 행에 한 줄 기록.
 
 - [ ] **Step 6: 전체 테스트·빌드 무회귀**
 
-Run: `npm run test:run` (전체)
-Run: `npm run build`
-Expected: 전부 통과(기존 calibration.test 등 무회귀).
+Run: `npm run test:run` (전체) · `npm run build`
+Expected: 전부 통과.
 
 - [ ] **Step 7: 검증 결과 커밋(문서)**
 
@@ -711,29 +711,24 @@ git commit -m "docs(calib): renormWin 실측 확정 + 로컬 E2E 검증 결과"
 
 ---
 
-## Task 7: 프로덕션 push (Phase 2 — Supabase, 로컬 검증 통과 후)
+## Task 7: 프로덕션 마무리 (predictions 영속화 + 웹 배포)
 
-> ⚠️ 이 Task는 Phase 1(Task 1~6) 검증 통과 후 실행. egress 사용 — Supabase 가용 확인됨(id=6).
+> ⚠️ Task 6 검증 통과 후. (보정자 Supabase 기록은 Task 6 Step 2에서 이미 완료 — 여기선 컬럼·백필·배포만.)
 
 - [ ] **Step 1: 마이그레이션 014 Supabase 적용**
 
-사용자가 Supabase SQL Editor에서 `supabase/migrations/014_prediction_calibrated_probs.sql` 실행(또는 supabase CLI). 컬럼 `p_win`/`p_top3` 생성 확인.
+사용자가 Supabase SQL Editor에서 `supabase/migrations/014_prediction_calibrated_probs.sql` 실행. 컬럼 `p_win`/`p_top3` 생성 확인.
 
-- [ ] **Step 2: 보정자 Supabase 반영**
-
-Run: `npm run calib:fit-live -- --target supabase`  (renormWin은 Task 6 확정값과 동일 플래그)
-Expected: "✅ Supabase 기록". id=6 artifact에 calibration 임베드.
-
-- [ ] **Step 3: predictions 백필**
+- [ ] **Step 2: predictions 백필**
 
 Run: `npm run backfill`  (또는 범위 한정 `npm run backfill -- --date YYYYMMDD`)
-Expected: p_win/p_top3가 채워진 predictions 재생성. (egress 고려해 필요한 범위만.)
+Expected: p_win/p_top3가 채워진 predictions 재생성. (활성 artifact에 calibration이 이미 있으므로 자동 산출. egress 고려해 필요한 범위만.)
 
-- [ ] **Step 4: 배포·웹 확인**
+- [ ] **Step 3: 배포·웹 확인**
 
 `main` 머지 또는 현 배포 경로로 Vercel 배포 → 예상지에서 "우승 N% · 연승 M%" 표시 확인. 보정 전 과거 데이터는 빈칸(graceful).
 
-- [ ] **Step 5: 메모리·문서 갱신**
+- [ ] **Step 4: 메모리·문서 갱신**
 
 `[[project_market_edge_strategy]]`에 "Platt 라이브 연결 완료(첫 서비스 캘리브레이션 채택)" 반영. CLAUDE.md 실행 상태 갱신.
 
@@ -743,6 +738,6 @@ Expected: p_win/p_top3가 채워진 predictions 재생성. (egress 고려해 필
 
 **스펙 커버리지:** §2 결정(범위 풀/확률 2종/Platt/접근법 A/저장/재정규화) → Task 1~6. §4.1 타입 → Task 1·2. §4.2 순수모듈 → Task 1. §4.3 fit 스크립트 → Task 3. §4.4 predictRace → Task 2. §4.5 DB → Task 4. §4.6 UI → Task 5. §6 테스트 → 각 Task TDD + Task 6 전체. §7 단계 → Task 6(Phase1)·7(Phase2). §9 누수노트 → Task 3 주석. 누락 없음.
 
-**플레이스홀더:** 없음. `renormWin`은 Task 6에서 데이터로 확정(방법 명시). DuckDB write API는 Step 3 주석에서 실제 시그니처 교정 지시(불확실성 명시적 처리).
+**플레이스홀더:** 없음. `renormWin`은 Task 6에서 데이터로 확정(방법 명시). 보정자 저장은 옵션 A(Supabase jsonb + db:pull)로 확정 — 로컬 DuckDB STRUCT 직접 쓰기 폐기.
 
 **타입 일관성:** `Calibration`(Task 1) ↔ `CalibratedArtifact`(Task 1·2) ↔ `attachCalibratedProbs`(Task 2) ↔ `buildCalibration`(Task 3) ↔ `MatrixRow`(Task 3) ↔ `Prediction`(Task 5) 모두 동일 필드명(`p_win`/`p_top3`, `platt1`/`platt3`/`p1Model`/`renormWin`/`fitMeta`)로 일치.

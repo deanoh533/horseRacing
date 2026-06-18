@@ -80,9 +80,8 @@ calibratedRaceProbs(
    - `rawP3_i = sigmoid(predictLogit(M3, x_i))`, 쌍 `(rawP3, top3)` → `platt3 = fitPlatt(...)`.
    - `rawP1_i = sigmoid(predictLogit(M1, x_i))`, 경주내 `normWin`, 쌍 `(normWin, ord===1)` → `platt1 = fitPlatt(...)`.
 5. `renormWin`은 구현 중 `calib:recal`에서 plain vs +재정규화 ECE 비교해 우세한 쪽으로 설정.
-6. 증강 아티팩트 = `{...M3, calibration}`를 대상 `model_versions` 활성 행에 기록.
-   - 로컬 DuckDB: 직접 write 헬퍼(`UPDATE model_versions SET artifact=? WHERE is_active`) — 읽기 어댑터 우회, 신규 소형 함수.
-   - Supabase: `getSupabaseAdmin().from('model_versions').update(...)`.
+6. 증강 아티팩트 = `{...M3, calibration}`를 **Supabase `model_versions` 활성 행에 기록**(`getSupabaseAdmin().update({artifact}).eq('id',id).select('id')` — 0행 검출). base 모델도 Supabase에서 읽어 로컬 락과 무관.
+   - **⚠️ 옵션 A 확정 (2026-06-19):** 로컬 DuckDB 직접 쓰기 **폐기**. 로컬 `artifact` 컬럼은 `read_json_auto`가 STRUCT로 추론 → 새 `calibration` 필드가 JSON→STRUCT 캐스트 시 **유실**되고, 로컬 파일은 backfill에 의해 쓰기 락이 걸린다. Supabase jsonb는 임의 구조 보존 → 로컬은 **`npm run db:pull`로 갱신**(로컬=Supabase 읽기미러 설계와 일치). egress는 조직 이전으로 복구됨.
 
 ### 4.4 라이브 적용 (`predictRace`)
 - 활성 아티팩트에 `calibration`이 있으면, 한 경주의 모든 말 feature 벡터를 모아 `calibratedRaceProbs` 1회 호출 → `p_win[]`, `p_top3[]`.
@@ -129,21 +128,20 @@ calibratedRaceProbs(
 - `predictRace` 회귀: 보정 아티팩트로 `p_win`/`p_top3` ∈ (0,1); **`predicted_rank` 순서 = 보정 전과 동일**(랭킹 불변 단언). 비보정 아티팩트로 확률 `null`.
 - 기존 테스트(`calibration.test.ts` 포함) 무회귀: `npm run test:run`, `npm run build`.
 
-## 7. 단계 (실행 순서)
+## 7. 단계 (실행 순서) — 옵션 A 반영
 
-**Phase 1 — 로컬 빌드·검증 (Supabase 안 때림):**
+**Phase 1 — 코드(순수·라이브·UI) 빌드 (Supabase 안 때림):**
 1. 타입 확장(4.1) + `calibratedProbs.ts`(4.2) + 단위테스트.
 2. `predictRace` 연결(4.4) + 회귀테스트.
-3. `fit_live_calibration.ts`(4.3) — 로컬 DuckDB 대상.
-4. 로컬 DuckDB 컬럼 추가(4.5 로컬분).
-5. UI 컴포넌트(4.6) — 로컬/목 데이터로 표시 검증.
-6. **검증:** `calib:fit-live`(로컬) 실행 → 샘플 경주 확률 출력 → `calib:recal` ECE/Brier와 대조(보정값이 OOS 수치대와 일관한지). `renormWin` 확정.
+3. `fit_live_calibration.ts`(4.3) — **Supabase 기록 전용**(로컬 직접쓰기 폐기). 단위테스트는 순수 `buildCalibration`만.
+4. UI 컴포넌트(4.6) — 로컬/목 데이터로 표시 검증.
 
-**Phase 2 — 프로덕션 push (검증 통과 후, Supabase 가용):**
-7. 마이그 014 Supabase 적용.
-8. `calib:fit-live --target supabase` → id=6 아티팩트 보정자 반영.
-9. `backfill_predictions`로 `p_win`/`p_top3` 채움(필요 범위).
-10. Vercel 배포 → 웹앱 확률 표시 확인.
+**Phase 2 — 검증 + 프로덕션 (Supabase 가용, db:pull로 로컬 갱신):**
+5. `calib:fit-live` → Supabase 활성 artifact에 calibration 기록(랭킹 불변).
+6. `npm run db:pull`(로컬 락 풀린 뒤) → 로컬 미러 갱신 → 로컬 `predictRace`로 샘플 확률 출력 → `calib:recal` ECE와 대조 → `renormWin` 확정(필요시 `--renorm` 재fit + db:pull).
+7. 마이그 014 Supabase 적용 + 로컬 DuckDB 컬럼(db:pull로 반영).
+8. `backfill_predictions`로 `p_win`/`p_top3` 채움(필요 범위).
+9. Vercel 배포 → 웹앱 확률 표시 확인.
 
 ## 8. 범위 밖 (YAGNI)
 
