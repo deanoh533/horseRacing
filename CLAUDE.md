@@ -175,7 +175,14 @@ npm run test:run     # vitest 단위 테스트
 **▶ 2026-06-19 세션 인수인계 (다음 세션 여기부터):**
 - **조교 갭 backfill 완료 → 통제 A/B → 흡수 확정(채택 X).** 사용자가 갭(2026-02~05) 메워 커버리지 2025-06~2026-06 풀(766 date-meet). `npm run benchmark --gate-only` 클린런서 train_signal 게이트B 연승 **+1.8%p 재현**(top3 항목). **그러나 통제 A/B**(`_probe_train_signal_ab`, 같은 logistic top3, 조교 ON/OFF만 토글, 6분기 OOS): 연승 Δ **−0.12%p**(분기 부호 3+/3− 혼재), 단승 −0.04%p. → **게이트B +1.8%p는 통합효과 아님 = 흡수. 조교(현 train_signal 형태) 채택 X.** 이론검증 D2 흡수위험 실현 = 메타패턴 #2(실측신호≠모델가치, draw×거리 §C5와 동형) 재현. 기록 `docs/train_signal_ab_20260619.txt` + `docs/strategy/2026-06-17-ceiling-attempts-theoretical-review.md` D2.
 - **⚠️ 게이트B 한계기여 과대보고 의심** — 게이트B(+1.8%p) vs 통제 A/B(−0.12%p) 괴리. **승격 판정은 통제 A/B(같은 스펙 토글)로 해야 정확.** class_move·⑳ 등 과거 게이트B 채택도 통제 A/B 재검 권장(별건, 단 class_move는 라이브 클린 별도확인됨).
-- **남은 레버(우선순위):** ⓪ Platt 라이브(C2/B-4 — **유일하게 통제까지 통과한 양성**, 정직성/서비스, 다른세션 설계 `3b3503c`) / 조교 *다른* 조작화(강도·간격 등 recent_form이 못 담는 각도) · 마체중 D1 — 단 흡수 입증 후라 기대↓.
+- **남은 레버(우선순위):** ⓪ Platt 라이브(C2/B-4 — **유일하게 통제까지 통과한 양성**, 정직성/서비스, 설계 `3b3503c` → 아래 구현 완료) / 조교 *다른* 조작화(강도·간격 등 recent_form이 못 담는 각도) · 마체중 D1 — 단 흡수 입증 후라 기대↓.
+
+**▶ Platt 라이브 연결 — 코드·프로덕션 fit 완료, 백필+배포만 남음 (2026-06-19, 별도 세션):**
+- **무엇:** §C8 양성(재보정)을 라이브에 연결 = 첫 서비스 캘리브레이션. brainstorm→spec→plan→subagent-driven Task1~7. 스펙/플랜 `docs/superpowers/{specs,plans}/2026-06-19-platt-live-calibration*`.
+- **접근법 A:** 기존 top3 랭킹모델 **불변** + P1 전용모델·Platt 2개를 `model_versions.artifact.calibration`에 임베드. `predictRace`가 `p_win`(우승)·`p_top3`(연승) 산출(**랭킹 불변**) → predictions 저장 → UI(PredictionSheet·RaceEntries) "우승 N%·연승 M%" 표시. **renormWin=false 확정**(calib:recal: plain Platt P1착 ECE **0.003**<시장 0.004<원본 0.016).
+- **신규 코드:** `src/engine/eval/calibratedProbs.ts`(순수) · `src/engine/scorePredictor.ts`(p_win/p_top3) · `scripts/fit_live_calibration.ts`(`npm run calib:fit-live` — **Supabase jsonb 기록**, 로컬 DuckDB는 STRUCT추론이라 calibration 유실→`db:pull`로 갱신) · 마이그 `014_prediction_calibrated_probs.sql` · UI 3파일. 커밋 `91fc036`~`00aa753`(브랜치 feat/duckdb-local-mirror).
+- **✅ 완료:** 코드 5단계(402 테스트·빌드 클린) · Supabase id=6에 calibration 기록(platt1 a1.279/b0.540·platt3 a1.057/b0.046) · 라이브 검증(샘플경주 본명 p_win 45%·Σ≈100%·랭킹불변) · 마이그 014 Supabase 적용(사용자).
+- **▶ 재개 지점(여기부터):** ① 사용자가 `npm run backfill` 실행중 → predictions의 p_win/p_top3 채움. 완료 후 검증 SQL `SELECT ... WHERE p_win IS NOT NULL LIMIT 10`. ② **배포 = 브랜치 `feat/duckdb-local-mirror`를 main 머지해야 UI 노출**(현 main엔 UI코드 없음 → 데이터만 차고 화면엔 안 보임). 머지는 DuckDB 미러 등 브랜치 전체를 올리는 큰 결정 → `finishing-a-development-branch`로 전략 검토. ③ (선택) `db:pull`로 로컬 미러를 calibration 포함 동기화. 상세 [[project_market_edge_strategy]].
 
 **▶ 2026-06-18 세션 인수인계:**
 - **Benter 2단계 음성 종결** — 롤링 6분기 OOS 2,559경주+유의성 probe. 방향은 실재(b 6/6분기 양수 p=0.031)이나 크기 0(Δ=+0.00035, 95%CI 0포함 p=0.43)·감쇠(b 0.32→0.13). "실재하나 무가치한 엣지" → 공개피처+시장블렌드 트랙 완전종결. 기록 `docs/benter_twostage_20260617.txt`·`benter_significance_20260617.txt`. 커밋 f51da87·8153453.
