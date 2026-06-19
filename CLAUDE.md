@@ -172,7 +172,12 @@ npm run test:run     # vitest 단위 테스트
 **Benchmark 스크립트:** `scripts/benchmark_all.ts` — `npm run benchmark`. **롤링 통합 완료(2026-06-14).**  
 **롤링 통합 완료 (2026-06-14):** benchmark가 walkforward 흡수 → `walkforward_eval.ts` 삭제. 분기 확장윈도우 9모델 + 챔피언(model_versions) 대결 + 시장 깊은 진단(불일치·순위별·묶음). CLI `--gate-only`/`--no-gate`/`--champion <id>`. 코드 `src/engine/eval/`. 실측: 챔피언 롤링 연승 61.4%(시장 68.8%, −7.4%p). 스펙/플랜 `docs/superpowers/{specs,plans}/2026-06-14-rolling-benchmark-integration*`.
 
-**▶ 2026-06-18 세션 인수인계 (다음 세션 여기부터):**
+**▶ 2026-06-19 세션 인수인계 (다음 세션 여기부터):**
+- **조교 갭 backfill 완료 → 통제 A/B → 흡수 확정(채택 X).** 사용자가 갭(2026-02~05) 메워 커버리지 2025-06~2026-06 풀(766 date-meet). `npm run benchmark --gate-only` 클린런서 train_signal 게이트B 연승 **+1.8%p 재현**(top3 항목). **그러나 통제 A/B**(`_probe_train_signal_ab`, 같은 logistic top3, 조교 ON/OFF만 토글, 6분기 OOS): 연승 Δ **−0.12%p**(분기 부호 3+/3− 혼재), 단승 −0.04%p. → **게이트B +1.8%p는 통합효과 아님 = 흡수. 조교(현 train_signal 형태) 채택 X.** 이론검증 D2 흡수위험 실현 = 메타패턴 #2(실측신호≠모델가치, draw×거리 §C5와 동형) 재현. 기록 `docs/train_signal_ab_20260619.txt` + `docs/strategy/2026-06-17-ceiling-attempts-theoretical-review.md` D2.
+- **⚠️ 게이트B 한계기여 과대보고 의심** — 게이트B(+1.8%p) vs 통제 A/B(−0.12%p) 괴리. **승격 판정은 통제 A/B(같은 스펙 토글)로 해야 정확.** class_move·⑳ 등 과거 게이트B 채택도 통제 A/B 재검 권장(별건, 단 class_move는 라이브 클린 별도확인됨).
+- **남은 레버(우선순위):** ⓪ Platt 라이브(C2/B-4 — **유일하게 통제까지 통과한 양성**, 정직성/서비스, 다른세션 설계 `3b3503c`) / 조교 *다른* 조작화(강도·간격 등 recent_form이 못 담는 각도) · 마체중 D1 — 단 흡수 입증 후라 기대↓.
+
+**▶ 2026-06-18 세션 인수인계:**
 - **Benter 2단계 음성 종결** — 롤링 6분기 OOS 2,559경주+유의성 probe. 방향은 실재(b 6/6분기 양수 p=0.031)이나 크기 0(Δ=+0.00035, 95%CI 0포함 p=0.43)·감쇠(b 0.32→0.13). "실재하나 무가치한 엣지" → 공개피처+시장블렌드 트랙 완전종결. 기록 `docs/benter_twostage_20260617.txt`·`benter_significance_20260617.txt`. 커밋 f51da87·8153453.
 - **조교(training) 신호 backfill 착수 — 반공개 본류:** 친구 키(`KRA_API_KEY_FRIEND`)로 266,657행 적재(2025-06~2026-01 + 2026-05-18~06-18). **갭 2026-02~2026-05-17 미수집**(친구 키 쿼터소진). 내 키는 아직 쿼터 미복구(2026-06-18 확인).
 - **버그 2건 수정:** ① backfill이 data.go.kr 소프트 스로틀(HTTP200 SOAP `LIMITED_NUMBER`)을 일반에러로 5회재시도·오분류 → `isQuotaSignal` 즉시중단+`errSink` 가시화(커밋 80ce526). ② **hr_no JSON 타입 추론 → 조교 피처 통째 누락**(KRA가 hrNo 문자열/숫자 혼재 → read_json_auto JSON추론 → IN비교 "Malformed JSON: number with leading zero"). `toTrainingRow` 7자리 패딩+마이그+회귀테스트(커밋 다음).

@@ -1,0 +1,63 @@
+
+> kra-analyzer@0.1.0 benchmark
+> tsx scripts/benchmark_all.ts --gate-only
+
+📊 Rolling Benchmark 시작
+데이터 수집 중...
+  3664경주
+
+[게이트 A]
+  ⚠️  게이트 A: 99개 상관 경고 (|r|>0.5)
+     [age] ↔ [field_rating_max] r=0.53
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [age] ↔ [field_rating_mean] r=0.54
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [age] ↔ [rating_abs] r=0.53
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [burden_ord_mean] ↔ [career_finish_ratio] r=0.94
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [burden_ord_mean] ↔ [dist_finish_ratio] r=0.54
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [burden_ord_mean] ↔ [early_pos_s1f_mean] r=0.61
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [burden_ord_mean] ↔ [early_pos_s1f_ratio_mean] r=0.56
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [burden_ord_mean] ↔ [late_200m_speed_mean] r=0.61
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [burden_ord_mean] ↔ [late_finish_ratio_mean] r=0.98
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     [burden_ord_mean] ↔ [late_pos_g1f_mean] r=0.91
+       → 상관이 높아도 독립 정보 가능. 포함 여부는 게이트 B 판단.
+     ... 외 89개
+
+[게이트 B]
+
+=== 항목 포함 현황 (연승 채택 / fade·복승 진단) ===
+
+항목                   │ 채택      │   연승 │   fade │   복승
+──────────────────────────────────────────────────────────────────
+01_rating              │ ✅ 포함     │  +3.2%p │  +1.1%p │  +0.5%p
+03_recent_form         │ ✅ 포함     │  +2.5%p │  -0.5%p │  +0.2%p
+train_signal           │ ✅ 포함     │  +1.8%p │  -1.6%p │  -0.2%p
+18_earnings            │ ✅ 포함     │  +1.6%p │  -0.2%p │  +0.5%p
+09_jockey_form         │ ✅ 포함     │  +1.4%p │  +0.0%p │  +0.2%p
+13_age_distance_gender │ ✅ 포함     │  +1.1%p │  +2.5%p │  +0.5%p
+19_running_style_pace  │ ✅ 포함     │  +1.1%p │  +0.2%p │  +0.2%p
+02_weight_change       │ ✅ 포함     │  +0.9%p │  +2.7%p │  +0.5%p
+05_late_position       │ ✅ 포함     │  +0.9%p │  +0.0%p │  +0.5%p
+12_starting_position   │ ✅ 포함     │  +0.9%p │  +0.0%p │  +0.7%p
+17_market_odds         │ ✅ 포함     │  +0.7%p │  +0.5%p │  +0.7%p
+06_distance_fitness    │ ✅ 포함     │  +0.5%p │  +0.0%p │  +0.7%p
+08_burden_weight       │ ✅ 포함     │  +0.5%p │  -0.2%p │  +0.7%p
+10_trainer_form        │ ✅ 포함     │  +0.5%p │  -0.7%p │  -0.2%p
+10b_trainer_recent     │ ✅ 포함     │  +0.5%p │  +0.2%p │  -0.2%p
+11_race_interval       │ ✅ 포함     │  +0.5%p │  -0.9%p │  +0.2%p
+16_jockey_horse_chemistry│ ✅ 포함     │  +0.5%p │  -0.2%p │  -0.2%p
+09b_jockey_recent      │ ✅ 포함     │  +0.2%p │  -0.7%p │  +0.0%p
+15_seasonal_pattern    │ ✅ 포함     │  +0.2%p │  +0.2%p │  -0.2%p
+20_speed_figure        │ ✅ 포함     │  +0.2%p │  +0.0%p │  +0.0%p
+04_sectional_time      │ ⚠️  제외   │  +0.0%p │  +0.2%p │  +0.0%p
+14_pedigree            │ ⚠️  제외   │  +0.0%p │  +0.0%p │  +0.0%p
+med_bleed              │ ⚠️  제외   │  +0.0%p │  +0.0%p │  +0.0%p
+07_track_adaptation    │ ⚠️  제외   │  -0.2%p │  +0.0%p │  +0.0%p
+med_fatigue            │ ⚠️  제외   │  -0.2%p │  +0.5%p │  -0.7%p
