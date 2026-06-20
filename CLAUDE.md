@@ -1,7 +1,7 @@
 # KRA 경마 분석 도구 — Claude 컨텍스트
 
 > 새 세션에서 이 파일을 가장 먼저 읽습니다.
-> 마지막 업데이트: 2026-06-16 (시장격파 방법론 전환 — 공개 피처 발굴 종결)
+> 마지막 업데이트: 2026-06-20 (Platt 라이브 캘리브레이션 배포 + 조교 로그 라이브 현행화 376k)
 
 ---
 
@@ -163,10 +163,15 @@ npm run test:run     # vitest 단위 테스트
 
 ---
 
-## ⚠️ 현재 실행 상태 (2026-06-12)
+## ⚠️ 현재 실행 상태 (2026-06-20)
 
-**브랜치:** `feat/duckdb-local-mirror` (main 미머지)  
-**Supabase 제한:** 2026-06-23 리셋 (egress 소진 — 읽기·쓰기·웹앱 전부 차단)  
+**▶ 2026-06-20 세션 완료 (다음 세션 여기부터):**
+- **✅ Platt 라이브 캘리브레이션 배포 완료** — backfill·머지·db:pull 3단계 끝(아래 Platt 섹션 "✅ 배포 완료"). 브랜치 main 머지됨. predictions p_win/p_top3 라이브.
+- **✅ 조교 로그 라이브 현행화** — backfill은 로컬에만 쓰므로 라이브 Supabase `training_logs`는 옛 6,540행뿐이었음. **신규 `scripts/upload_training_logs.ts`(`npm run training:upload`)** = JSONL→Supabase pg직결 멱등 upsert. **6,540→376,372행**(2025-06-01~2026-06-20). 커밋 `0963c2b`(main push). 2단계 흐름: backfill(KRA→로컬 JSONL/DuckDB) → upload(JSONL→Supabase). ⚠️ db:pull은 로컬 training_logs를 덮으나 JSONL 원천서 복원. 상세 [[project_training_signals]].
+- **남은 레버:** 조교 *다른* 조작화(흡수 입증 후 기대↓) · 마체중 D1. 공개피처+승/연승 시장격파는 종결([[project_market_dominance_ceiling]]).
+
+**브랜치:** `main` (feat/duckdb-local-mirror 머지 완료 2026-06-20)  
+**Supabase:** egress 결제주기 2026-06-23 리셋. **단 `DATABASE_URL` Postgres 직결은 egress 무관** — 2026-06-20 db:pull·SQL·조교 376k upsert 전부 정상. REST/웹앱만 egress 영향.  
 **활성 모델:** id=6 (v6-class-move, logistic) — DuckDB is_active 확인(2026-06-14). 벤치 연승 62.5% / 단승 30.6% / 시장 68.2%(−5.7%p)  
 **DuckDB 스펙:** `docs/superpowers/specs/2026-06-12-duckdb-local-mirror-design.md`  
 **Benchmark 스크립트:** `scripts/benchmark_all.ts` — `npm run benchmark`. **롤링 통합 완료(2026-06-14).**  
@@ -182,7 +187,8 @@ npm run test:run     # vitest 단위 테스트
 - **접근법 A:** 기존 top3 랭킹모델 **불변** + P1 전용모델·Platt 2개를 `model_versions.artifact.calibration`에 임베드. `predictRace`가 `p_win`(우승)·`p_top3`(연승) 산출(**랭킹 불변**) → predictions 저장 → UI(PredictionSheet·RaceEntries) "우승 N%·연승 M%" 표시. **renormWin=false 확정**(calib:recal: plain Platt P1착 ECE **0.003**<시장 0.004<원본 0.016).
 - **신규 코드:** `src/engine/eval/calibratedProbs.ts`(순수) · `src/engine/scorePredictor.ts`(p_win/p_top3) · `scripts/fit_live_calibration.ts`(`npm run calib:fit-live` — **Supabase jsonb 기록**, 로컬 DuckDB는 STRUCT추론이라 calibration 유실→`db:pull`로 갱신) · 마이그 `014_prediction_calibrated_probs.sql` · UI 3파일. 커밋 `91fc036`~`00aa753`(브랜치 feat/duckdb-local-mirror).
 - **✅ 완료:** 코드 5단계(402 테스트·빌드 클린) · Supabase id=6에 calibration 기록(platt1 a1.279/b0.540·platt3 a1.057/b0.046) · 라이브 검증(샘플경주 본명 p_win 45%·Σ≈100%·랭킹불변) · 마이그 014 Supabase 적용(사용자).
-- **▶ 재개 지점(여기부터):** ① 사용자가 `npm run backfill` 실행중 → predictions의 p_win/p_top3 채움. 완료 후 검증 SQL `SELECT ... WHERE p_win IS NOT NULL LIMIT 10`. ② **배포 = 브랜치 `feat/duckdb-local-mirror`를 main 머지해야 UI 노출**(현 main엔 UI코드 없음 → 데이터만 차고 화면엔 안 보임). 머지는 DuckDB 미러 등 브랜치 전체를 올리는 큰 결정 → `finishing-a-development-branch`로 전략 검토. ③ (선택) `db:pull`로 로컬 미러를 calibration 포함 동기화. 상세 [[project_market_edge_strategy]].
+- **✅ 배포 완료 (2026-06-20):** ① backfill 완료 — predictions p_win/p_top3 **39,331행 100%**(경주별 Σ≈1.0, 본명마 최댓값, 검증통과). ② **`feat/duckdb-local-mirror` → main fast-forward 머지+push 완료**(`finishing-a-development-branch`, 138커밋, Vercel 자동배포 트리거). ③ db:pull 동기화 + **calibration 보존 검증**(Postgres 직결은 STRUCT추론으로도 유실 X — line 183 우려는 REST 폴백 한정. platt1 a1.279/b0.540·platt3 a1.057/b0.046 로컬 일치). 상세 [[project_market_edge_strategy]] · [[project_duckdb_local_mirror]].
+  - **🔲 남은 사용자 확인(안 급함):** Vercel 빌드 초록불 + 라이브 UI "우승%·연승%" 표시 + 조교 이력 패널.
 
 **▶ 2026-06-18 세션 인수인계:**
 - **Benter 2단계 음성 종결** — 롤링 6분기 OOS 2,559경주+유의성 probe. 방향은 실재(b 6/6분기 양수 p=0.031)이나 크기 0(Δ=+0.00035, 95%CI 0포함 p=0.43)·감쇠(b 0.32→0.13). "실재하나 무가치한 엣지" → 공개피처+시장블렌드 트랙 완전종결. 기록 `docs/benter_twostage_20260617.txt`·`benter_significance_20260617.txt`. 커밋 f51da87·8153453.
