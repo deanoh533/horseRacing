@@ -163,9 +163,14 @@ npm run test:run     # vitest 단위 테스트
 
 ---
 
-## ⚠️ 현재 실행 상태 (2026-06-20)
+## ⚠️ 현재 실행 상태 (2026-06-22)
 
-**▶ 2026-06-20 세션 완료 (다음 세션 여기부터):**
+**🟢 다음 세션 시작 질문 (사용자 지시 2026-06-22):** "다음 뭐 할까"로 시작하면 **먼저 '적중률 향상 방향' 질문부터 다시 물을 것**(AskUserQuestion 버튼). 옵션: **A. 시장 블렌드**(win_odds 섞기 → 연승 61→~68%, 단 시장 미러·독립성 포기) / **B. 조건부 엣지 마이닝**(시장이 체계적으로 틀리는 좁은 구간 발굴=진짜 실력, 1차 mine:edge 음성이나 재탐색) / **C. 선별 표시·베팅**(Platt 확률로 확신 높은 경주만 강추, 부분집합 적중률↑·커버리지↓, 위험0). 권고=C 즉시 + B 병행, A는 참고선. 상세 배경 [[project_market_edge_strategy]] · [[project_market_dominance_ceiling]]. (이 질문에서 멈춤 — 사용자 "먼저 설명 더" 후 세션 종료.)
+
+**▶ 2026-06-22 세션 추가 완료:**
+- **라이브 흐름 실습 검증** — 6/21 출마표+사전예측(`npm run sync:cards -- --date 20260621`)이 `predictRace` 자동호출로 predictions에 **Platt 확률(p_win/p_top3) 포함** 정상 기록(actual=NULL 사전모드). `sync:cards`=출마표+예측 한방, `sync`(dailySync)=결과+사후예측. ⚠️ npm 인자전달은 `npm run sync -- --date YYYYMMDD`(구분자 `--`, `==` 아님). 결과(API214_1)는 경기 후에만 옴.
+
+**▶ 2026-06-20 세션 완료:**
 - **✅ Platt 라이브 캘리브레이션 배포 완료** — backfill·머지·db:pull 3단계 끝(아래 Platt 섹션 "✅ 배포 완료"). 브랜치 main 머지됨. predictions p_win/p_top3 라이브.
 - **✅ 조교 로그 라이브 현행화** — backfill은 로컬에만 쓰므로 라이브 Supabase `training_logs`는 옛 6,540행뿐이었음. **신규 `scripts/upload_training_logs.ts`(`npm run training:upload`)** = JSONL→Supabase pg직결 멱등 upsert. **6,540→376,372행**(2025-06-01~2026-06-20). 커밋 `0963c2b`(main push). 2단계 흐름: backfill(KRA→로컬 JSONL/DuckDB) → upload(JSONL→Supabase). ⚠️ db:pull은 로컬 training_logs를 덮으나 JSONL 원천서 복원. 상세 [[project_training_signals]].
 - **남은 레버:** 조교 *다른* 조작화(흡수 입증 후 기대↓) · 마체중 D1. 공개피처+승/연승 시장격파는 종결([[project_market_dominance_ceiling]]).
