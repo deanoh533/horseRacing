@@ -3,8 +3,20 @@
   "fitAt": "2026-06-25",
   "metric": "p_top3",
   "tiers": {
-    "strong": { "minProb": 0, "targetHit": 0.85, "label": "강추" },
-    "watch":  { "minProb": 0, "targetHit": 0.75, "label": "주목" }
+    "strong": {
+      "minProb": 0.72,
+      "targetHit": 0.72,
+      "label": "강추"
+    },
+    "watch": {
+      "minProb": 0.62,
+      "targetHit": 0.67,
+      "label": "주목"
+    }
   },
-  "fitMeta": { "rows": 0, "from": 0, "to": 0 }
+  "fitMeta": {
+    "rows": 38518,
+    "from": 20240525,
+    "to": 20260613
+  }
 }
