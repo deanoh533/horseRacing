@@ -32,6 +32,7 @@ import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { classifyRunningStyle, STYLE_INFO, describeFrontRunSuccess, type RunningStyle } from '../lib/runningStyle';
 import { getSectionalInfo, fmtSec, computeSameDistStats, fmtPct } from '../lib/sectional';
+import { PickBadge } from '../components/PickBadge';
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
@@ -176,6 +177,7 @@ export function RaceEntries() {
                 <div key={p.hr_name} className="flex items-center gap-1.5 font-mono-num">
                   <span>{medals[i]}</span>
                   <span className="font-semibold">{p.hr_name}</span>
+                  <PickBadge pTop3={p.p_top3} />
                   <span className="text-xs text-[var(--color-text-disabled)]">{p.total_score.toFixed(1)}점</span>
                   {p.p_win != null && <span className="text-xs text-[var(--color-text-disabled)] ml-1">{fmtPct(p.p_win)}</span>}
                 </div>
