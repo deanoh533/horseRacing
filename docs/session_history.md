@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-06-25 — 선별 표시·베팅 (적중률 향상 트랙 C) 구현·배포
+
+**방향 결정:** "다음 뭐 할까" → 적중률 향상 방향 재질문(버튼) → **C. 선별 표시·베팅** 채택.
+공개피처 시장격파([[project_market_dominance_ceiling]])는 종결 상태, 위에서 택한 위험0 서비스 트랙.
+이미 라이브에 있는 Platt 연승확률 `p_top3`로 확신 높은 마만 골라 라벨링.
+
+**워크플로우:** brainstorm → spec → plan → subagent-driven(Task1~8, 모델 sonnet) + 매 Task 2단계 리뷰 + 최종 전체 리뷰(opus, READY TO MERGE).
+
+**결정사항(브레인스토밍):** 마 단위 · 연승 p_top3 중심(단승은 부수) · 목표 적중률 고정 · 강추/주목 2티어 · 뱃지+/picks 뷰+상시추적 · config 단일출처(접근법 A, 읽기 레이어만).
+
+**임계값 데이터 확정(균형안):** `npm run probe:picks` 곡선 → **강추 p_top3≥0.72 · 주목 [0.62, 0.72)**.
+- track 실측(사후 38,518행, 베이스라인 연승 28.4%): 강추 357건 73.1%·커버 8.9% / 주목 1,207건 65.4%·커버 26.8% (**+44.7 / +37.0%p**).
+- 0.85↑(≤10건)는 과소적합 위험 비채택, 표본 큰 평탄구간 채택. in-sample 한계 명시.
+
+**산출물(11커밋, main 머지·push 완료):**
+- 순수 SSOT `src/engine/eval/selectivePicks.ts`(classifyTier·buildSelectionCurve·tierAccuracy·pickThreshold) + 테스트.
+- `scripts/probe_selective_picks.ts`(`probe:picks` — 곡선/`--strong --watch --write`/`--track`/`--from`, 로컬 DuckDB egress 0).
+- config 단일출처 `client/src/config/selective_picks.json`.
+- 클라이언트: `lib/selectivePicks.ts`·`components/PickBadge.tsx`·`pages/TodayPicks.tsx`(`/picks`)·통계 `useSelectivePickAccuracy` 섹션.
+- 검증: 루트 tsc·417 테스트(1 skip)·client:build 클린.
+
+**남음:** ① 라이브 시각 확인(/picks·뱃지·통계 — Vercel 배포 후). ② 비차단 후속 3건(probe Math.min→reduce·TodayPicks isError/빈상태문구·음수 리프트 부호). ③ 병행 권고였던 **B. 조건부 엣지 마이닝** 재탐색 미착수.
+
+상세 [[project_selective_picks]] · 배경 [[project_market_edge_strategy]].
+
+---
+
 ## 2026-06-14 — 롤링 벤치마크 통합 스펙 (benchmark ← walkforward)
 
 **목표:** "benchmark가 생겼는데 walkforward가 필요한가?" 질문에서 출발, 두 검증도구 관계 정리 + 통합 설계.
