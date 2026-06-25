@@ -229,6 +229,37 @@ export function usePredictionsByDate(rcDate: number) {
   });
 }
 
+/**
+ * 다가오는(사전) 예측 — actual_ord NULL, p_top3 존재. 페이지네이션으로 전부 fetch.
+ * TodayPicks 뷰에서 classifyPick으로 강추/주목만 클라이언트 필터.
+ */
+export function useUpcomingPicks() {
+  return useQuery({
+    queryKey: ['upcoming-picks'],
+    queryFn: async (): Promise<Prediction[]> => {
+      const rows: Prediction[] = [];
+      const PAGE = 1000;
+      for (let off = 0; ; off += PAGE) {
+        const { data, error } = await supabase
+          .from('predictions')
+          .select('*')
+          .is('actual_ord', null)
+          .not('p_top3', 'is', null)
+          .order('race_date')
+          .order('meet')
+          .order('rc_no')
+          .range(off, off + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...(data as Prediction[]));
+        if (data.length < PAGE) break;
+      }
+      return rows;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 // ============================================
 // 통계 페이지용 hooks
 // ============================================

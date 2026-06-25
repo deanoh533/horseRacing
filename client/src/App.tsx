@@ -9,6 +9,7 @@ import { Statistics } from './pages/Statistics';
 import { Settings } from './pages/Settings';
 import { Lab } from './pages/Lab';
 import { VersionCompare } from './pages/VersionCompare';
+import { TodayPicks } from './pages/TodayPicks';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             path="/race/:meet/:date/:rcNo/horse/:chulNo"
             element={<HorseDetail />}
           />
+          <Route path="/picks" element={<TodayPicks />} />
           <Route path="/stats" element={<Statistics />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/lab" element={<Lab />} />

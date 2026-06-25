@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Settings as SettingsIcon, FlaskConical } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Settings as SettingsIcon, FlaskConical, Star } from 'lucide-react';
 
 export function Layout() {
   return (
@@ -32,6 +32,7 @@ export function Layout() {
       <nav className="border-t border-[var(--color-bg-elevated)] bg-[var(--color-bg-surface)] sticky bottom-0">
         <div className="max-w-7xl mx-auto px-2 h-14 flex items-center justify-around">
           <NavTab to="/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="대시보드" />
+          <NavTab to="/picks" icon={<Star className="w-4 h-4" />} label="강추" />
           <NavTab to="/stats" icon={<BarChart3 className="w-4 h-4" />} label="통계" />
           <NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4" />} label="설정" />
         </div>
