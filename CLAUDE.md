@@ -163,9 +163,16 @@ npm run test:run     # vitest 단위 테스트
 
 ---
 
-## ⚠️ 현재 실행 상태 (2026-06-22)
+## ⚠️ 현재 실행 상태 (2026-06-25)
 
-**🟢 다음 세션 시작 질문 (사용자 지시 2026-06-22):** "다음 뭐 할까"로 시작하면 **먼저 '적중률 향상 방향' 질문부터 다시 물을 것**(AskUserQuestion 버튼). 옵션: **A. 시장 블렌드**(win_odds 섞기 → 연승 61→~68%, 단 시장 미러·독립성 포기) / **B. 조건부 엣지 마이닝**(시장이 체계적으로 틀리는 좁은 구간 발굴=진짜 실력, 1차 mine:edge 음성이나 재탐색) / **C. 선별 표시·베팅**(Platt 확률로 확신 높은 경주만 강추, 부분집합 적중률↑·커버리지↓, 위험0). 권고=C 즉시 + B 병행, A는 참고선. 상세 배경 [[project_market_edge_strategy]] · [[project_market_dominance_ceiling]]. (이 질문에서 멈춤 — 사용자 "먼저 설명 더" 후 세션 종료.)
+**▶ 2026-06-25 세션 완료 — C. 선별 표시·베팅 구현 (브랜치 `feat/selective-picks`):**
+- **무엇:** 적중률 향상 트랙 C 채택. Platt `p_top3`(연승 보정확률)로 개별 마에 **강추/주목 2단계** 라벨 → UI 뱃지 + `/picks` '오늘의 강추' 뷰 + 통계 "선별 적중률" 섹션. **랭킹·예측 파이프라인 불변(읽기 레이어만)**. 위험 0. brainstorm→spec→plan→subagent-driven Task1~8. 스펙/플랜 `docs/superpowers/{specs,plans}/2026-06-25-selective-picks*`.
+- **임계값(데이터 확정, 균형안):** `npm run probe:picks` 곡선 → **강추 p_top3≥0.72, 주목 ≥0.62**. 단일출처 `client/src/config/selective_picks.json`(튜닝 잦은 값=설정). track 실측(사후 38,518행): **강추 357건 연승 73.1%·커버 8.9% / 주목 1,207건 연승 65.4%·커버 26.8%** (베이스라인 연승 28.4% 대비 **+44.7/+37.0%p**). 표본 큰 평탄구간 채택(0.85↑는 10건 이하 과소적합 제외).
+- **신규 코드:** `src/engine/eval/selectivePicks.ts`(순수 SSOT: classifyTier·buildSelectionCurve·tierAccuracy·pickThreshold) · `scripts/probe_selective_picks.ts`(`npm run probe:picks` — 곡선/`--strong H --watch H --write`/`--track`/`--from`, **로컬 DuckDB egress 0**) · `client/src/lib/selectivePicks.ts`·`components/PickBadge.tsx`·`pages/TodayPicks.tsx`(`/picks`) · 통계 `useSelectivePickAccuracy`. 임계값 바꾸려면 probe `--write` 또는 config 직접 수정 후 클라이언트 빌드.
+- **🔲 남음:** ① 시각 확인(`/picks`·뱃지·통계 섹션 — Vercel/로컬). ② `feat/selective-picks` → main 머지 결정. ③ 병행 권고였던 **B. 조건부 엣지 마이닝** 재탐색은 미착수.
+- 상세 [[project_selective_picks]] · 배경 [[project_market_edge_strategy]].
+
+**🟢 다음 세션 시작 질문 (지난 지시, 이번에 C로 해소됨):** "다음 뭐 할까"로 시작하면 '적중률 향상 방향' 질문(A.시장블렌드 / B.조건부엣지 / C.선별표시). 이번 세션 **C 구현 완료** → 다음 후보는 B 재탐색 또는 선별 트랙 고도화(선별 베팅 ROI·엑조틱). 상세 [[project_market_edge_strategy]] · [[project_market_dominance_ceiling]].
 
 **▶ 2026-06-22 세션 추가 완료:**
 - **라이브 흐름 실습 검증** — 6/21 출마표+사전예측(`npm run sync:cards -- --date 20260621`)이 `predictRace` 자동호출로 predictions에 **Platt 확률(p_win/p_top3) 포함** 정상 기록(actual=NULL 사전모드). `sync:cards`=출마표+예측 한방, `sync`(dailySync)=결과+사후예측. ⚠️ npm 인자전달은 `npm run sync -- --date YYYYMMDD`(구분자 `--`, `==` 아님). 결과(API214_1)는 경기 후에만 옴.
