@@ -22,6 +22,7 @@
     "calib": "tsx scripts/calibration_report.ts",
     "calib:recal": "tsx scripts/recalibration_report.ts",
     "calib:fit-live": "tsx scripts/fit_live_calibration.ts",
+    "probe:picks": "tsx scripts/probe_selective_picks.ts",
     "sync:pg": "tsx scripts/sync_daily_pg.ts",
     "test": "vitest",
     "test:run": "vitest run",
