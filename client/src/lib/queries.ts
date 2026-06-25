@@ -15,6 +15,7 @@ import {
   type Horse,
   type GradeDistStat,
 } from './supabase';
+import { pickConfig } from './selectivePicks';
 
 /**
  * 특정 날짜의 모든 경주 (서울 + 부산경남)
@@ -330,6 +331,64 @@ export function useMonthlyHitRate(monthsBack: number | null = 12) {
   });
 }
 
+export type SelectiveTierStat = {
+  tier: 'strong' | 'watch';
+  picks: number; placeHitRate: number; winHitRate: number; coverage: number;
+};
+export type SelectivePickAccuracy = {
+  tiers: SelectiveTierStat[];
+  baselinePlace: number; totalRaces: number;
+};
+
+/**
+ * 선별 적중률 상시 추적 — 사후(actual_ord 존재) 예측을 config 임계값으로 티어 분류,
+ * 티어별 연승/단승 적중률·커버리지 + 전체 베이스라인. classifyPick과 같은 config 사용.
+ */
+export function useSelectivePickAccuracy(monthsBack: number | null = 12) {
+  return useQuery({
+    queryKey: ['selective-pick-accuracy', monthsBack],
+    queryFn: async (): Promise<SelectivePickAccuracy> => {
+      const since = monthsBack != null ? dateMonthsAgo(monthsBack) : 0;
+      const rows: { race_date: number; meet: number; rc_no: number; p_top3: number | null; actual_ord: number | null }[] = [];
+      const PAGE = 1000;
+      for (let off = 0; ; off += PAGE) {
+        let qb = supabase
+          .from('predictions')
+          .select('race_date, meet, rc_no, p_top3, actual_ord')
+          .not('actual_ord', 'is', null)
+          .not('p_top3', 'is', null)
+          .order('race_date').range(off, off + PAGE - 1);
+        if (since) qb = qb.gte('race_date', since);
+        const { data, error } = await qb;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < PAGE) break;
+      }
+
+      const sMin = pickConfig.tiers.strong.minProb;
+      const wMin = pickConfig.tiers.watch.minProb;
+      const key = (r: typeof rows[number]) => `${r.race_date}-${r.meet}-${r.rc_no}`;
+      const allRaces = new Set(rows.map(key));
+      const place = (r: typeof rows[number]) => r.actual_ord! >= 1 && r.actual_ord! <= 3;
+      const win = (r: typeof rows[number]) => r.actual_ord === 1;
+      const rate = (sel: typeof rows, p: (r: typeof rows[number]) => boolean) => (sel.length ? sel.filter(p).length / sel.length : 0);
+      const isStrong = (r: typeof rows[number]) => sMin > 0 && r.p_top3! >= sMin;
+      const strongSel = rows.filter(isStrong);
+      const watchSel = rows.filter((r) => wMin > 0 && r.p_top3! >= wMin && !isStrong(r));
+      const stat = (sel: typeof rows, tier: 'strong' | 'watch'): SelectiveTierStat => ({
+        tier, picks: sel.length, placeHitRate: rate(sel, place), winHitRate: rate(sel, win),
+        coverage: allRaces.size ? new Set(sel.map(key)).size / allRaces.size : 0,
+      });
+      return {
+        tiers: [stat(strongSel, 'strong'), stat(watchSel, 'watch')],
+        baselinePlace: rate(rows, place), totalRaces: allRaces.size,
+      };
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 /**
  * 가중치 학습 이력 (weight_history 시계열)
  */
@@ -633,6 +692,12 @@ function monthOf(rcDate: number): string {
   const y = Math.floor(rcDate / 10000);
   const m = Math.floor((rcDate % 10000) / 100);
   return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+function dateMonthsAgo(monthsBack: number): number {
+  const d = new Date();
+  d.setMonth(d.getMonth() - monthsBack);
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 }
 
 // ============================================

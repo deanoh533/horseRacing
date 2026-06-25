@@ -22,6 +22,7 @@ import {
   useRecentArchives,
   useEarningsHitRate,
   useRaceCardsCoverage,
+  useSelectivePickAccuracy,
 } from '../lib/queries';
 
 const PERIODS = [
@@ -177,6 +178,9 @@ export function Statistics() {
           </>
         )}
       </Card>
+
+      {/* 선별 적중률 */}
+      <SelectivePickSection />
 
       {/* 가중치 학습 이력 */}
       <Card
@@ -382,6 +386,43 @@ export function Statistics() {
         )}
       </Card>
     </div>
+  );
+}
+
+function SelectivePickSection() {
+  const { data } = useSelectivePickAccuracy(12);
+  if (!data) return null;
+  const pct = (x: number) => (x * 100).toFixed(1) + '%';
+  const labelOf = (t: 'strong' | 'watch') => (t === 'strong' ? '강추' : '주목');
+  return (
+    <section className="rounded-lg border border-[var(--color-bg-elevated)] p-4">
+      <h2 className="font-semibold mb-1">선별 적중률 (최근 12개월)</h2>
+      <p className="text-xs text-[var(--color-text-secondary)] mb-3">
+        전체 연승 베이스라인 {pct(data.baselinePlace)} · {data.totalRaces}경주
+      </p>
+      <table className="w-full text-sm">
+        <thead className="text-[var(--color-text-secondary)] text-xs">
+          <tr><th className="text-left">티어</th><th>건수</th><th>연승</th><th>단승</th><th>커버리지</th><th>리프트</th></tr>
+        </thead>
+        <tbody>
+          {data.tiers.map((s) => (
+            <tr key={s.tier} className="border-t border-[var(--color-bg-elevated)]">
+              <td className="py-1 font-medium">{labelOf(s.tier)}</td>
+              <td className="text-center">{s.picks}</td>
+              <td className="text-center font-mono-num">{pct(s.placeHitRate)}</td>
+              <td className="text-center font-mono-num">{pct(s.winHitRate)}</td>
+              <td className="text-center font-mono-num">{pct(s.coverage)}</td>
+              <td className="text-center font-mono-num text-[var(--color-accent-cyan)]">
+                +{((s.placeHitRate - data.baselinePlace) * 100).toFixed(1)}%p
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {data.tiers.every((s) => s.picks === 0) && (
+        <p className="text-xs text-[var(--color-text-disabled)] mt-2">임계값 미확정(probe 전) 또는 해당 구간 픽 없음.</p>
+      )}
+    </section>
   );
 }
 
