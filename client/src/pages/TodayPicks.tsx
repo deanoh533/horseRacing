@@ -55,7 +55,7 @@ export function TodayPicks() {
             </Link>
             <ul className="mt-2 space-y-1">
               {horses.map((p) => (
-                <li key={p.hr_name} className="flex items-center gap-2 text-sm">
+                <li key={`${p.race_date}-${p.meet}-${p.rc_no}-${p.hr_name}`} className="flex items-center gap-2 text-sm">
                   <PickBadge pTop3={p.p_top3} />
                   <span className="font-semibold">{p.hr_name}</span>
                   <span className="text-xs text-[var(--color-text-secondary)] ml-auto">
