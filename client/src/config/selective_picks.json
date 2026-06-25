@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "fitAt": "2026-06-25",
+  "metric": "p_top3",
+  "tiers": {
+    "strong": { "minProb": 0, "targetHit": 0.85, "label": "강추" },
+    "watch":  { "minProb": 0, "targetHit": 0.75, "label": "주목" }
+  },
+  "fitMeta": { "rows": 0, "from": 0, "to": 0 }
+}
