@@ -79,3 +79,6 @@ data/local.duckdb.wal
 
 # 격리(삭제 대상 staging) — git·검색 제외, 디스크 보존
 _trash/
+
+# 옛 기획문서 — 제자리 보존하되 Claude 검색(ripgrep) 제외. Read는 .claude/settings.json deny. 변천사 정본은 docs/history/service-evolution.md.
+docs/_archive/
