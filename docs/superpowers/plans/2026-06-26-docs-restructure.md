@@ -86,7 +86,7 @@
 - ★ 시장 벤치마크 음성지식 — 모델이 인기1위에 연승 뒤지고 엇갈릴 때 더 틀림. [[project_market_benchmark]]
 
 ## 참고
-- 스펙: [multi-model-benchmark](../superpowers/specs/2026-06-12-multi-model-benchmark-design.md), [rolling-benchmark-integration](../superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
+- 스펙: multi-model-benchmark, rolling-benchmark-integration (설계 raw: git 이력)
 - 문서: [accuracy_metrics.md](../accuracy_metrics.md)
 ```
 
@@ -124,7 +124,7 @@
 - ⚠️ KRA 엑조틱 공제율 26% > 단복승 20% → 엑조틱이 더 어려움.
 
 ## 참고
-- 스펙: [platt-live-calibration](../superpowers/specs/2026-06-19-platt-live-calibration-design.md), [selective-picks](../superpowers/specs/2026-06-25-selective-picks-design.md)
+- 스펙: platt-live-calibration, selective-picks (설계 raw: git 이력)
 - 전략: [strategy/2026-06-16](../strategy/2026-06-16-market-edge-and-korean-winning-conditions.md), [strategy/2026-06-17](../strategy/2026-06-17-ceiling-attempts-theoretical-review.md)
 ```
 
