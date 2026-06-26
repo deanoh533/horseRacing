@@ -197,43 +197,14 @@ main push → Vercel 자동 배포 (`horse-racing-xi-one.vercel.app`)
 
 ## DB 테이블 의존성
 
-| 테이블/뷰 | PK | 채움 |
-|---|---|---|
-| `race_entries` | (race_date, meet, rc_no, pthr_no) | raceCardSync / dailySync |
-| `races` | (race_date, meet, rc_no) | raceCardSync / dailySync |
-| `predictions` | (race_date, meet, rc_no, hr_name) | scorePredictor → dailySync / backfill |
-| `weight_history` | id | apply_learned_weights |
-| `training_logs` | (race_date, hr_no) | trainingSync (API18_1) |
-| `jockey_stats` | jcky_no | jockeySync (jkpresult) |
-| `horses` | hr_no | fetch_horse_info |
-| `horse_sectional_ability` | view | 007 마이그레이션 |
-| `race_sectional_stats` | view | 007 마이그레이션 |
+> 테이블·PK·채움 주체 표는 **구조 SSOT** [architecture.md §5 데이터 모델](architecture.md#5-데이터-모델-db)에 둡니다 (중복 방지).
+> 위 단계별 흐름에서 각 테이블이 언제 채워지는지는 본문 1~7단계 참조.
 
 ---
 
 ## 운영 시나리오
 
-```
-[수요일] 주말(금·토·일) 출전표 일괄 발표
-  npm run sync:racecard -- --date YYYYMMDD   # 금·토·일 각 날짜로 3회
-  → race_entries (사전) + races INSERT
-  → 웹 /dashboard 에서 즉시 표시
-
-[금~일 경기 전]
-  웹에서 예측 1~3위 + 항목 점수 확인 → 베팅
-
-[금~일 밤, 경기 후]
-  npm run sync:daily -- --date YYYYMMDD
-  → race_entries 결과 UPDATE + predictions 재계산
-
-[egress 소진 시 / 오프라인 분석]
-  npm run db:pull   → DuckDB 갱신
-  npm run benchmark → 9개 모델 비교
-
-[가중치 학습 / 승격]
-  npx tsx scripts/apply_learned_weights.ts   # Spearman
-  npm run promote -- --id N                  # 모델 활성화
-```
+> 주간 운영 명령 시퀀스는 복사하지 않습니다 — **시점(언제)** 은 [data_lifecycle.md §3 운영 시나리오](data_lifecycle.md#3-운영-시나리오-일주일), **명령어(무엇을)** 는 [pipeline_guide.md §7 전체 명령어](pipeline_guide.md#7-전체-명령어-정리)가 정본.
 
 ---
 
