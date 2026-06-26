@@ -149,6 +149,10 @@ npm run test:run     # vitest 단위 테스트
 
 ### 세션 인계 (새 세션 정독 추천)
 - [docs/status/](docs/status/) — **트랙별 진행상황 SSOT** (점수·모델·엣지·신호·인프라·UI)
+- [docs/history/](docs/history/) — **변천사 SSOT** (모델링·측정 / 서비스 / 지표 / 데이터흐름 4갈래 지도)
+
+> **문서 갱신 규칙:** 트랙 종결/채택 → `docs/history/modeling-history.md` · 지표 변경 → `docs/score_roadmap.md` · 기능 마일스톤 → `docs/history/service-evolution.md` · 파이프라인 구조 변경 → `docs/data_flow.md`. 현재상태는 `docs/status/0N-*.md`.
+
 - [docs/working_style.md](docs/working_style.md) — **시니어 개발자 + 설계자 관점, 협업 패턴**
 - [docs/running_style_insight.md](docs/running_style_insight.md) — 주행 성향 분류 큰그림·현재 위치·다음 단계 (⑤⑥⑫ 완료 / ⑲ 스코어맵 종결 — 죽은코드, 로지스틱 직접학습)
 - [docs/session_history.md](docs/session_history.md) — 세션별 작업 히스토리 (2026-06-02 ~ 현재)
