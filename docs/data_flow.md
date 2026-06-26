@@ -51,7 +51,7 @@ Vercel (React UI)              (Pearson 중복)  (연승률 개선)  (Spearman/
 
 ## 1단계: API 수집 (KRA → Supabase)
 
-### 1-1. 출전표 발표 (수~목, 경기 3일 전)
+### 1-1. 출전표 발표 (수요일 일괄, 경기 D-2~D-4)
 
 ```bash
 npm run sync:racecard -- --date YYYYMMDD
@@ -214,8 +214,8 @@ main push → Vercel 자동 배포 (`horse-racing-xi-one.vercel.app`)
 ## 운영 시나리오
 
 ```
-[수~목오일] 출전표 발표
-  npm run sync:racecard -- --date YYYYMMDD
+[수요일] 주말(금·토·일) 출전표 일괄 발표
+  npm run sync:racecard -- --date YYYYMMDD   # 금·토·일 각 날짜로 3회
   → race_entries (사전) + races INSERT
   → 웹 /dashboard 에서 즉시 표시
 
