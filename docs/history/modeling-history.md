@@ -4,7 +4,7 @@
 
 ## 1. 점수 학습 방식의 변천
 - **Spearman 가중치 (v1)** — 항목별 ρ로 가중치 학습. look-ahead 누수 수정으로 옛 적중률이 거품이었음 판명(2026-06-02, 정직 복승 ~58%). [[project_weight_versioning]]
-- **수득상금 차원 종결 (2026-06-06)** — 재설계 "+5.2%p"가 전부 earnings 미래누수. 차원 자체 예측력 0. [[reference_earnings_asof_leak]]
+- **수득상금 차원 종결 (2026-06-06)** — 재설계 "+5.2%p" 중 대부분(~3.8%p)이 earnings 미래누수, 잔여 +1.4%p만 실제 개선. as-of earnings 자체 예측력은 미검증. [[reference_earnings_asof_leak]]
 - **로지스틱 전체동시학습 (재설계)** — 항목별 ρ→P(top3) 동시 학습. PL·GBM 챔피언전서 **로지스틱 확정, PL/GBM 폐기**. [[project_score_learning_redesign]]
 - **⑳ 속도능력지수 (2026-06-03)** — par-time 절대지수, ρ=0.271. v3 후보였으나 미승격. [[project_speed_figure]]
 - **class_move 채택 (2026-06-11)** — 등급이동, 다분기 강건(+3.9%p), 라이브 클린. [[project_feature_gate_findings]]

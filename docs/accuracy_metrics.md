@@ -153,7 +153,7 @@ npx tsx scripts/accuracy_stats.ts
 > 분기마다 9모델 재학습(확장윈도우) + 저장된 챔피언(`model_versions`) 대결 + 시장 비교.
 > CLI: `--gate-only`(게이트만) / `--no-gate`(롤링만) / `--champion <id>`(챔피언 지정).
 > 코드: `src/engine/eval/{collect,gates,models,score,rolling,market,champion,report}.ts`.
-> 상세 → [specs/2026-06-14-rolling-benchmark-integration-design.md](superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
+> 상세 → 롤링 벤치마크 통합 설계(설계 raw: git 이력)
 
 **신호 채택 후 문서화 체크리스트:**
 - [ ] `score_roadmap.md` §1 마스터 상태표에 ρ·가중치·상태 기록

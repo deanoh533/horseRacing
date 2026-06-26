@@ -1,7 +1,7 @@
 # ⑳ 속도능력지수 (`20_speed_figure`)
 
 > 신규: 2026-06-03 | 상태: 구현·검증 완료, 후보 v3 (미승격)
-> 설계 스펙: [docs/superpowers/specs/2026-06-03-speed-figure-design.md](../superpowers/specs/2026-06-03-speed-figure-design.md)
+> 설계 스펙: 속도능력지수 설계(설계 raw: git 이력)
 > 이 문서는 **작업 리포트 겸 항목 명세**입니다 (다음 세션 재참조용).
 
 ---

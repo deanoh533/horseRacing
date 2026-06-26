@@ -18,5 +18,6 @@
 - ⚠️ KRA 엑조틱 공제율 26% > 단복승 20% → 엑조틱이 더 어려움.
 
 ## 참고
-- 스펙: [platt-live-calibration](../superpowers/specs/2026-06-19-platt-live-calibration-design.md), [selective-picks](../superpowers/specs/2026-06-25-selective-picks-design.md)
+- 서사 정본: [modeling-history](../history/modeling-history.md)
+- 스펙(설계 raw: git 이력): platt-live-calibration(2026-06-19), selective-picks(2026-06-25)
 - 전략: [strategy/2026-06-16](../strategy/2026-06-16-market-edge-and-korean-winning-conditions.md), [strategy/2026-06-17](../strategy/2026-06-17-ceiling-attempts-theoretical-review.md)

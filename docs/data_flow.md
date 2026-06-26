@@ -175,7 +175,7 @@ npm run benchmark            # 롤링 분기 검증 + 시장 진단 (구 walkfor
 
 > **✅ 통합 완료 (2026-06-14):** 옛 walkforward는 benchmark로 흡수·삭제됨. benchmark가
 > 롤링 확장윈도우로 분기별 강건성·시장 진단(불일치·순위별·묶음)·챔피언 대결을 한 도구에서 처리한다.
-> 상세 → [specs/2026-06-14-rolling-benchmark-integration-design.md](superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
+> 상세 → 롤링 벤치마크 통합 설계(설계 raw: git 이력)
 
 현재 활성: id=6 (v6-class-move, logistic) — 롤링 연승 61.4% (시장 68.8%, −7.4%p)
 

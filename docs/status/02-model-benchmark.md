@@ -17,5 +17,6 @@
 - ★ 시장 벤치마크 음성지식 — 모델이 인기1위에 연승 뒤지고 엇갈릴 때 더 틀림. [[project_market_benchmark]]
 
 ## 참고
-- 스펙: [multi-model-benchmark](../superpowers/specs/2026-06-12-multi-model-benchmark-design.md), [rolling-benchmark-integration](../superpowers/specs/2026-06-14-rolling-benchmark-integration-design.md)
+- 서사 정본: [modeling-history](../history/modeling-history.md)
+- 스펙(설계 raw: git 이력): multi-model-benchmark(2026-06-12), rolling-benchmark-integration(2026-06-14)
 - 문서: [accuracy_metrics.md](../accuracy_metrics.md)
