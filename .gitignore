@@ -76,3 +76,6 @@ data/*.jsonl
 # DuckDB 로컬 미러
 data/local.duckdb
 data/local.duckdb.wal
+
+# 격리(삭제 대상 staging) — git·검색 제외, 디스크 보존
+_trash/
