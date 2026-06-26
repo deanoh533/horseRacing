@@ -9,11 +9,11 @@
 
 | Endpoint | 용도 | 우리 경로 | 파라미터 형식 |
 |---|---|---|---|
-| `API214_1/RaceDetailResult_1` | 경주 결과 (말 단위) | [src/kra/client.ts](src/kra/client.ts) | `meet`, `rc_date` (snake_case) |
+| `API214_1/RaceDetailResult_1` | 경주 결과 (말 단위) | [src/kra/client.ts](../src/kra/client.ts) | `meet`, `rc_date` (snake_case) |
 | `racedetailresult/getracedetailresult` | 결과 상세 (stOrd 등) | 동상 | `meet`, `rc_date`, `rc_no` |
 | `API284/HorseBloodBasicInfo` | 혈통 지수 | 동상 | `hr_no` (그러나 **무시됨** — 아래 참조) |
 | `horseinfohi/gethorseinfohi` | 말 정보 (부마/모마) | 동상 | **`hrno`** (camelCase 필수) |
-| `API314/textDataHoldSePtinInfo` | 서울 출주표 | [src/sync/raceCardSync.ts](src/sync/raceCardSync.ts) | `race_dt`, `race_no` (snake_case, ⚠️ rc_date 아님) |
+| `API314/textDataHoldSePtinInfo` | 서울 출주표 | [src/sync/raceCardSync.ts](../src/sync/raceCardSync.ts) | `race_dt`, `race_no` (snake_case, ⚠️ rc_date 아님) |
 | `API316/textDataHoldBuPtinInfo` | 부산경남 출주표 | 동상 | 동상 |
 
 ---
@@ -52,7 +52,7 @@ GET /horseinfohi/gethorseinfohi?hr_no=0047073    → totalCount=383, 첫 row 반
 GET /horseinfohi/gethorseinfohi?hrno=0047073     → totalCount=1, 정확 매칭 (최강타임)
 ```
 
-**적용:** [src/kra/client.ts](src/kra/client.ts) `getHorseInfo()` 가 `hrno` 사용.
+**적용:** [src/kra/client.ts](../src/kra/client.ts) `getHorseInfo()` 가 `hrno` 사용.
 
 ---
 
@@ -66,7 +66,7 @@ GET /API314/textDataHoldSePtinInfo?rc_date=20260524    → 403 Forbidden 또는 
 GET /API314/textDataHoldSePtinInfo?race_dt=20260524    → 정상 (11건)
 ```
 
-**적용:** [src/sync/raceCardSync.ts](src/sync/raceCardSync.ts) 가 `race_dt`/`race_no` 사용.
+**적용:** [src/sync/raceCardSync.ts](../src/sync/raceCardSync.ts) 가 `race_dt`/`race_no` 사용.
 
 ---
 
@@ -97,9 +97,9 @@ GET /API314/textDataHoldSePtinInfo?race_dt=20260524    → 정상 (11건)
 
 **영향:** 초기 측정 단승 26.9% 는 cheating 부풀림. 정직한 베이스라인은 23.8%.
 
-**해결:** [src/engine/scorePredictor.ts](src/engine/scorePredictor.ts) 가 ⑫ starting_position 입력을 `chul_no` 로 변경. KRA 가 명세를 어떻게 정정할 때까지는 stOrd 필드 신뢰 X.
+**해결:** [src/engine/scorePredictor.ts](../src/engine/scorePredictor.ts) 가 ⑫ starting_position 입력을 `chul_no` 로 변경. KRA 가 명세를 어떻게 정정할 때까지는 stOrd 필드 신뢰 X.
 
-**상세:** [docs/score_items/12_starting_position.md](docs/score_items/12_starting_position.md)
+**상세:** [docs/score_items/12_starting_position.md](score_items/12_starting_position.md)
 
 ---
 
