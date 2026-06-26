@@ -73,7 +73,7 @@ clamp to [0, 1]
 | **⑧ 재설계 후 (PRD 가중치)** | **25.2%** (+1.4%p) |
 
 이후 ⑱ 신규 + 학습 누적으로 28.3% 까지 도달.
-상세: [results_log.md](../results_log.md)
+상세: [modeling-history §1](../history/modeling-history.md#1-점수-학습-방식의-변천) (구 results_log 흡수)
 
 ---
 

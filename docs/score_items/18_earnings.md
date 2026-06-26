@@ -63,7 +63,7 @@ KRA 상금 시스템은 강한 말에게 더 많은 상금을 분배함.
 | ⑱ 도입 전 + 학습 (blend 0.5) | 26.2% | |
 | **⑱ 도입 후 + 학습 (blend 0.5)** | **28.3%** | +2.1%p, 누적 효과 |
 
-상세: [docs/results_log.md](../results_log.md)
+상세: [modeling-history §1](../history/modeling-history.md#1-점수-학습-방식의-변천) (구 results_log 흡수)
 
 ---
 
