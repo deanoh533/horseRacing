@@ -1,5 +1,7 @@
 # 🔄 데이터 흐름 (전체 파이프라인)
 
+> **역할: 흐름 SSOT** (데이터가 어떻게 이동하나). 구조는 [architecture](architecture.md), 명령어는 [pipeline_guide](pipeline_guide.md).
+
 > 최종 업데이트: 2026-06-12 (DuckDB 로컬 미러 + Multi-Model Benchmark 반영)
 
 ---

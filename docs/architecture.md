@@ -1,5 +1,7 @@
 # 🏗 시스템 아키텍처 — 큰 그림
 
+> **역할: 구조 SSOT** (무엇이 있나). 데이터 흐름은 [data_flow](data_flow.md), 명령어는 [pipeline_guide](pipeline_guide.md).
+
 > 이 문서는 프로젝트 전체를 한눈에 잡기 위한 최상위 문서입니다.
 > 세부 흐름은 [data_flow.md](data_flow.md), 알고리즘은 [score_algorithm.md](score_algorithm.md) 참고.
 
@@ -37,11 +39,7 @@ KRA(한국마사회) 출마정보와 결과를 받아 두 가지를 한 화면�
   race_entries     predictions        weight_history     predictions
 ```
 
-각 단계 자세히:
-- **① 수집** → [data_flow.md](data_flow.md)
-- **② 점수화** → [score_algorithm.md](score_algorithm.md)
-- **③ 학습** → 아래 §4
-- **④ 검증** → [accuracy_metrics.md](accuracy_metrics.md)
+> 단계별 상세 흐름은 [data_flow.md](data_flow.md)가 정본.
 
 ---
 

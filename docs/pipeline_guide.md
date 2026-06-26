@@ -1,5 +1,7 @@
 # 파이프라인 가이드 — 데이터 흐름 · 스크립트 · 명령어
 
+> **역할: 명령어/실행 SSOT**. 구조는 [architecture](architecture.md), 흐름은 [data_flow](data_flow.md).
+
 > 작성: 2026-06-12  
 > 목적: API 수집→가공→학습→예측 전체 흐름을 한 문서에서 파악.  
 >
