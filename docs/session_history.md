@@ -7,6 +7,21 @@
 ## 2026-06-25 — 선별 표시·베팅 (트랙 C)
 강추/주목 라벨 + `/picks` 뷰 + 통계 섹션 배포. 상세 → [03-market-edge](status/03-market-edge.md) · [[project_selective_picks]]
 
+## 2026-06-22 — 라이브 흐름 실습 검증
+sync:cards 사전예측이 predictions에 Platt 확률 포함 정상 기록 확인(actual=NULL 사전모드). 상세 → [05-data-infra](status/05-data-infra.md) · [03-market-edge](status/03-market-edge.md)
+
+## 2026-06-20 — Platt 라이브 배포 + 조교 376k 업로드
+Platt 캘리브레이션(p_win/p_top3) 라이브 배포 완료 + training_logs 6,540→376,372행 upload. 상세 → [03-market-edge](status/03-market-edge.md) · [05-data-infra](status/05-data-infra.md)
+
+## 2026-06-19 — 조교 신호 흡수 확정 + Platt 코드 완료
+통제 A/B(같은 스펙 ON/OFF) Δ−0.12% = 조교 train_signal 흡수, 채택 X. Platt 라이브 코드·fit 완료. 상세 → [04-signals](status/04-signals.md) · [03-market-edge](status/03-market-edge.md)
+
+## 2026-06-18 — Benter 2단계 음성 종결 + 조교 backfill 착수
+Benter 2단계 "실재하나 무가치한 엣지" 완전종결 + 친구 키로 조교 로그 backfill. 상세 → [03-market-edge](status/03-market-edge.md) · [04-signals](status/04-signals.md)
+
+## 2026-06-16 — 공개피처 발굴 종결 + ⑲ 스코어맵 종결
+공개피처 3건 음성 종결, 방법론 전환(4갈래). ⑲ SCORE_MAP=죽은코드 종결. 상세 → [01-scoring](status/01-scoring.md) · [03-market-edge](status/03-market-edge.md)
+
 ## 2026-06-14 — 롤링 벤치마크 통합
 benchmark ← walkforward 흡수·삭제. 상세 → [02-model-benchmark](status/02-model-benchmark.md) · [[project_rolling_benchmark_integration]]
 

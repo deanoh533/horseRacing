@@ -4,6 +4,8 @@
 ## 현재 상태
 활성 모델 **id=6 (v6-class-move, logistic)**. 벤치 연승 62.5% / 단승 30.6% / 시장 68.2%(−5.7%p). `npm run benchmark` = 롤링 확장윈도우 9모델 + 챔피언(model_versions) 대결 + 시장 깊은 진단 통합(walkforward 흡수·삭제, 2026-06-14). 코드 `src/engine/eval/`. 롤백 = 이전 model_version id로 promote.
 
+> 캘리브레이션(Platt `p_win`/`p_top3`)·선별표시는 **시장엣지 트랙**이 SSOT → [03-market-edge](03-market-edge.md). 랭킹 모델(여기)과는 분리.
+
 ## 다음 후보·남음
 - 🔲 model_versions 스키마 영구화 — `feature_schema`/`params` Supabase 반영 + 챔피언 artifact 저장 (egress 리셋 후)
 

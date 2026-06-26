@@ -139,13 +139,7 @@ npm run test:run     # vitest 단위 테스트
 - [docs/PRD_v6.1_entries_view.md](docs/PRD_v6.1_entries_view.md) — 출마정보 화면 PRD
 - [docs/PRD_v6.1_race_info_legend.md](docs/PRD_v6.1_race_info_legend.md) — 에이스경마 1-34번 매핑
 
-> **UI 현황 (2026-05-31):** 예상지 = 모바일 2+2 그리드 / 데스크탑 4열(`grid-cols-2 md:[grid-template-columns:2fr_1.2fr_3fr_2fr]`). 아코디언 레이아웃 미사용(사용자 확인). Col5Items = 가중치 상위 5개 동적 표시. RaceInfoBlock 공통 헤더(3개 화면 공유), 조교 이력 추가 완료. 대시보드 개발 용어 제거·모바일 버튼 개선 완료. **로딩 스켈레톤(U-001) 완료** — Loader2 스피너 → 4열 HorseCardSkeleton 8개. `lib/sectional.ts` 공통 유틸(getSectionalInfo·fmtSec·computeSameDistStats) 분리 완료. RaceEntries JockeyPanel(조합이력·최근3개월폼)·HorsePanel(구간기록·같은거리기록·조교·진료) 개선 완료.
->
-> **HorseCard 컬럼 순서:** Col1=**마정보**(2fr) · Col2=**기수정보**(1.2fr) · Col3=**직전경주**(3fr) · Col4=**베팅조합**(2fr). skeleton·레이아웃 작업 시 혼동 주의.
->
-> **구간기록 유틸:** `client/src/lib/sectional.ts` — `getSectionalInfo(entry)`, `fmtSec(t)`, `computeSameDistStats(history, dist)`. PredictionSheet·RaceEntries 공유. 페이지 파일에 재구현 금지.
->
-> **training_logs 주의:** `st_time`/`sp_time`은 YYYYMMDDHHmmss 타임스탬프 (훈련 시작/종료 시각). 실제 소요시간은 `tr_term`(초). `pr_gubun` 범례: 이름=기수, 조=조교사, 관=주로조교, 생=교육생, 이름(트)=기수트랙라이더.
+> **UI 현황·HorseCard 컬럼순서·`lib/sectional.ts` 유틸·training_logs 함정 → [docs/status/06-ui.md](docs/status/06-ui.md) (SSOT)**
 
 ### 운영·디버깅
 - [docs/api_spec.md](docs/api_spec.md) — **API 전체 명세 (SSOT)**: KRA 9개 엔드포인트·Supabase 스키마·React Query 훅·Claude API. ⚠️ **API 변경(엔드포인트·파라미터·필드·스키마) 시 이 문서를 함께 갱신**
@@ -156,7 +150,7 @@ npm run test:run     # vitest 단위 테스트
 ### 세션 인계 (새 세션 정독 추천)
 - [docs/status/](docs/status/) — **트랙별 진행상황 SSOT** (점수·모델·엣지·신호·인프라·UI)
 - [docs/working_style.md](docs/working_style.md) — **시니어 개발자 + 설계자 관점, 협업 패턴**
-- [docs/running_style_insight.md](docs/running_style_insight.md) — 주행 성향 분류 큰그림·현재 위치·다음 단계 (⑤⑥⑫⑲ 완료 / ⑲ 스코어맵 재설계 대기)
+- [docs/running_style_insight.md](docs/running_style_insight.md) — 주행 성향 분류 큰그림·현재 위치·다음 단계 (⑤⑥⑫ 완료 / ⑲ 스코어맵 종결 — 죽은코드, 로지스틱 직접학습)
 - [docs/session_history.md](docs/session_history.md) — 세션별 작업 히스토리 (2026-06-02 ~ 현재)
 
 ### 할일
