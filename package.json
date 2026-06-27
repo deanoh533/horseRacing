@@ -24,6 +24,7 @@
     "probe:picks": "tsx scripts/probe_selective_picks.ts",
     "probe:picks:roi": "tsx scripts/probe_picks_roi.ts",
     "probe:picks:oos": "tsx scripts/probe_picks_oos.ts",
+    "probe:picks:box": "tsx scripts/probe_picks_box_roi.ts",
     "sync:pg": "tsx scripts/sync_daily_pg.ts",
     "test": "vitest",
     "test:run": "vitest run",
