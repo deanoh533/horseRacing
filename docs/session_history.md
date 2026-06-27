@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-06-27 — 문서 통합 2라운드 (섹션 중복 제거)
+어제 restructure가 못 잡은 잔여 정리: results_log→modeling-history §1 흡수·_trash 격리, modeling-history §3→feature_hypotheses SSOT 링크, data_flow 중복 섹션 2개(DB표·운영시나리오)→정본 링크 축소. **6 카테고리 SSOT 유지 맵**을 [[project_docs_architecture]]에 고정. 결론: 합칠 전체 파일 쌍 없음(strategy 16/17·요약/세부는 보존이 맞음). 상세 → [[project_docs_architecture]]
+
 ## 2026-06-25 — 선별 표시·베팅 (트랙 C)
 강추/주목 라벨 + `/picks` 뷰 + 통계 섹션 배포. 상세 → [03-market-edge](status/03-market-edge.md) · [[project_selective_picks]]
 
