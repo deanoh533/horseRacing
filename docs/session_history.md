@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-06-27 — 선별 ROI 전수조사: 베팅 ROI 갈래 완전 종결
+강추 신호로 베팅 시 ROI를 단·연·복승·박스·조건부까지 전수 검증 → **공개정보 ROI 흑자 불가 확정.** 단·연승 −11/−11%·복승 단일 −24%·복승 박스(top3/4) −17/−14%(적중률↑이나 회수배수<1)·확신박스 +9.6%는 단일분기 노이즈·조건부 엣지 0후보. **부수: predictions 테이블 in-sample 누수+중복 행 발견**(거짓양성 +230%·+9.6% 2건을 walk-forward·분기일관성으로 격파). **강추 73% 적중률은 OOS 72.4%로 정직 재확인**(누수 무관). 신규 도구 `probe:picks:roi`·`probe:picks:oos`·`probe:picks:box`. 남은 유일 ROI 길=마체중 직전수집(KRA 직전 API 가용성 미확인). 상세 → [03-market-edge](status/03-market-edge.md) · [[project_selective_picks]] · [[project_market_dominance_ceiling]]
+
 ## 2026-06-27 — 문서 통합 2라운드 (섹션 중복 제거)
 어제 restructure가 못 잡은 잔여 정리: results_log→modeling-history §1 흡수·_trash 격리, modeling-history §3→feature_hypotheses SSOT 링크, data_flow 중복 섹션 2개(DB표·운영시나리오)→정본 링크 축소. **6 카테고리 SSOT 유지 맵**을 [[project_docs_architecture]]에 고정. 결론: 합칠 전체 파일 쌍 없음(strategy 16/17·요약/세부는 보존이 맞음). 상세 → [[project_docs_architecture]]
 
