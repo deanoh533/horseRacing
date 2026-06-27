@@ -8,8 +8,10 @@
 
 ## 다음 후보·남음
 - 🔲 선별 표시 **시각 확인** (`/picks`·뱃지·통계 섹션 — Vercel/로컬)
-- 🔲 **B. 조건부 엣지 마이닝** 재탐색 (미착수)
 - 🔲 predictions 중복 행 정리(38,518→distinct 24,296) + in-sample 누수 → 운영전환 L-001(prediction_logs 불변 스냅샷)이 근본 차단
+
+## 조건부 엣지 마이닝 (2026-06-27) — 종결, 음성 ❌
+`npm run mine:edge` (모델top1 vs 인기top1 불일치 경주를 배당대·출주두수·거리·불일치강도 구간별 placeEdge). **채택후보 0건.** 거의 전 구간에서 모델 픽이 시장 픽보다 3착내 −15~−38%p 낮음(엇갈리면 어떤 조건서도 시장 승). 양수 칸은 전부 n<20·유효분기 0 표본부족. **결정적: in-sample(누수=낙관 상한)인데도 0후보 → walk-forward 불필요(더 나쁠 뿐).** 공개피처 ROI 갈래 완전 소진(단·연승 적자/복승 OOS −24.4%/win_odds 0/조건부 0).
 
 ## 강추 OOS 재검증 (2026-06-27) — 73% 정직 확인 ✅
 `npm run probe:picks:oos` (walk-forward, train<20250101→test, Platt도 train만 적합). **선별 적중률은 누수 부풀림 아님:**
@@ -30,6 +32,7 @@
 - 정직성: 사후 확정배당 → 낙관적 상한. 선별의 가치 = "돈"이 아닌 "적중·출혈최소·의사결정 보조".
 
 ## 종결·기각 (요약)
+- ❌ 조건부 엣지 마이닝 종결 (2026-06-27) — `mine:edge` 채택후보 0, in-sample 낙관값서도 전구간 음성. ROI 갈래 소진. [[project_market_dominance_ceiling]]
 - ❌ Benter 2단계 음성 종결 (2026-06-17/18) — 방향은 실재하나 크기 0("실재하나 무가치한 엣지"). [[project_market_edge_strategy]]
 - ❌ Benter 혼합(복승) 기각 (2026-06-11) — 혼합 ROI −28%. [[project_benter_blend]]
 - 🔚 공개피처+win_odds 부가가치 0 (천장, 6분기 강건). [[project_market_dominance_ceiling]]
