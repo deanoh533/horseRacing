@@ -25,6 +25,7 @@ import {
   useSelectivePickAccuracy,
 } from '../lib/queries';
 import { ITEM_NAMES } from '../lib/itemNames';
+import { fmtScore } from '../lib/sectional';
 
 const PERIODS = [
   { label: '3개월', months: 3 },
@@ -341,7 +342,7 @@ export function Statistics() {
                   </span>
                   <span className="truncate">{a.predicted_hr}</span>
                   <span className="text-xs text-[var(--color-text-disabled)] font-mono-num">
-                    {a.total_score.toFixed(1)}점
+                    {fmtScore(a.total_score)}점
                   </span>
                 </div>
                 {a.hit === null ? (

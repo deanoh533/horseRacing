@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, FileText, GitCompare, Save, TrendingUp, Loader2, Star } from 'lucide-react';
 import { useHorseHistory, useHorsesByRace, usePredictionsByRace, useHorseTraining } from '../lib/queries';
 import { type RaceEntry, type ItemScore, formatActualOrd, isCancelled } from '../lib/supabase';
+import { fmtScore } from '../lib/sectional';
 import { useMemo } from 'react';
 
 export function HorseDetail() {
@@ -83,7 +84,7 @@ export function HorseDetail() {
             {prediction ? (
               <>
                 <div className="text-4xl font-bold font-mono-num text-[var(--color-accent-cyan)] glow-cyan">
-                  {prediction.total_score.toFixed(1)}
+                  {fmtScore(prediction.total_score)}
                   <span className="text-lg">점</span>
                 </div>
                 <div className="text-sm text-[var(--color-text-secondary)] mt-1">
@@ -405,7 +406,7 @@ function ScoreRow({ item, highlight }: { item: ItemScore; highlight: boolean }) 
         {pct}%
       </div>
       <div className="w-12 text-right font-mono-num text-[var(--color-accent-cyan)] flex-shrink-0">
-        {item.weightedScore.toFixed(1)}점
+        {fmtScore(item.weightedScore)}점
       </div>
     </div>
   );

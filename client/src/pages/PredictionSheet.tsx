@@ -47,7 +47,7 @@ import {
   type GradeDistStat,
 } from '../lib/supabase';
 import { classifyRunningStyle, STYLE_INFO, type RunningStyle } from '../lib/runningStyle';
-import { getSectionalInfo, fmtSec, computeSameDistStats, fmtPct } from '../lib/sectional';
+import { getSectionalInfo, fmtSec, computeSameDistStats, fmtPct, fmtScore } from '../lib/sectional';
 import { PickBadge } from '../components/PickBadge';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
@@ -303,7 +303,7 @@ function PodiumCards({
             <div className="space-y-1">
               <ScoreBar score={p.total_score} maxScore={100} color={s.accent} />
               <div className="text-right text-xs font-mono-num font-semibold" style={{ color: s.accent }}>
-                {p.total_score.toFixed(1)}점
+                {fmtScore(p.total_score)}점
                 <PickBadge pTop3={p.p_top3} />
                 {p.p_win != null && p.p_top3 != null && (
                   <span className="text-xs text-[var(--color-text-secondary)] ml-2">
@@ -1043,7 +1043,7 @@ function CardHeader({
               />
             </div>
             <span className="text-[11px] font-mono-num font-semibold" style={{ color: accent }}>
-              {pScore.toFixed(1)}
+              {fmtScore(pScore)}
             </span>
             <PickBadge pTop3={prediction?.p_top3} />
             {prediction?.p_win != null && prediction?.p_top3 != null && (

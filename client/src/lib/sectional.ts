@@ -45,6 +45,18 @@ export function fmtSec(time: number | null): string | null {
 export const fmtPct = (p: number | null | undefined): string =>
   p == null ? '' : `${Math.round(p * 100)}%`;
 
+/**
+ * 로지스틱 종합점수(logit) 표시. 0 중심 상대값이라 부호를 명시(+/−)해
+ * "절대 점수가 아닌 상대 점수"임을 드러내고, −0.0 아티팩트를 0.0으로 정규화한다.
+ * 우승%·연승%가 직관적 절대 지표, 이 값은 보조 상대 지표.
+ */
+export function fmtScore(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return '-';
+  const r = Math.round(n * 10) / 10 + 0; // +0: -0 → 0
+  const abs = Math.abs(r).toFixed(1);
+  return r > 0 ? `+${abs}` : r < 0 ? `−${abs}` : '0.0';
+}
+
 export interface SameDistStats {
   bestTime: number;
   bestBurdWgt: number | null;

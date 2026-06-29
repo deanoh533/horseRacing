@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronDown, Sparkles, Bot, Loader2 } from 'lucide-react';
 import { useHorsesByRace, usePredictionsByRace, useGradeWinnerStats } from '../lib/queries';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
+import { fmtScore } from '../lib/sectional';
 import { supabase, type RaceEntry, type Race, type Prediction, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 
@@ -217,7 +218,7 @@ function HorseCard({ horse, prediction, meet, date, rcNo }: HorseCardProps) {
           {prediction ? (
             <>
               <div className="text-2xl font-bold font-mono-num text-[var(--color-accent-cyan)]">
-                {prediction.total_score.toFixed(1)}
+                {fmtScore(prediction.total_score)}
                 <span className="text-sm">점</span>
               </div>
               <div className="text-[10px] text-[var(--color-text-secondary)]">

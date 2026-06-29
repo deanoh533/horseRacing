@@ -19,6 +19,7 @@ import {
   type PredictionPreview,
 } from '../lib/queries';
 import { classifyPick } from '../lib/selectivePicks';
+import { fmtScore } from '../lib/sectional';
 import { isCancelled } from '../lib/supabase';
 
 const MEET_NAMES: Record<number, string> = {
@@ -358,7 +359,7 @@ function PredictionTile({ rank, hrName, totalScore, actualOrd, hasResult }: Pred
       <div className="text-lg leading-none">{medals[rank]}</div>
       <div className="font-semibold truncate w-full text-center mt-1">{hrName}</div>
       <div className="text-xs text-[var(--color-accent-cyan)] mt-0.5">
-        {totalScore.toFixed(1)}점
+        {fmtScore(totalScore)}점
       </div>
       {resultLabel !== null && (
         <div
