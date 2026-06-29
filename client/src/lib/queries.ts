@@ -231,13 +231,33 @@ export function usePredictionsByDate(rcDate: number) {
 }
 
 /**
- * 다가오는(사전) 예측 — actual_ord NULL, p_top3 존재. 페이지네이션으로 전부 fetch.
+ * 다가오는(사전) 예측 — actual_ord NULL, p_top3 존재.
+ *
+ * ⚠️ 단순히 actual_ord NULL을 전부 "사전 예측"으로 보면, 결과가 동기화되지 않은
+ * 과거 예측(리셋·재백필 잔재)이 "오늘의 강추"로 새어든다. 따라서 *가장 최근
+ * 미확정 개최일*을 기준으로 7일(직전 주말 한 묶음) 이내만 남긴다.
+ * 근본 차단은 운영전환 L-001(prediction_logs 불변 스냅샷). 그전까지의 방어 필터.
+ *
  * TodayPicks 뷰에서 classifyPick으로 강추/주목만 클라이언트 필터.
  */
 export function useUpcomingPicks() {
   return useQuery({
     queryKey: ['upcoming-picks'],
     queryFn: async (): Promise<Prediction[]> => {
+      // 1) 결과 미동기화 예측 중 가장 최근 개최일 = 이번(직전) 개최
+      const { data: maxRow, error: maxErr } = await supabase
+        .from('predictions')
+        .select('race_date')
+        .is('actual_ord', null)
+        .not('p_top3', 'is', null)
+        .order('race_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (maxErr) throw maxErr;
+      if (!maxRow) return [];
+      const cutoff = rcDateMinusDays(maxRow.race_date, 7);
+
+      // 2) 그 개최로부터 7일 이내만 fetch (오래된 누수 제외 + egress 절감)
       const rows: Prediction[] = [];
       const PAGE = 1000;
       for (let off = 0; ; off += PAGE) {
@@ -246,6 +266,7 @@ export function useUpcomingPicks() {
           .select('*')
           .is('actual_ord', null)
           .not('p_top3', 'is', null)
+          .gte('race_date', cutoff)
           .order('race_date')
           .order('meet')
           .order('rc_no')
@@ -698,6 +719,16 @@ function dateMonthsAgo(monthsBack: number): number {
   const d = new Date();
   d.setMonth(d.getMonth() - monthsBack);
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+/** YYYYMMDD 숫자에서 N일 뺀 YYYYMMDD 숫자 반환 */
+function rcDateMinusDays(rcDate: number, days: number): number {
+  const y = Math.floor(rcDate / 10000);
+  const m = Math.floor((rcDate % 10000) / 100) - 1;
+  const d = rcDate % 100;
+  const dt = new Date(y, m, d);
+  dt.setDate(dt.getDate() - days);
+  return dt.getFullYear() * 10000 + (dt.getMonth() + 1) * 100 + dt.getDate();
 }
 
 // ============================================

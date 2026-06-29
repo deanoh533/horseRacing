@@ -14,8 +14,11 @@ import {
   useAvailableDates,
   usePredictionsByDate,
   useActiveModelVersion,
+  useRecentArchives,
+  useUpcomingPicks,
   type PredictionPreview,
 } from '../lib/queries';
+import { classifyPick } from '../lib/selectivePicks';
 import { isCancelled } from '../lib/supabase';
 
 const MEET_NAMES: Record<number, string> = {
@@ -23,25 +26,7 @@ const MEET_NAMES: Record<number, string> = {
   3: '부산경남',
 };
 
-const ITEM_LABELS: Record<string, string> = {
-  '01_rating': '레이팅',
-  '02_weight_change': '마체중 변화',
-  '03_recent_form': '착순 추세',
-  '05_late_position': '후반 구간 순위',
-  '06_distance_fitness': '거리 적성',
-  '08_burden_weight': '부담중량',
-  '09_jockey_form': '기수 폼',
-  '09b_jockey_recent': '기수 최근폼',
-  '10_trainer_form': '조교사 폼',
-  '10b_trainer_recent': '조교사 최근폼',
-  '11_race_interval': '경주 간격',
-  '12_starting_position': '출발번호',
-  '14_pedigree': '혈통',
-  '15_seasonal_pattern': '계절 패턴',
-  '16_jockey_horse_chemistry': '기수-말 궁합',
-  '17_market_odds': '배당률',
-  '18_earnings': '수득상금',
-};
+const RECENT_WINDOW = 50; // 최근 N경주 복승권 적중률 표본
 
 export function Dashboard() {
   const { data: availableDates } = useAvailableDates();
@@ -85,15 +70,30 @@ export function Dashboard() {
     return groups;
   }, [races]);
 
-  const top4Weights = useMemo(() => {
-    const weights = activeVersion?.weights as Record<string, number> | undefined;
-    if (!weights) return null;
-    return Object.entries(weights)
-      .filter(([, v]) => v > 0)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 4)
-      .map(([id, value]) => ({ id, name: ITEM_LABELS[id] ?? id, value }));
-  }, [activeVersion]);
+  // 현 활성 모델은 로지스틱 → weights={}, 계수는 artifact. 가중치 숫자 대신
+  // "최근 복승권 적중률 + 이번주 강추/주목 수"로 모델 상태를 요약한다.
+  const { data: archives } = useRecentArchives(RECENT_WINDOW);
+  const { data: upcoming } = useUpcomingPicks();
+
+  // 최근 N경주 예측 1위가 3착 안에 든 비율 (바운드 쿼리 — egress 작음)
+  const recentShow = useMemo(() => {
+    const judged = (archives ?? []).filter((a) => a.actual_ord != null);
+    if (judged.length === 0) return null;
+    const inTop3 = judged.filter((a) => a.actual_ord! <= 3).length;
+    return { rate: (inTop3 / judged.length) * 100, n: judged.length };
+  }, [archives]);
+
+  // 이번주(사전 예측) 강추·주목 마릿수
+  const pickCounts = useMemo(() => {
+    let strong = 0;
+    let watch = 0;
+    for (const p of upcoming ?? []) {
+      const tier = classifyPick(p.p_top3);
+      if (tier === 'strong') strong++;
+      else if (tier === 'watch') watch++;
+    }
+    return { strong, watch };
+  }, [upcoming]);
 
   return (
     <div className="space-y-6">
@@ -129,40 +129,36 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* 핵심 가중치 4개 (현재 mock) */}
-      <section className="bg-[var(--color-bg-surface)] rounded-xl p-5 border border-[var(--color-bg-elevated)]">
+      {/* 예측 모델 요약 — 강추/주목 보기로 이동 */}
+      <Link
+        to="/picks"
+        className="block bg-[var(--color-bg-surface)] rounded-xl p-5 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors"
+      >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold flex items-center gap-2">
             <span className="text-[var(--color-accent-gold)]">⭐</span>
-            예측 핵심 지표 (가중치 상위 4)
+            예측 모델
           </h2>
           {activeVersion && (
             <span className="text-[10px] text-[var(--color-text-disabled)]">
-              적용 버전 {activeVersion.label}
+              적용 {activeVersion.label}
             </span>
           )}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {(top4Weights ?? []).map((w) => (
-            <div
-              key={w.id}
-              className="bg-[var(--color-bg-elevated)] rounded-lg p-3"
-            >
-              <div className="text-xs text-[var(--color-text-secondary)]">
-                {w.name}
-              </div>
-              <div className="text-2xl font-bold font-mono-num text-[var(--color-accent-cyan)] mt-1">
-                {w.value.toFixed(1)}
-              </div>
-            </div>
-          ))}
-          {!top4Weights && (
-            <div className="col-span-4 text-xs text-[var(--color-text-disabled)] py-2">
-              가중치 로딩 중...
-            </div>
-          )}
+        <div className="grid grid-cols-3 gap-3">
+          <ModelStat
+            label={`최근 ${recentShow?.n ?? RECENT_WINDOW}경주 복승권`}
+            value={recentShow ? recentShow.rate.toFixed(1) : '-'}
+            unit={recentShow ? '%' : ''}
+            color="cyan"
+          />
+          <ModelStat label="이번주 강추" value={`${pickCounts.strong}`} unit="마리" color="gold" />
+          <ModelStat label="이번주 주목" value={`${pickCounts.watch}`} unit="마리" color="pink" />
         </div>
-      </section>
+        <div className="mt-3 text-[11px] text-[var(--color-accent-cyan)]">
+          강추·주목 보기 →
+        </div>
+      </Link>
 
       {/* 로딩 / 에러 / 빈 데이터 */}
       {isLoading && (
@@ -377,6 +373,33 @@ function PredictionTile({ rank, hrName, totalScore, actualOrd, hasResult }: Pred
           {resultLabel}
         </div>
       )}
+    </div>
+  );
+}
+
+function ModelStat({
+  label,
+  value,
+  unit,
+  color = 'cyan',
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  color?: 'cyan' | 'gold' | 'pink';
+}) {
+  const colorClass = {
+    cyan: 'text-[var(--color-accent-cyan)]',
+    gold: 'text-[var(--color-accent-gold)]',
+    pink: 'text-[var(--color-accent-pink)]',
+  }[color];
+  return (
+    <div className="bg-[var(--color-bg-elevated)] rounded-lg p-3">
+      <div className="text-xs text-[var(--color-text-secondary)]">{label}</div>
+      <div className={`text-2xl font-bold font-mono-num ${colorClass} mt-1`}>
+        {value}
+        <span className="text-sm">{unit}</span>
+      </div>
     </div>
   );
 }
