@@ -24,6 +24,7 @@ import {
   useRaceCardsCoverage,
   useSelectivePickAccuracy,
 } from '../lib/queries';
+import { ITEM_NAMES } from '../lib/itemNames';
 
 const PERIODS = [
   { label: '3개월', months: 3 },
@@ -32,27 +33,6 @@ const PERIODS = [
   { label: '2년', months: 24 },
   { label: '전체', months: null as number | null },
 ] as const;
-
-// 17개 항목 한국어 이름 (frontend용 매핑)
-const ITEM_NAMES: Record<string, string> = {
-  '01_rating': '① 레이팅',
-  '02_weight_change': '② 마체중 변화',
-  '03_recent_form': '③ 착순 추세',
-  '04_sectional_time': '④ 구간 시간',
-  '05_late_position': '⑤ 후반 구간',
-  '06_distance_fitness': '⑥ 거리 적성',
-  '07_track_adaptation': '⑦ 주로 적응',
-  '08_burden_weight': '⑧ 부담 극복',
-  '09_jockey_form': '⑨ 기수 폼',
-  '10_trainer_form': '⑩ 조교사 폼',
-  '11_race_interval': '⑪ 경주 간격',
-  '12_starting_position': '⑫ 출발번호',
-  '13_age_distance_gender': '⑬ 나이/거리/성별',
-  '14_pedigree': '⑭ 혈통',
-  '15_seasonal_pattern': '⑮ 계절 패턴',
-  '16_jockey_horse_chemistry': '⑯ 기수-말 궁합',
-  '17_market_odds': '⑰ 배당률',
-};
 
 const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부산경남' };
 
@@ -182,10 +162,10 @@ export function Statistics() {
       {/* 선별 적중률 */}
       <SelectivePickSection />
 
-      {/* 가중치 학습 이력 */}
+      {/* 가중치 학습 이력 (레거시) */}
       <Card
-        title="가중치 학습 이력"
-        subtitle="최근 학습 결과 (Spearman 기반)"
+        title="가중치 학습 이력 (레거시)"
+        subtitle="옛 Spearman 가중치 파이프라인 · 현 라이브 모델은 로지스틱 직접학습"
         icon={<History className="w-4 h-4 text-[var(--color-accent-gold)]" />}
       >
         {histLoading ? (
@@ -228,10 +208,10 @@ export function Statistics() {
         )}
       </Card>
 
-      {/* 21개 항목 상관계수 */}
+      {/* 항목별 단변량 예측력 (레거시 진단) */}
       <Card
-        title="21개 항목 예측력 (Spearman ρ)"
-        subtitle="값이 클수록 실제 결과와 일치 / 음수는 역효과"
+        title="항목별 예측력 (Spearman ρ · 레거시 진단)"
+        subtitle="항목 단독의 결과 상관 (참고용) · 라이브 예측은 로지스틱이 직접 학습"
         icon={<BarChart3 className="w-4 h-4 text-[var(--color-accent-pink)]" />}
       >
         {corrLoading ? (
