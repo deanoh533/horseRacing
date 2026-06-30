@@ -250,8 +250,9 @@ export function computeTimeStats(history: RaceEntry[]): TimeStats | null {
 
 // ─── 공통 서브 컴포넌트 ──────────────────────────────────────────────
 
-function ScoreBar({ score, maxScore, color }: { score: number; maxScore: number; color?: string }) {
-  const pct = maxScore > 0 ? Math.min((score / maxScore) * 100, 100) : 0;
+/** 막대 채움 = 연승확률 p_top3(0~1). null이면 빈 막대. logit 종합점수는 0 중심 상대값이라 채움량 의미가 없어 확률로 그린다. */
+function ScoreBar({ frac, color }: { frac: number | null | undefined; color?: string }) {
+  const pct = frac == null ? 0 : Math.max(0, Math.min(frac * 100, 100));
   return (
     <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
       <div
@@ -301,7 +302,7 @@ function PodiumCards({
               <div className="text-base font-bold leading-tight truncate">{p.hr_name}</div>
             </div>
             <div className="space-y-1">
-              <ScoreBar score={p.total_score} maxScore={100} color={s.accent} />
+              <ScoreBar frac={p.p_top3} color={s.accent} />
               <div className="text-right text-xs font-mono-num font-semibold" style={{ color: s.accent }}>
                 {fmtScore(p.total_score)}점
                 <PickBadge pTop3={p.p_top3} />
@@ -1032,14 +1033,14 @@ function CardHeader({
         </span>
       )}
 
-      {/* AI 점수바 + 총점 + 순위 이모지 + 실제 결과 */}
+      {/* 연승확률 막대 + 종합점수 + 순위 이모지 + 실제 결과 */}
       <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
         {pRank < 999 && (
           <>
             <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
               <div
                 className="h-full rounded-full"
-                style={{ width: `${Math.min(pScore, 100)}%`, background: accent }}
+                style={{ width: `${prediction?.p_top3 != null ? Math.min(prediction.p_top3 * 100, 100) : 0}%`, background: accent }}
               />
             </div>
             <span className="text-[11px] font-mono-num font-semibold" style={{ color: accent }}>
