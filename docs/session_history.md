@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-06 — 알파 3중 재검증 완전 종결 + 배당 블렌드 후보 발견
+오프셋 조건부 로지트(β=0=날배당 재현 자체검증) 프레임으로 "공개피처로 시장 이기나"를 총량·구간분해·비선형(GBT) 3방향에서 최종 재확인 → **전부 음성**(기존 천장 결론 재확인, 이 질문 완전 종결). 별도 질문("배당을 재료로 섞으면 모델 단독보다 나아지나")은 **양성**: 연승 적중률 +7.1~11.5%p, 캘리브레이션 ECE 반토막, 강추 픽수 9배 증가하며 정확도도 개선. 채택 여부는 도메인 결정 대기. 신규 코드 `src/engine/eval/offsetClogit.ts`·`src/engine/models/offsetGBT.ts`·probe 6종. 상세 → [03-market-edge](status/03-market-edge.md) · [[project_odds_blend_candidate]]
+
 ## 2026-06-27 — 선별 ROI 전수조사: 베팅 ROI 갈래 완전 종결
 강추 신호로 베팅 시 ROI를 단·연·복승·박스·조건부까지 전수 검증 → **공개정보 ROI 흑자 불가 확정.** 단·연승 −11/−11%·복승 단일 −24%·복승 박스(top3/4) −17/−14%(적중률↑이나 회수배수<1)·확신박스 +9.6%는 단일분기 노이즈·조건부 엣지 0후보. **부수: predictions 테이블 in-sample 누수+중복 행 발견**(거짓양성 +230%·+9.6% 2건을 walk-forward·분기일관성으로 격파). **강추 73% 적중률은 OOS 72.4%로 정직 재확인**(누수 무관). 신규 도구 `probe:picks:roi`·`probe:picks:oos`·`probe:picks:box`. 남은 유일 ROI 길=마체중 직전수집(KRA 직전 API 가용성 미확인). 상세 → [03-market-edge](status/03-market-edge.md) · [[project_selective_picks]] · [[project_market_dominance_ceiling]]
 
