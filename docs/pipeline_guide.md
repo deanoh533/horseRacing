@@ -279,6 +279,12 @@ npm run backtest:box:quarters -- --candidate feat1  # Gate B: 5분기 (표준)
 npm run backtest:box -- --label top2 --model both   # top2 + logistic/PL 비교
 ```
 
+### 경주 전개(race shape) 가설 실측
+
+```bash
+npm run probe:shape    # 초반 200m 위치그룹 × 유지력 × G3F 격차 × 필요속도 가설 5종 (DuckDB 로컬, 그룹 경계는 스크립트 상단 LEAD/CHASE)
+```
+
 ### 모델 학습 (benchmark 계열)
 
 ```bash
