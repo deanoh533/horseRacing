@@ -10,6 +10,8 @@
  * H3 — G3F(결승 600m 전) 시점 선두와의 시간차 구간별 역전 확률
  * H4 — 말별 종반 200m 속도 편차(경주 상대화)와 끝힘 (in-sample 주의)
  * H5 — 역전 필요 종반속도 대비 이력상 가능 속도(as-of, 동거리) → 실제 역전 여부
+ * H6 — H4×H5 통합: 필요속도 "달성 확률"(이력 평균±편차의 문턱 넘기 확률, as-of)
+ *      → 실제 역전률이 확률을 따라가는가 + "평균 나쁨×편차 큼 > 평균 나쁨×편차 작음" 직접 검증
  *
  * 데이터: data/local.duckdb (READ_ONLY) — KRA API·Supabase 호출 0.
  * 그룹 경계: 선두권 ≤ LEAD / 추격권 ≤ CHASE / 후미권 그 외 (초반 200m 순위 정규화 0=선두).
@@ -163,6 +165,67 @@ SELECT CASE WHEN h.g3f_gap <= 0.5 THEN 'a. ~0.5초' WHEN h.g3f_gap <= 1.0 THEN '
        ${pct('SUM(CASE WHEN h.ord <= 3 THEN 1 ELSE 0 END)')} AS 연승률
 FROM hist h JOIN leader l USING (race_date, meet, rc_no)
 WHERE h.g3f_gap > 0 AND h.prior_cnt >= 2 AND l.leader_fin600 IS NOT NULL
+GROUP BY 1, 2 ORDER BY 1, 2`));
+
+// H6 공통: 말×거리 as-of 종반 600m 분포(평균·편차, 직전 3회+) + 필요속도와의 z
+// 편차 하한 0.1초: 측정 노이즈보다 작은 편차는 z 폭발 방지용 클램프
+// 달성확률 = 로지스틱 근사 Φ(z) ≈ 1/(1+e^(-1.702z))
+const H6 = `
+${BASE},
+leader AS (
+  SELECT race_date, meet, rc_no, MIN(CASE WHEN g3f_gap = 0 THEN fin600 END) AS leader_fin600
+  FROM enriched GROUP BY race_date, meet, rc_no
+),
+hist AS (
+  SELECT *,
+         AVG(fin600) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                           ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prior_mean,
+         STDDEV_SAMP(fin600) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                                   ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prior_std,
+         COUNT(*) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prior_cnt
+  FROM enriched WHERE fin600 BETWEEN 30 AND 60
+),
+scored AS (
+  SELECT h.*, l.leader_fin600,
+         l.leader_fin600 - h.g3f_gap AS required_fin600,
+         (h.prior_mean - (l.leader_fin600 - h.g3f_gap)) AS mean_deficit,
+         ((l.leader_fin600 - h.g3f_gap) - h.prior_mean) / GREATEST(h.prior_std, 0.1) AS z,
+         1.0 / (1.0 + EXP(-1.702 * ((l.leader_fin600 - h.g3f_gap) - h.prior_mean) / GREATEST(h.prior_std, 0.1))) AS p_achieve
+  FROM hist h JOIN leader l USING (race_date, meet, rc_no)
+  WHERE h.g3f_gap > 0 AND h.prior_cnt >= 3 AND h.prior_std IS NOT NULL AND l.leader_fin600 IS NOT NULL
+)`;
+
+console.log('\n━━━ H6a. 필요속도 달성확률(예측) vs 실제 역전률 — 단조 검증 ━━━');
+console.table(await q(`
+WITH ${H6}
+SELECT CASE WHEN p_achieve < 0.10 THEN 'a. ~10%'
+            WHEN p_achieve < 0.30 THEN 'b. 10~30%'
+            WHEN p_achieve < 0.60 THEN 'c. 30~60%'
+            WHEN p_achieve < 0.90 THEN 'd. 60~90%'
+            ELSE 'e. 90%+' END AS 달성확률구간,
+       COUNT(*) AS 출주,
+       ROUND(100.0 * AVG(p_achieve), 1) AS 예측평균,
+       ${pct('SUM(CASE WHEN ord = 1 THEN 1 ELSE 0 END)')} AS 역전승률,
+       ${pct('SUM(CASE WHEN ord <= 3 THEN 1 ELSE 0 END)')} AS 연승률
+FROM scored GROUP BY 1 ORDER BY 1`));
+
+console.log('━━━ H6b. 평균은 필요속도보다 느린 말만: 편차 큰 쪽이 정말 이기나 (말 B vs C) ━━━');
+console.table(await q(`
+WITH ${H6},
+deficit AS (
+  SELECT *, CASE WHEN mean_deficit <= 0.4 THEN 'a. 0~0.4초 부족'
+                 WHEN mean_deficit <= 1.0 THEN 'b. 0.4~1.0초 부족'
+                 ELSE 'c. 1.0초+ 부족' END AS 부족폭
+  FROM scored WHERE mean_deficit > 0
+),
+med AS (SELECT 부족폭, MEDIAN(prior_std) AS ms FROM deficit GROUP BY 1)
+SELECT d.부족폭,
+       CASE WHEN d.prior_std <= m.ms THEN '편차小' ELSE '편차大' END AS 편차반,
+       COUNT(*) AS 출주,
+       ${pct('SUM(CASE WHEN d.ord = 1 THEN 1 ELSE 0 END)')} AS 역전승률,
+       ${pct('SUM(CASE WHEN d.ord <= 3 THEN 1 ELSE 0 END)')} AS 연승률
+FROM deficit d JOIN med m USING (부족폭)
 GROUP BY 1, 2 ORDER BY 1, 2`));
 
 console.log('완료. 경계 조정은 파일 상단 LEAD/CHASE 상수.');
