@@ -228,4 +228,18 @@ SELECT d.부족폭,
 FROM deficit d JOIN med m USING (부족폭)
 GROUP BY 1, 2 ORDER BY 1, 2`));
 
+console.log('\n━━━ H7. 격차 × 달성확률 교차표 — "이 말"의 우승/연승 확률 조회용 ━━━');
+console.table(await q(`
+WITH ${H6}
+SELECT CASE WHEN g3f_gap <= 0.5 THEN 'a. ~0.5초' WHEN g3f_gap <= 1.0 THEN 'b. ~1.0초'
+            WHEN g3f_gap <= 1.5 THEN 'c. ~1.5초' WHEN g3f_gap <= 2.5 THEN 'd. ~2.5초'
+            ELSE 'e. 2.5초+' END AS 격차,
+       CASE WHEN p_achieve < 0.30 THEN '1_낮음(~30%)'
+            WHEN p_achieve < 0.70 THEN '2_중간(30~70%)'
+            ELSE '3_높음(70%+)' END AS 달성확률,
+       COUNT(*) AS 출주,
+       ${pct('SUM(CASE WHEN ord = 1 THEN 1 ELSE 0 END)')} AS 승률,
+       ${pct('SUM(CASE WHEN ord <= 3 THEN 1 ELSE 0 END)')} AS 연승률
+FROM scored GROUP BY 1, 2 ORDER BY 1, 2`));
+
 console.log('완료. 경계 조정은 파일 상단 LEAD/CHASE 상수.');
