@@ -310,4 +310,81 @@ SELECT COUNT(*) AS n,
        ${pct('SUM(CASE WHEN ABS(rel_err) <= 1.0 THEN 1 ELSE 0 END)')} AS "≤1.0초"
 FROM rel WHERE n_pred >= 5`));
 
+// H8d: 거리 보정 버전 — 모든 거리 이력을 "거리 표준(par, meet×dist 중앙값) 대비 편차"로
+// 환산해 평균. ⚠️ par는 전기간 중앙값(in-sample) — probe 한정, 실전은 as-of par 필요.
+console.log('\n━━━ H8d. 거리 보정 전체이력 vs 동일거리 평균 — 정확도·커버리지 비교 ━━━');
+console.table(await q(`
+WITH ${BASE},
+par AS (
+  SELECT meet, rc_dist, MEDIAN(g3f_acc) AS par
+  FROM enriched WHERE g3f_acc > 0 GROUP BY 1, 2
+),
+dev AS (
+  SELECT e.*, p.par, e.g3f_acc - p.par AS d
+  FROM enriched e JOIN par p USING (meet, rc_dist) WHERE e.g3f_acc > 0
+),
+comb AS MATERIALIZED (
+  SELECT race_date, meet, rc_no, g3f_acc,
+         AVG(g3f_acc) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS pred_same,
+         COUNT(*) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS cnt_same,
+         par + AVG(d) OVER (PARTITION BY hr_no ORDER BY race_date
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS pred_par,
+         COUNT(*) OVER (PARTITION BY hr_no ORDER BY race_date
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS cnt_all
+  FROM dev
+)
+SELECT 방법, n, mae, 중앙값, "≤0.5초" FROM (
+  SELECT '1_동일거리평균(기준)' AS 방법, COUNT(*) AS n,
+         ROUND(AVG(ABS(pred_same - g3f_acc)), 2) AS mae,
+         ROUND(MEDIAN(ABS(pred_same - g3f_acc)), 2) AS 중앙값,
+         ${pct('SUM(CASE WHEN ABS(pred_same - g3f_acc) <= 0.5 THEN 1 ELSE 0 END)')} AS "≤0.5초"
+  FROM comb WHERE cnt_same >= 2
+  UNION ALL
+  SELECT '2_거리보정 전체이력', COUNT(*),
+         ROUND(AVG(ABS(pred_par - g3f_acc)), 2),
+         ROUND(MEDIAN(ABS(pred_par - g3f_acc)), 2),
+         ${pct('SUM(CASE WHEN ABS(pred_par - g3f_acc) <= 0.5 THEN 1 ELSE 0 END)')}
+  FROM comb WHERE cnt_all >= 2
+  UNION ALL
+  SELECT '3_거리보정@동일표본', COUNT(*),
+         ROUND(AVG(ABS(pred_par - g3f_acc)), 2),
+         ROUND(MEDIAN(ABS(pred_par - g3f_acc)), 2),
+         ${pct('SUM(CASE WHEN ABS(pred_par - g3f_acc) <= 0.5 THEN 1 ELSE 0 END)')}
+  FROM comb WHERE cnt_same >= 2 AND cnt_all >= 2
+) ORDER BY 방법`));
+
+console.log('─── H8d 상대화(격차 유효) 오차 — 거리보정 전체이력 ───');
+console.table(await q(`
+WITH ${BASE},
+par AS (
+  SELECT meet, rc_dist, MEDIAN(g3f_acc) AS par
+  FROM enriched WHERE g3f_acc > 0 GROUP BY 1, 2
+),
+dev AS (
+  SELECT e.*, p.par, e.g3f_acc - p.par AS d
+  FROM enriched e JOIN par p USING (meet, rc_dist) WHERE e.g3f_acc > 0
+),
+comb AS MATERIALIZED (
+  SELECT race_date, meet, rc_no, g3f_acc,
+         par + AVG(d) OVER (PARTITION BY hr_no ORDER BY race_date
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS pred_par,
+         COUNT(*) OVER (PARTITION BY hr_no ORDER BY race_date
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS cnt_all
+  FROM dev
+),
+rel AS (
+  SELECT (g3f_acc - AVG(g3f_acc) OVER w) - (pred_par - AVG(pred_par) OVER w) AS rel_err,
+         COUNT(*) OVER w AS n_pred
+  FROM comb WHERE pred_par IS NOT NULL AND cnt_all >= 2
+  WINDOW w AS (PARTITION BY race_date, meet, rc_no)
+)
+SELECT COUNT(*) AS n,
+       ROUND(AVG(ABS(rel_err)), 2) AS 평균오차,
+       ROUND(MEDIAN(ABS(rel_err)), 2) AS 중앙값,
+       ${pct('SUM(CASE WHEN ABS(rel_err) <= 0.3 THEN 1 ELSE 0 END)')} AS "≤0.3초",
+       ${pct('SUM(CASE WHEN ABS(rel_err) <= 0.5 THEN 1 ELSE 0 END)')} AS "≤0.5초"
+FROM rel WHERE n_pred >= 5`));
+
 console.log('완료. 경계 조정은 파일 상단 LEAD/CHASE 상수.');
