@@ -242,4 +242,72 @@ SELECT CASE WHEN g3f_gap <= 0.5 THEN 'a. ~0.5초' WHEN g3f_gap <= 1.0 THEN 'b. ~
        ${pct('SUM(CASE WHEN ord <= 3 THEN 1 ELSE 0 END)')} AS 연승률
 FROM scored GROUP BY 1, 2 ORDER BY 1, 2`));
 
+// H8: G3F 통과시간의 사전 예측 가능성 — 동일거리 as-of 이력만 사용
+const H8 = `
+${BASE},
+hist AS MATERIALIZED (
+  SELECT race_date, meet, rc_no, hr_no, n, g3f_acc, g3f_ord,
+         AVG(g3f_acc) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS pred_all,
+         AVG(g3f_acc) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                            ROWS BETWEEN 3 PRECEDING AND 1 PRECEDING) AS pred_r3,
+         LAG(g3f_acc) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date) AS pred_last,
+         COUNT(*) OVER (PARTITION BY hr_no, rc_dist ORDER BY race_date
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prior_cnt
+  FROM enriched WHERE g3f_acc IS NOT NULL AND g3f_acc > 0
+)`;
+
+console.log('\n━━━ H8a. G3F 시간 예측 오차 — 동일거리 이력 (전체평균 / 최근3회 / 직전1회) ━━━');
+for (const [label, col, minCnt] of [['전체평균', 'pred_all', 2], ['최근3회', 'pred_r3', 2], ['직전1회', 'pred_last', 1]] as const) {
+  const [r] = await q(`
+WITH ${H8}
+SELECT COUNT(*) AS n,
+       ROUND(AVG(ABS(${col} - g3f_acc)), 2) AS mae,
+       ROUND(MEDIAN(ABS(${col} - g3f_acc)), 2) AS medae,
+       ${pct(`SUM(CASE WHEN ABS(${col} - g3f_acc) <= 0.3 THEN 1 ELSE 0 END)`)} AS "≤0.3초",
+       ${pct(`SUM(CASE WHEN ABS(${col} - g3f_acc) <= 0.5 THEN 1 ELSE 0 END)`)} AS "≤0.5초",
+       ${pct(`SUM(CASE WHEN ABS(${col} - g3f_acc) <= 1.0 THEN 1 ELSE 0 END)`)} AS "≤1.0초"
+FROM hist WHERE ${col} IS NOT NULL AND prior_cnt >= ${minCnt}`);
+  console.log(`  ${label}: n=${r.n} · 평균오차 ${r.mae}초 · 중앙값 ${r.medae}초 · 0.3초내 ${r['≤0.3초']}% · 0.5초내 ${r['≤0.5초']}% · 1초내 ${r['≤1.0초']}%`);
+}
+
+console.log('\n━━━ H8b. 순서는 맞히나 — 예측 G3F로 세운 경주 내 순위 vs 실제 G3F 순위 ━━━');
+console.table(await q(`
+WITH ${H8},
+ranked AS MATERIALIZED (
+  SELECT race_date, meet, rc_no, g3f_ord,
+         ROW_NUMBER() OVER (PARTITION BY race_date, meet, rc_no ORDER BY pred_all) AS rp,
+         COUNT(*) OVER (PARTITION BY race_date, meet, rc_no) AS n_pred
+  FROM hist WHERE pred_all IS NOT NULL AND prior_cnt >= 2 AND g3f_ord IS NOT NULL
+),
+per_race AS (
+  SELECT race_date, meet, rc_no,
+         CORR(rp, g3f_ord) AS rho,
+         MAX(CASE WHEN rp = 1 AND g3f_ord = 1 THEN 1 ELSE 0 END) AS leader_hit,
+         MAX(CASE WHEN rp = 1 AND g3f_ord <= 3 THEN 1 ELSE 0 END) AS leader_top3
+  FROM ranked WHERE n_pred >= 5 GROUP BY 1, 2, 3
+)
+SELECT COUNT(*) AS 경주수,
+       ROUND(AVG(rho), 3) AS 평균순위상관,
+       ${pct('SUM(leader_hit)')} AS "예측선두=실제선두",
+       ${pct('SUM(leader_top3)')} AS "예측선두가 G3F 3위내"
+FROM per_race`));
+
+console.log('\n━━━ H8c. 상대화 오차 — 경주 공통 페이스 성분 제거 후 (격차 예측에 유효한 오차) ━━━');
+console.table(await q(`
+WITH ${H8},
+rel AS (
+  SELECT (g3f_acc - AVG(g3f_acc) OVER w) - (pred_all - AVG(pred_all) OVER w) AS rel_err,
+         COUNT(*) OVER w AS n_pred
+  FROM hist WHERE pred_all IS NOT NULL AND prior_cnt >= 2
+  WINDOW w AS (PARTITION BY race_date, meet, rc_no)
+)
+SELECT COUNT(*) AS n,
+       ROUND(AVG(ABS(rel_err)), 2) AS 평균오차,
+       ROUND(MEDIAN(ABS(rel_err)), 2) AS 중앙값,
+       ${pct('SUM(CASE WHEN ABS(rel_err) <= 0.3 THEN 1 ELSE 0 END)')} AS "≤0.3초",
+       ${pct('SUM(CASE WHEN ABS(rel_err) <= 0.5 THEN 1 ELSE 0 END)')} AS "≤0.5초",
+       ${pct('SUM(CASE WHEN ABS(rel_err) <= 1.0 THEN 1 ELSE 0 END)')} AS "≤1.0초"
+FROM rel WHERE n_pred >= 5`));
+
 console.log('완료. 경계 조정은 파일 상단 LEAD/CHASE 상수.');
