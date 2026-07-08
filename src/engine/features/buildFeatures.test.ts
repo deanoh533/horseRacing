@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildFeatures } from './buildFeatures.js';
 import type { ScoreEngineInput } from '../index.js';
+import { featureToItem } from './featureItemMap.js';
 
 const base: ScoreEngineInput = { rating: 0 };
 
@@ -173,4 +174,30 @@ describe('buildFeatures — 버킷·교차항', () => {
     expect(fs.find((f) => f.name === 'x_old_long')?.value).toBe(1);
   });
   // ⑫b draw×거리 상호작용: 2026-06-16 게이트B 기각(연승 −0.7%p, 흡수). 피처 제거됨.
+});
+
+describe('shape 피처 (경주 전개)', () => {
+  it('주입값 있으면 shape_pred_gap·shape_p_achieve 추가', () => {
+    const f = buildFeatures({ shapePredGap: 0.8, shapePAchieve: 0.23 } as ScoreEngineInput);
+    expect(f.find((x) => x.name === 'shape_pred_gap')?.value).toBeCloseTo(0.8, 6);
+    expect(f.find((x) => x.name === 'shape_p_achieve')?.value).toBeCloseTo(0.23, 6);
+  });
+
+  it('주입 없으면 미생성 (결측 관례)', () => {
+    const f = buildFeatures({} as ScoreEngineInput);
+    expect(f.find((x) => x.name === 'shape_pred_gap')).toBeUndefined();
+    expect(f.find((x) => x.name === 'shape_p_achieve')).toBeUndefined();
+  });
+
+  it('predGap만 있고 pAchieve 없으면 gap만 생성', () => {
+    const f = buildFeatures({ shapePredGap: 0.3 } as ScoreEngineInput);
+    expect(f.find((x) => x.name === 'shape_pred_gap')).toBeDefined();
+    expect(f.find((x) => x.name === 'shape_p_achieve')).toBeUndefined();
+  });
+
+  it('featureToItem: shape_ 프리픽스 → shape_signal', () => {
+    expect(featureToItem('shape_pred_gap')).toBe('shape_signal');
+    expect(featureToItem('shape_p_achieve')).toBe('shape_signal');
+    expect(featureToItem('shape_p_achieve__missing')).toBe('shape_signal');
+  });
 });

@@ -186,6 +186,10 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   // ⑳ 속도능력지수 raw
   if (input.speedFigureAbilityRaw != null) add('speed_ability_raw', input.speedFigureAbilityRaw);
 
+  // ㉑ 경주 전개(shape) — 경주 단위 사전패스 주입값 (스펙 2026-07-08, probe H9 검증)
+  if (input.shapePredGap != null) add('shape_pred_gap', input.shapePredGap);
+  if (input.shapePAchieve != null) add('shape_p_achieve', input.shapePAchieve);
+
   // ⑪ 경주간격 버킷 (실측 ∩자: 정점 28-35일)
   if (input.intervalDays != null) {
     const dd = input.intervalDays;
