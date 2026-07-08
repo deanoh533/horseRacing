@@ -13,7 +13,8 @@ import type { RaceRecord, HorseRecord } from './types.js';
 export async function collectRaces(
   db: ReadClient,
   fromDate: number,
-  toDate: number
+  toDate: number,
+  opts?: { shapeParCutoff?: number }
 ): Promise<RaceRecord[]> {
   const { data: raceList, error } = await db
     .from('races')
@@ -30,7 +31,7 @@ export async function collectRaces(
   const engine = new ScoreEngine({});
 
   for (const r of raceList as { race_date: number; meet: number; rc_no: number; rc_dist: number | null }[]) {
-    const rows = await gatherRaceInputs(db, r.race_date, r.meet, r.rc_no);
+    const rows = await gatherRaceInputs(db, r.race_date, r.meet, r.rc_no, opts);
     if (rows.length === 0) continue;
 
     // 확정 경주만: ord가 있고 취소마(ord>=50)가 아닌 말 3두 이상

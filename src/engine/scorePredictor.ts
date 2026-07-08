@@ -15,6 +15,8 @@ import { loadParMap } from './speedFigure.js';
 import { calibratedRaceProbs, type CalibratedArtifact } from './eval/calibratedProbs.js';
 import { buildFeatures } from './features/buildFeatures.js';
 import { toVector } from './features/alignFeatures.js';
+import { horseShapeStats, raceShapeSignals } from './features/shapeSignals.js';
+import { shapeParMapAsOf } from './shapePar.js';
 
 interface EntryRow {
   race_date: number;
@@ -68,7 +70,8 @@ export async function gatherRaceInputs(
   sb: ReadClient,
   rcDate: number,
   meet: number,
-  rcNo: number
+  rcNo: number,
+  opts?: { shapeParCutoff?: number }
 ): Promise<RaceInputRow[]> {
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
@@ -168,7 +171,7 @@ export async function gatherRaceInputs(
   const histByHorse = new Map<string, HistFull[]>();
   for (let off = 0; ; off += 1000) {
     const { data, error } = await sb.from('race_entries')
-      .select('hr_name, race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord')
+      .select('hr_name, race_date, meet, rc_no, ord, rc_dist, track_type, wg_hr_diff, burd_wgt, win_odds, popularity, jcky_no, rc_time, se_g1f_acc_time, bu_g1f_acc_time, se_g3f_acc_time, bu_g3f_acc_time, sj_s1f_ord, bu_s1f_ord, sj_g1f_ord, bu_g1f_ord')
       .in('hr_name', hrNamesU).lt('race_date', rcDate).not('ord', 'is', null)
       .order('hr_name').order('race_date', { ascending: false }).order('meet').order('rc_no')
       .range(off, off + 999);
@@ -244,8 +247,21 @@ export async function gatherRaceInputs(
 
   const batch: RaceBatch = { histByHorse, histRaceBudams, pedigreeMap, jockeyCareerMap, trainer60Map, racePrizeCondMap, trainingByHorse };
 
+  // 경주 전개(shape) 사전패스: 전 출주마 as-of 전개 통계 → 예측 선두/격차/달성확률 (스펙 2026-07-08)
+  const shapePar = await shapeParMapAsOf(sb, opts?.shapeParCutoff ?? rcDate);
+  const shapeStatsList = entryList.map((e) =>
+    horseShapeStats(
+      (histByHorse.get(e.hr_name) ?? []).map((r) => ({
+        meet: r.meet, rcDist: r.rc_dist, rcTime: r.rc_time,
+        g3fAcc: r.meet === 1 ? r.se_g3f_acc_time : r.bu_g3f_acc_time,
+      })),
+      shapePar,
+    )
+  );
+  const shapeSignals = raceShapeSignals(shapeStatsList);
+
   const rows = await Promise.all(
-    entryList.map(async (e) => {
+    entryList.map(async (e, ei) => {
       const enriched = { ...e, rc_dist: rcDist, track_type: trackType, prize_cond: prizeCond };
       const input = buildEngineInput(enriched, totalHorses, currentMonth, currentSeason, jockeyRecentMap, trainerRecentMap, styleMap, paceType, asOfMap.get(e.hr_name)!, batch);
       input.erngSump = e.erng_sump ?? undefined;
@@ -259,6 +275,11 @@ export async function gatherRaceInputs(
       input.latstBledg1 = e.latst_bledg1;
       input.latstBledg2 = e.latst_bledg2;
       input.latstTrea1 = e.latst_trea1_txt;
+      const shapeSig = shapeSignals[ei];
+      if (shapeSig) {
+        input.shapePredGap = shapeSig.predGap;
+        if (shapeSig.pAchieve != null) input.shapePAchieve = shapeSig.pAchieve;
+      }
       return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: e.ord, input };
     })
   );
@@ -327,6 +348,7 @@ type HistFull = {
   wg_hr_diff: number | null; burd_wgt: number | null; win_odds: number | null;
   popularity: number | null; jcky_no: string | null; rc_time: number | null;
   se_g1f_acc_time: number | null; bu_g1f_acc_time: number | null;
+  se_g3f_acc_time: number | null; bu_g3f_acc_time: number | null;
   sj_s1f_ord: number | null; bu_s1f_ord: number | null; sj_g1f_ord: number | null; bu_g1f_ord: number | null;
 };
 interface RaceBatch {

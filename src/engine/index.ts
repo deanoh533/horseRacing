@@ -170,6 +170,10 @@ export interface ScoreEngineInput {
   latstBledg1?: string | null;          // 최근 출혈 이력 "YYYY.MM.DD N회"
   latstBledg2?: string | null;          // 차순위 출혈 이력
   latstTrea1?: string | null;           // 최근 치료 "YYYY.MM.DD<내용>"
+
+  /** 경주 전개(shape) — 경주 단위 사전패스 주입 (스펙 2026-07-08). 결측이면 피처 미생성 */
+  shapePredGap?: number;
+  shapePAchieve?: number;
 }
 
 /**
