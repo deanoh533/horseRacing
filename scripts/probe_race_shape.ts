@@ -387,4 +387,56 @@ SELECT COUNT(*) AS n,
        ${pct('SUM(CASE WHEN ABS(rel_err) <= 0.5 THEN 1 ELSE 0 END)')} AS "≤0.5초"
 FROM rel WHERE n_pred >= 5`));
 
+// H9: 완전 사전(pre-race) 버전 H7 — 격차·선두 종반기록·달성확률 전부 as-of 이력으로만.
+// 파이프라인: 거리보정 G3F 예측(H8d 방식) → 예측 선두/격차 → 예측 필요속도 → 달성확률 → 실제 착순 대조.
+// ⚠️ par만 in-sample 중앙값(probe 한정). 예측 선두 자신은 제외(H7과 동일하게 격차>0만).
+console.log('\n━━━ H9. 사전 예측만으로 만든 H7 — 칸 분리가 살아남는가 ━━━');
+console.table(await q(`
+WITH ${BASE},
+par AS (
+  SELECT meet, rc_dist, MEDIAN(g3f_acc) AS par3, MEDIAN(fin600) AS par6
+  FROM enriched WHERE g3f_acc > 0 AND fin600 BETWEEN 30 AND 60 GROUP BY 1, 2
+),
+dev AS (
+  SELECT e.*, p.par3, p.par6, e.g3f_acc - p.par3 AS d3, e.fin600 - p.par6 AS d6
+  FROM enriched e JOIN par p USING (meet, rc_dist)
+  WHERE e.g3f_acc > 0 AND e.fin600 BETWEEN 30 AND 60
+),
+h AS MATERIALIZED (
+  SELECT race_date, meet, rc_no, hr_no, ord, par3, par6,
+         par3 + AVG(d3) OVER (PARTITION BY hr_no ORDER BY race_date
+                              ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS pred_g3f,
+         par6 + AVG(d6) OVER (PARTITION BY hr_no ORDER BY race_date
+                              ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS own_mean6,
+         STDDEV_SAMP(d6) OVER (PARTITION BY hr_no ORDER BY race_date
+                               ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS own_std6,
+         COUNT(*) OVER (PARTITION BY hr_no ORDER BY race_date
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prior_cnt
+  FROM dev
+),
+ranked AS MATERIALIZED (
+  SELECT *,
+         pred_g3f - MIN(pred_g3f) OVER wr AS pred_gap,
+         FIRST_VALUE(own_mean6) OVER (PARTITION BY race_date, meet, rc_no ORDER BY pred_g3f
+                                      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS leader_fin600_est,
+         COUNT(*) OVER wr AS n_pred
+  FROM h WHERE pred_g3f IS NOT NULL AND prior_cnt >= 2
+  WINDOW wr AS (PARTITION BY race_date, meet, rc_no)
+),
+scored AS MATERIALIZED (
+  SELECT *,
+         1.0 / (1.0 + EXP(-1.702 * ((leader_fin600_est - pred_gap) - own_mean6) / GREATEST(own_std6, 0.1))) AS p_achieve
+  FROM ranked
+  WHERE pred_gap > 0 AND n_pred >= 5 AND prior_cnt >= 3 AND own_std6 IS NOT NULL
+)
+SELECT CASE WHEN pred_gap <= 0.5 THEN 'a. ~0.5초' WHEN pred_gap <= 1.0 THEN 'b. ~1.0초'
+            WHEN pred_gap <= 1.5 THEN 'c. ~1.5초' ELSE 'd. 1.5초+' END AS 예측격차,
+       CASE WHEN p_achieve < 0.30 THEN '1_낮음(~30%)'
+            WHEN p_achieve < 0.70 THEN '2_중간(30~70%)'
+            ELSE '3_높음(70%+)' END AS 달성확률,
+       COUNT(*) AS 출주,
+       ${pct('SUM(CASE WHEN ord = 1 THEN 1 ELSE 0 END)')} AS 승률,
+       ${pct('SUM(CASE WHEN ord <= 3 THEN 1 ELSE 0 END)')} AS 연승률
+FROM scored GROUP BY 1, 2 ORDER BY 1, 2`));
+
 console.log('완료. 경계 조정은 파일 상단 LEAD/CHASE 상수.');
