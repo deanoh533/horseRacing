@@ -58,9 +58,9 @@ shape_p_achieve_h = 1 / (1 + exp(−1.702 · z_h))   # 로지스틱 근사 Φ(z)
 
 par(meet × rc_dist) = 해당 조합의 `g3f_acc` 중앙값(par3), `fin600` 중앙값(par6).
 
-- **벤치마크/A/B**: walk-forward 각 회차의 **학습구간 데이터만으로** 계산 — 미래 정보 0. 순수 함수 `buildParTable(rows) → ParTable`로 구현해 학습 파이프라인에서 호출.
-- **라이브**: `npm run build:par` 스크립트가 DuckDB 로컬 미러 전체 과거로 `data/par_times.json` 생성 → 예측 시 로드. 라이브 시점엔 미래가 없으므로 자동 정직. 재생성 주기는 출마표 동기화 시(수·목·금).
-- probe(H8d~H9)의 in-sample par와 달라지므로 A/B 결과가 probe 수치와 다를 수 있음 — 정상.
+- **구현**: `shapeParMapAsOf(sb, cutoffDate)` — race_date < cutoffDate 데이터만으로 meet×rc_dist 중앙값 산출(소스 행은 프로세스당 1회 로드, cutoff별 메모이즈).
+- **벤치마크/A/B**: cutoff = 20250101 (롤링 첫 테스트 분기 FIRST_TEST=2025Q1 시작일) 고정 → 모든 테스트 경주에 미래 정보 0. 학습(2024) 경주의 par에는 학습창 내 이후 데이터가 섞이지만 테스트 지표의 정직성과 무관.
+- **라이브/백필**: cutoff = 예측 대상 경주일(rcDate) 기본값 → 자동 as-of. 별도 JSON 파일 불필요.
 
 ## 4. 구현 구조 (구현 위치: 예측 엔진 내부 — 사전/사후 동일 산식)
 
@@ -71,7 +71,7 @@ par(meet × rc_dist) = 해당 조합의 `g3f_acc` 중앙값(par3), `fin600` 중�
 
 ## 5. 판정 (사전 확정 — 결과 보고 변경 금지)
 
-- **방법**: 같은 벤치마크 스펙에서 `shape_signal` ON/OFF 통제 A/B. 지표 = 챔피언 모델 1순위 연승(3착내) 적중률 Δ.
+- **방법**: 같은 벤치마크 스펙에서 `npm run benchmark -- --include shape_signal`(ON) vs `-- --exclude shape_signal`(OFF). 판정 지표 = 롤링 표 **Logistic(t2)** 1순위 연승(show)률 Δ (overall + 분기별). Logistic(t1)/(t3)·GBDT는 참고 진단.
 - **합격선**: **Δ ≥ +0.5%p 그리고 분기별 Δ 과반 양수 → 채택.** 미달 → 기각/보류.
 - 결과는 채택/기각 무관하게 docs/status/04-signals.md + docs/history/modeling-history.md에 기록.
 - 참고 진단(판정엔 미사용): 게이트 3면(연승·fade·복승), 로지스틱 계수(흡수 여부 해석).
