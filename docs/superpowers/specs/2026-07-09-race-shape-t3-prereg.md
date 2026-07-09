@@ -36,6 +36,9 @@ t2 사전등록 판정(2026-07-09)은 미채택(Δ+0.2%p < +0.5%p). 단 **참고
 | `FIRST_TEST = {2025, 1}` | `--first-test YYYYQn` | 2025Q1 | `2024Q3` |
 | `collectRaces(db, 20240101, 99991231)` | `--from YYYYMMDD` / `--to YYYYMMDD` | 20240101 / 99991231 | `--from 20220101 --to 20241231` |
 | `SHAPE_PAR_CUTOFF = FIRST_TEST 시작일` | (유도값 유지 — 별도 플래그 없음) | 20250101 | 20240701 (자동) |
+| 게이트 B holdout = 2025Q4 고정 | `--gate-holdout YYYYQn` | 2025Q4 | `2024Q2` |
+
+**보충 (2026-07-09, 판정 런 실행 전 확정)**: `--to 20241231`이면 기존 게이트 B holdout(2025Q4)이 0경주가 되어 피처 선별이 무의미해지는 블로커 발견 → `--gate-holdout` 플래그 추가. t3 판정 런은 **2024Q2**(시험 직전 분기, 시험구간과 무겹침 — 사용자 버튼 확정 A). ON/OFF 두 팔이 같은 선별 결과를 공유하므로 Δ 판정에 미치는 영향은 구조적으로 상쇄.
 
 - `--to 20241231`로 데이터 끝을 자르면 롤링 블록이 2024Q3·Q4 두 개만 생성 → overall 행이 곧 판정값 (분기 합산 후처리 불필요).
 - `scripts/benter_twostage.ts`의 FIRST_TEST는 이번 범위 밖 (벤치마크만).
@@ -43,8 +46,8 @@ t2 사전등록 판정(2026-07-09)은 미채택(Δ+0.2%p < +0.5%p). 단 **참고
 ### 판정 명령 (기록용)
 
 ```bash
-npm run benchmark -- --from 20220101 --to 20241231 --first-test 2024Q3 --exclude shape_signal   # OFF
-npm run benchmark -- --from 20220101 --to 20241231 --first-test 2024Q3 --include shape_signal   # ON
+npm run benchmark -- --from 20220101 --to 20241231 --first-test 2024Q3 --gate-holdout 2024Q2 --exclude shape_signal   # OFF
+npm run benchmark -- --from 20220101 --to 20241231 --first-test 2024Q3 --gate-holdout 2024Q2 --include shape_signal   # ON
 # 참고 재확인(판정 아님): --from 20220101 --first-test 2025Q1 로 ON/OFF
 ```
 

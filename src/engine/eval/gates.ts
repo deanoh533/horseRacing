@@ -92,10 +92,13 @@ export interface GateBResult {
   quinDelta: number;   // 복승 개선량
 }
 
-export function runGateB(races: RaceRecord[]): GateBResult[] {
-  const gateTrain = races.filter((r) => r.raceDate < GATE_B_HOLDOUT_START);
+export function runGateB(
+  races: RaceRecord[],
+  holdout: { start: number; end: number } = { start: GATE_B_HOLDOUT_START, end: GATE_B_HOLDOUT_END },
+): GateBResult[] {
+  const gateTrain = races.filter((r) => r.raceDate < holdout.start);
   const gateHoldout = races.filter(
-    (r) => r.raceDate >= GATE_B_HOLDOUT_START && r.raceDate <= GATE_B_HOLDOUT_END
+    (r) => r.raceDate >= holdout.start && r.raceDate <= holdout.end
   );
   if (gateHoldout.length < 50) {
     console.warn('  ⚠️  게이트 B holdout 경주 수 부족 (<50). 결과 신뢰도 낮음.');

@@ -14,6 +14,19 @@ export function quarterStart(year: number, q: number): number {
   return year * 10000 + ((q - 1) * 3 + 1) * 100 + 1;
 }
 
+/** YYYY-Qn의 마지막 날 YYYYMMDD (포함 경계) */
+export function quarterEnd(year: number, q: number): number {
+  const md = [331, 630, 930, 1231][q - 1];
+  return year * 10000 + md;
+}
+
+/** CLI 인자 "YYYYQn" (예: 2024Q3) 파싱 */
+export function parseYearQuarter(s: string): YearQuarter {
+  const m = /^(\d{4})Q([1-4])$/.exec(s);
+  if (!m) throw new Error(`--first-test 형식은 YYYYQn (예: 2024Q3), 입력값: "${s}"`);
+  return { year: Number(m[1]), q: Number(m[2]) };
+}
+
 export function splitByQuarter(races: RaceRecord[]): Map<string, RaceRecord[]> {
   const m = new Map<string, RaceRecord[]>();
   for (const r of races) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { quarterKey, splitByQuarter, rollingBlocks } from './rolling.js';
+import { quarterKey, splitByQuarter, rollingBlocks, parseYearQuarter, quarterEnd } from './rolling.js';
 import type { RaceRecord } from './types.js';
 
 const race = (raceDate: number): RaceRecord => ({
@@ -16,6 +16,29 @@ describe('quarterKey', () => {
     expect(quarterKey(20250105)).toBe('2025-Q1');
     expect(quarterKey(20250715)).toBe('2025-Q3');
     expect(quarterKey(20251231)).toBe('2025-Q4');
+  });
+});
+
+describe('parseYearQuarter', () => {
+  it('YYYYQn 문자열을 파싱한다', () => {
+    expect(parseYearQuarter('2024Q3')).toEqual({ year: 2024, q: 3 });
+    expect(parseYearQuarter('2025Q1')).toEqual({ year: 2025, q: 1 });
+  });
+
+  it('형식·범위가 틀리면 명확한 에러를 던진다', () => {
+    expect(() => parseYearQuarter('2024Q5')).toThrow(/YYYYQn/);
+    expect(() => parseYearQuarter('2024-Q3')).toThrow(/YYYYQn/);
+    expect(() => parseYearQuarter('24Q3')).toThrow(/YYYYQn/);
+    expect(() => parseYearQuarter('')).toThrow(/YYYYQn/);
+  });
+});
+
+describe('quarterEnd', () => {
+  it('분기 마지막 날 YYYYMMDD (포함 경계)', () => {
+    expect(quarterEnd(2024, 1)).toBe(20240331);
+    expect(quarterEnd(2024, 2)).toBe(20240630);
+    expect(quarterEnd(2024, 3)).toBe(20240930);
+    expect(quarterEnd(2025, 4)).toBe(20251231);
   });
 });
 
