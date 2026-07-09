@@ -289,6 +289,8 @@ npm run probe:shape    # 초반 200m 위치그룹 × 유지력 × G3F 격차 × 
 
 ```bash
 npm run benchmark                         # 9개 모델 전체 (DuckDB 직접)
+npm run benchmark -- --include <itemId>   # 게이트 무관 강제 포함 (통제 A/B ON, 예: shape_signal)
+npm run benchmark -- --exclude <itemId>   # 강제 제외 (통제 A/B OFF)
 npm run learn:logistic                    # 매트릭스로 로지스틱만
 npm run refresh:logistic                  # 재학습
 npm run verify:logistic                   # 검증
