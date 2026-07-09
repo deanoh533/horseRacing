@@ -22,7 +22,7 @@
 | 신호 | 결과 | 근거 |
 |---|---|---|
 | 등급이동 class_move | ✅ 채택 | 다분기 +3.9%p, 라이브 클린 |
-| 전개 shape_signal (pred_gap·p_achieve) | ⏸ 미채택 | 통제 A/B t2 Δ+0.2%p 합격선 미달. t3 +1.5~2.1%p 일관 양수=후속 후보, 코드 휴면 [[project_race_shape_track]] |
+| 전개 shape_signal (pred_gap·p_achieve) | ✅ 채택 (2026-07-09) | t2 Δ+0.2%p 미달 → t3 사전등록 재검증: 2024H2 신선 구간(백필 확보) Logistic(t3) Δ+2.1%p·2분기 모두 양수·전 모델 방향 일치. 라이브 반영은 promote 대기 [[project_race_shape_track]] |
 | 조교 train_signal | ❌ 흡수 | 통제 A/B Δ−0.12% [[project_training_signals]] |
 | 의료(출혈·피로) | ❌ 기각 | 게이트B 한계기여 ~0 [[project_medical_signals]] |
 | 마체중 | ⏸ 보류 | wg_hr 라이브 누수 |

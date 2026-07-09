@@ -62,8 +62,10 @@ npm run benchmark -- --from 20220101 --to 20241231 --first-test 2024Q3 --gate-ho
 - 챔피언 승격·promote, UI, 벤터/엑조틱 연계
 - 2022~23 구간의 다른 피처 품질 감사 (G3F만 검증 완료)
 
-## 6. 판정 결과 (실행 후 기입)
+## 6. 판정 결과 (2026-07-09 실행)
 
-- [ ] OFF / ON 런 로그: `.superpowers/sdd/t3_off.log` · `t3_on.log`
-- [ ] overall Δ = ___ / 2024Q3 Δ = ___ / 2024Q4 Δ = ___ → **판정: ___**
-- [ ] 기록: docs/status/04-signals.md + docs/history/modeling-history.md(채택 시)
+- [x] OFF / ON 런 로그: `.superpowers/sdd/t3_off.log` · `t3_on.log`
+- [x] **Logistic(t3) 연승률: OFF 58.2% → ON 60.3% = overall Δ +2.1%p** / 2024Q3 Δ +1.7%p (54.6→56.3) / 2024Q4 Δ +2.4%p (61.4→63.8)
+- [x] 합격선 대조: Δ +2.1%p ≥ +0.5%p ✓ AND 2분기 모두 양수 ✓ → **판정: 채택**
+- [x] 참고 진단 (판정 미사용): GBDT(t3) 52.9→58.5 (+5.6%p) · Logistic(t2) 58.9→60.0 (+1.1%p) · PL 59.7→60.3 (+0.6%p) — 전 모델 방향 일치
+- [x] 기록: docs/status/04-signals.md + docs/history/modeling-history.md

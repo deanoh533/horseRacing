@@ -172,6 +172,6 @@ npm run test:run     # vitest 단위 테스트
 | 점수·알고리즘 | [01-scoring](docs/status/01-scoring.md) | 로지스틱 직접학습 · ⑧ 부담중량 자문 대기 |
 | 예측모델·벤치마크 | [02-model-benchmark](docs/status/02-model-benchmark.md) | 활성 id=6 logistic · `npm run benchmark` 롤링통합 |
 | 시장엣지·전략 | [03-market-edge](docs/status/03-market-edge.md) | 선별표시·Platt 배포 · 공개피처 격파 종결 |
-| 신호발굴 | [04-signals](docs/status/04-signals.md) | class_move 채택 · 조교 흡수확정 |
+| 신호발굴 | [04-signals](docs/status/04-signals.md) | shape_signal t3 채택(promote 대기) · class_move 채택 |
 | 데이터인프라 | [05-data-infra](docs/status/05-data-infra.md) | DuckDB 미러 · egress 주의 · 조교 376k |
 | UI·화면 | [06-ui](docs/status/06-ui.md) | 예상지 4열 · `/picks` 선별표시 |

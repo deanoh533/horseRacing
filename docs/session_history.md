@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-09 (저녁) — 전개 shape_signal t3 사전등록 판정: ✅ 채택
+db:pull 후 후속 세션. ① 2022~23 백필 G3F 커버리지 검증 — 전 구간 100%·값 새너티 통과(2022~23 중앙값 차이는 거리 구성 탓, 거리당 정규화 시 동일). ② t3 사전등록 스펙 커밋(판정=2024H2 무오염 신선 구간 단독, Logistic(t3) 연승 Δ≥+0.5%p AND 2분기 양수 — 사용자 버튼 확정). ③ benchmark `--from/--to/--first-test/--gate-holdout` 파라미터화(무플래그=기존 불변, 게이트B holdout 0경주 블로커 발견→2024Q2로 확정). ④ **판정 런: OFF 58.2% → ON 60.3% = Δ+2.1%p, 2024Q3 +1.7/2024Q4 +2.4 모두 양수 → 채택.** 참고 진단 전 모델 방향 일치(GBDT(t3) +5.6%p·Logistic(t2) +1.1%p·PL +0.6%p) — 학습구간이 2022~로 길어지자 t2도 양수 전환. 다음: promote·라이브 반영 사이클(라벨 선택 포함). 상세 → [04-signals](status/04-signals.md) · 스펙 `docs/superpowers/specs/2026-07-09-race-shape-t3-prereg.md`
+
 ## 2026-07-07~09 — 경주 전개(race shape) 트랙: probe → 피처화 → A/B 미채택 → 학습구간 확장
 "시장이 아니라 공개데이터 활용을 재검증하자"는 관점 전환에서 출발. ① `probe:shape` H1~H9 실측 — 선두권 우승점유 56.6%, G3F 격차 단조, **H5/H6 필요속도 달성확률이 역전율 3~6배(최강)**, H9 완전 사전(as-of) 재현에서도 칸 분리 절반 생존(코너 간 4.8배). ② 스펙→플랜→서브에이전트 SDD로 피처 2종(`shape_pred_gap`·`shape_p_achieve`, id `shape_signal`) 구현 + benchmark `--include/--exclude` 통제 A/B 인프라. ③ **판정 미채택**: 사전등록 지표 Logistic(t2) Δ+0.2%p < 합격선 +0.5%p. 단 **t3 라벨 계열 일관 양수**(Logistic(t3) +1.5%p 5/6분기·GBDT(t3) +2.1%p) = 도메인 정합 후속 후보. ④ 후속 준비: `backfill:results` 신설(+`skipPredictions`) → **2022-01~2024-05 백필 완료(+4,110경주, 총 ~4.5년)** + db:pull 완료. Supabase free-tier pause 사건(Resume로 복구). 다음 세션 = 2022~23 G3F 커버리지 검증 → t3 사전등록 스펙 커밋 → 2024H2 시험구간 벤치마크 → 판정. ⚠️ 재구성 시 `FIRST_TEST`/`SHAPE_PAR_CUTOFF`(현재 20250101 하드코딩) 파라미터화 필요. 상세 → [04-signals](status/04-signals.md) · [[project_race_shape_track]]
 
