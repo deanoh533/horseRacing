@@ -263,6 +263,13 @@ npm run db:pull                         # 전체 테이블 복사
 npm run db:pull -- --table race_entries # 단일 테이블만
 ```
 
+### 과거 결과 백필 (학습구간 확장)
+
+```bash
+npm run backfill:results -- --from 20220101 --to 20240523   # KRA 쿼터 소비 — 사용자 직접 실행. rate limit 시 다음날 재실행(멱등)
+npm run db:pull                                             # 백필 후 로컬 미러 갱신
+```
+
 ### 매트릭스 관리
 
 ```bash

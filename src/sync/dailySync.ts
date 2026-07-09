@@ -26,6 +26,8 @@ import type { MeetCode } from '@app-types/index.js';
 interface SyncOptions {
   rcDate: number;
   meets?: MeetCode[];
+  /** 과거 백필용: predictions 생성 생략 (Supabase 대량 읽기 방지) */
+  skipPredictions?: boolean;
 }
 
 interface SyncResult {
@@ -42,7 +44,7 @@ export async function syncDay(options: SyncOptions): Promise<SyncResult[]> {
   console.log(`\n🔄 ${options.rcDate} 동기화 시작 (meets: ${meets.join(',')})`);
 
   for (const meet of meets) {
-    const result = await syncMeet(meet, options.rcDate);
+    const result = await syncMeet(meet, options.rcDate, options.skipPredictions ?? false);
     results.push(result);
   }
 
@@ -51,7 +53,8 @@ export async function syncDay(options: SyncOptions): Promise<SyncResult[]> {
 
 async function syncMeet(
   meet: MeetCode,
-  rcDate: number
+  rcDate: number,
+  skipPredictions = false
 ): Promise<SyncResult> {
   const result: SyncResult = {
     meet,
@@ -245,28 +248,30 @@ async function syncMeet(
           }
         }
 
-        // 5. Score Engine → predictions upsert
-        try {
-          const predictions = await predictRace(supabase as unknown as ReadClient, rcDate, meet, rcNo);
-          if (predictions.length > 0) {
-            await supabase
-              .from('predictions')
-              .delete()
-              .eq('race_date', rcDate)
-              .eq('meet', meet)
-              .eq('rc_no', rcNo);
-            const { error: predErr } = await supabase.from('predictions').insert(predictions);
-            if (predErr) throw predErr;
+        // 5. Score Engine → predictions upsert (백필 시 생략)
+        if (!skipPredictions) {
+          try {
+            const predictions = await predictRace(supabase as unknown as ReadClient, rcDate, meet, rcNo);
+            if (predictions.length > 0) {
+              await supabase
+                .from('predictions')
+                .delete()
+                .eq('race_date', rcDate)
+                .eq('meet', meet)
+                .eq('rc_no', rcNo);
+              const { error: predErr } = await supabase.from('predictions').insert(predictions);
+              if (predErr) throw predErr;
+            }
+          } catch (err) {
+            console.warn(
+              `    [meet=${meet}, rcNo=${rcNo}] 예측 저장 실패 (계속): ${(err as Error).message}`
+            );
           }
-        } catch (err) {
-          console.warn(
-            `    [meet=${meet}, rcNo=${rcNo}] 예측 저장 실패 (계속): ${(err as Error).message}`
-          );
         }
 
         result.racesSynced++;
         result.horsesSynced += horses.length;
-        console.log(`    [meet=${meet}, rcNo=${rcNo}] ✓ ${horses.length}두 + 예측`);
+        console.log(`    [meet=${meet}, rcNo=${rcNo}] ✓ ${horses.length}두${skipPredictions ? '' : ' + 예측'}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         result.errors.push(`rcNo=${rcNo}: ${msg}`);

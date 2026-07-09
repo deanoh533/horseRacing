@@ -12,6 +12,7 @@
     "sync:cards": "tsx src/sync/raceCardSync.ts",
     "sync:cards:bulk": "tsx scripts/backfill_race_cards.ts",
     "backfill": "tsx scripts/backfill_predictions.ts",
+    "backfill:results": "tsx scripts/backfill_results.ts",
     "learn:candidate": "tsx scripts/learn_candidate.ts",
     "promote": "tsx scripts/promote_version.ts",
     "build:rho-history": "tsx scripts/build_rho_history.ts",
