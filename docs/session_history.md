@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-07~09 — 경주 전개(race shape) 트랙: probe → 피처화 → A/B 미채택 → 학습구간 확장
+"시장이 아니라 공개데이터 활용을 재검증하자"는 관점 전환에서 출발. ① `probe:shape` H1~H9 실측 — 선두권 우승점유 56.6%, G3F 격차 단조, **H5/H6 필요속도 달성확률이 역전율 3~6배(최강)**, H9 완전 사전(as-of) 재현에서도 칸 분리 절반 생존(코너 간 4.8배). ② 스펙→플랜→서브에이전트 SDD로 피처 2종(`shape_pred_gap`·`shape_p_achieve`, id `shape_signal`) 구현 + benchmark `--include/--exclude` 통제 A/B 인프라. ③ **판정 미채택**: 사전등록 지표 Logistic(t2) Δ+0.2%p < 합격선 +0.5%p. 단 **t3 라벨 계열 일관 양수**(Logistic(t3) +1.5%p 5/6분기·GBDT(t3) +2.1%p) = 도메인 정합 후속 후보. ④ 후속 준비: `backfill:results` 신설(+`skipPredictions`) → **2022-01~2024-05 백필 완료(+4,110경주, 총 ~4.5년)** + db:pull 완료. Supabase free-tier pause 사건(Resume로 복구). 다음 세션 = 2022~23 G3F 커버리지 검증 → t3 사전등록 스펙 커밋 → 2024H2 시험구간 벤치마크 → 판정. ⚠️ 재구성 시 `FIRST_TEST`/`SHAPE_PAR_CUTOFF`(현재 20250101 하드코딩) 파라미터화 필요. 상세 → [04-signals](status/04-signals.md) · [[project_race_shape_track]]
+
 ## 2026-07-06 — 알파 3중 재검증 완전 종결 + 배당 블렌드 후보 보류
 오프셋 조건부 로지트(β=0=날배당 재현 자체검증) 프레임으로 "공개피처로 시장 이기나"를 총량·구간분해·비선형(GBT) 3방향에서 최종 재확인 → **전부 음성**(기존 천장 결론 재확인, 이 질문 완전 종결). 별도 질문("배당을 재료로 섞으면 모델 단독보다 나아지나")은 **양성**(연승 적중률 +7.1~11.5%p, ECE 반토막, 강추 픽수 9배↑에 정확도도↑)이었으나, 챔피언전 검증 전 브레인스토밍 중 **당일 win_odds는 경주 1~2시간 전에야 존재**(사전/사후 동일 산식 원칙과 충돌)함을 재확인하고 data.go.kr 공공API 전수조사 → 실시간/예상 배당 공식 API 미확인. **배포 경로 없어 보류.** 신규 코드 `src/engine/eval/offsetClogit.ts`·`src/engine/models/offsetGBT.ts`·probe 6종은 향후 라이브 배당 소스 확보 시 재검토용으로 보존. 상세 → [03-market-edge](status/03-market-edge.md) · [[project_odds_blend_candidate]]
 
