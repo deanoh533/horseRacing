@@ -31,10 +31,15 @@ async function main(): Promise<void> {
   const noGate = args.includes('--no-gate');
   const champIdx = args.indexOf('--champion');
   const championId = champIdx >= 0 ? Number(args[champIdx + 1]) : undefined;
+  const inclIdx = args.indexOf('--include');
+  const forceInclude = inclIdx >= 0 ? args[inclIdx + 1] : undefined;
+  const exclIdx = args.indexOf('--exclude');
+  const forceExclude = exclIdx >= 0 ? args[exclIdx + 1] : undefined;
 
   const db = await getLocalDb();
   console.log('📊 Rolling Benchmark 시작\n데이터 수집 중...');
-  const races = await collectRaces(db, 20240101, 99991231);
+  const SHAPE_PAR_CUTOFF = FIRST_TEST.year * 10000 + 101; // 2025Q1 → 20250101
+  const races = await collectRaces(db, 20240101, 99991231, { shapeParCutoff: SHAPE_PAR_CUTOFF });
   console.log(`  ${races.length}경주`);
 
   let approved: Set<string>;
@@ -46,6 +51,8 @@ async function main(): Promise<void> {
     const gb = runGateB(races); printGateB(gb);
     approved = new Set(gb.filter((g) => g.include).map((g) => g.itemId));
   }
+  if (forceInclude) { approved.add(forceInclude); console.log(`  ⚡ 강제 포함: ${forceInclude}`); }
+  if (forceExclude) { approved.delete(forceExclude); console.log(`  ⚡ 강제 제외: ${forceExclude}`); }
   if (gateOnly) return;
 
   const champ = await loadVersion(db, championId !== undefined ? { id: championId } : {});
