@@ -71,8 +71,9 @@ export async function gatherRaceInputs(
   rcDate: number,
   meet: number,
   rcNo: number,
-  opts?: { shapeParCutoff?: number }
+  opts?: { shapeParCutoff?: number; forcePrecompetition?: boolean }
 ): Promise<RaceInputRow[]> {
+  const forcePrecompetition = opts?.forcePrecompetition ?? false;
   // race_entries에서 조회 (사전/사후 자동 분기)
   const { data: entries, error } = await sb
     .from('race_entries')
@@ -280,7 +281,7 @@ export async function gatherRaceInputs(
         input.shapePredGap = shapeSig.predGap;
         if (shapeSig.pAchieve != null) input.shapePAchieve = shapeSig.pAchieve;
       }
-      return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: e.ord, input };
+      return { hr_name: e.hr_name, pthr_no: e.pthr_no, ord: forcePrecompetition ? null : e.ord, input };
     })
   );
 
@@ -300,9 +301,10 @@ export async function predictRace(
   sb: ReadClient,
   rcDate: number,
   meet: number,
-  rcNo: number
+  rcNo: number,
+  opts?: { shapeParCutoff?: number; forcePrecompetition?: boolean }
 ): Promise<PredictionRow[]> {
-  const rows = await gatherRaceInputs(sb, rcDate, meet, rcNo);
+  const rows = await gatherRaceInputs(sb, rcDate, meet, rcNo, opts);
   if (rows.length === 0) return [];
 
   // 활성 모델 버전으로 스코어링 (rho-legacy=ScoreEngine / logistic=logisticScorer)
