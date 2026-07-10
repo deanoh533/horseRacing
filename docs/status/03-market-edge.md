@@ -1,10 +1,11 @@
 # 시장엣지·전략 — 진행 상황
-> 마지막 업데이트: 2026-07-06 · 관련 메모리: [[project_market_edge_strategy]], [[project_selective_picks]], [[project_market_dominance_ceiling]], [[project_benter_blend]], [[project_odds_blend_candidate]]
+> 마지막 업데이트: 2026-07-10 · 관련 메모리: [[project_market_edge_strategy]], [[project_selective_picks]], [[project_market_dominance_ceiling]], [[project_benter_blend]], [[project_odds_blend_candidate]], [[project_race_shape_track]]
 
 ## 현재 상태
 공개피처로 승/연승 시장격파 = **종결(천장)**. 두 양성 배포 완료:
 - **Platt 라이브 캘리브레이션** — predictions에 `p_win`/`p_top3`(우승·연승 보정확률), UI "우승%·연승%" 표시. 랭킹 파이프라인 불변.
 - **선별 표시 (트랙 C)** — `p_top3`로 강추 ≥0.72 / 주목 ≥0.62 라벨 → 뱃지 + `/picks` 뷰 + 통계 "선별 적중률". 실측 강추 연승 73.1%·주목 65.4%(베이스 28.4%). 임계값 단일출처 `client/src/config/selective_picks.json`, 재산출 `npm run probe:picks`.
+- **v7-shape 승격 반영 (2026-07-10)** — 랭킹 모델 v6→v7 교체([[project_race_shape_track]], SSOT [02-model-benchmark](02-model-benchmark.md))에 맞춰 Platt 재적합: platt3 a=1.057·b=0.047(거의 항등, renormWin=false). `probe:picks` 재실측 0.75↑ 74.6%·0.70↑ 68.5% → **기존 임계 0.72/0.62 그대로 유효**, 캘리브레이션·선별표시 코드/설정 변경 없음. 남은 것: 주말부터 v7 기반 선별 적중률 라이브 추적.
 
 ## 다음 후보·남음
 - 🔲 선별 표시 **시각 확인** (`/picks`·뱃지·통계 섹션 — Vercel/로컬)
