@@ -7,7 +7,8 @@ t2 미채택 후 사전등록한 t3 후속 검증(스펙 `docs/superpowers/specs
 - **판정 Logistic(t3) 연승: OFF 58.2% → ON 60.3% = Δ +2.1%p ≥ +0.5%p ✓, 2분기 모두 양수(+1.7/+2.4) ✓ → 채택.**
 - 참고 진단 전 모델 방향 일치: GBDT(t3) +5.6%p · Logistic(t2) +1.1%p · PL +0.6%p. 흥미: 학습구간이 2022~로 길어지자 t2도 양수(+1.1%p — t2 판정 때 학습 2024만으로는 +0.2%p).
 - 인프라: benchmark `--from/--to/--first-test/--gate-holdout` 파라미터화(무플래그=기존 동작 불변).
-- 로그: `.superpowers/sdd/t3_off.log`·`t3_on.log`. **다음: 챔피언/라이브 반영 절차(promote·라벨 선택) 별도 사이클.**
+- 로그: `.superpowers/sdd/t3_off.log`·`t3_on.log`.
+- **라이브 반영 완료 (2026-07-10)**: v7-shape(id=7, 학습행렬 2022~ 82,716행·피처 108) 학습 → 검증 벤치 v7 61.9% vs v6 61.6%(시험분기 포함 in-sample이라 격차 눌림, 새너티 통과) → **promote 활성 전환** → Platt 재적합(renormWin=false, platt3 a=1.057·b=0.047 거의 항등) → probe:picks 임계(0.72/0.62) 유효 재확인(0.75↑ 74.6%·0.70↑ 68.5%). 미확정 예측 재생성은 대상 없음(주말 출마표 미동기화·6/27-28은 정직한 v6 사전기록 보존). 상세는 [02-model-benchmark](02-model-benchmark.md).
 
 ## 경주 전개 shape_signal 통제 A/B (2026-07-09) — 판정 미채택(t2), t3로 후속 → 상단 채택 ⏸
 probe H1~H9([[project_race_shape_track]])에서 발굴한 전개 피처 2종(`shape_pred_gap`·`shape_p_achieve`, as-of par 편차 기반)을 구현하고 사전 확정 합격선으로 통제 A/B (스펙 `docs/superpowers/specs/2026-07-08-race-shape-features-design.md`).

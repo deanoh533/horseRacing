@@ -1,8 +1,10 @@
 # 예측모델·벤치마크 — 진행 상황
-> 마지막 업데이트: 2026-06-26 · 관련 메모리: [[project_rolling_benchmark_integration]], [[project_market_benchmark]], [[project_speed_figure]], [[project_score_learning_redesign]]
+> 마지막 업데이트: 2026-07-10 · 관련 메모리: [[project_rolling_benchmark_integration]], [[project_market_benchmark]], [[project_race_shape_track]], [[project_score_learning_redesign]]
 
 ## 현재 상태
-활성 모델 **id=6 (v6-class-move, logistic)**. 벤치 연승 62.5% / 단승 30.6% / 시장 68.2%(−5.7%p). `npm run benchmark` = 롤링 확장윈도우 9모델 + 챔피언(model_versions) 대결 + 시장 깊은 진단 통합(walkforward 흡수·삭제, 2026-06-14). 코드 `src/engine/eval/`. 롤백 = 이전 model_version id로 promote.
+활성 모델 **id=7 (v7-shape, logistic)** — 2026-07-10 승격. 전개 shape_signal 포함, 학습 2022-01~2026-06(82,716행·피처 108). 검증 벤치(2025Q1~2026Q2) 연승 61.9% vs v6 61.6% vs 시장 68.8%(−6.9%p); 미래 예측력 근거는 t3 사전등록 A/B Δ+2.1%p([[project_race_shape_track]]). Platt 임베드 완료(renormWin=false). `npm run benchmark` = 롤링 확장윈도우 9모델 + 챔피언 대결 + 시장 진단, **기간 플래그 지원**(`--from/--to/--first-test/--gate-holdout`, 2026-07-09). 코드 `src/engine/eval/`. 롤백 = `npm run promote -- --version 6`.
+
+> ⚠️ promote의 DATABASE_URL 경로는 미확정 예측 재생성을 생략(egress 차단기 레거시 메시지 출력). 이번 승격은 재생성 대상이 없어 무해 — 다음 승격 때 정리 후보.
 
 > 캘리브레이션(Platt `p_win`/`p_top3`)·선별표시는 **시장엣지 트랙**이 SSOT → [03-market-edge](03-market-edge.md). 랭킹 모델(여기)과는 분리.
 
