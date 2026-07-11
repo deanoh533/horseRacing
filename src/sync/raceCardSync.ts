@@ -103,7 +103,28 @@ async function syncOneMeet(
         }
 
         // 예측 점수 생성 (사전 모드: ord=null → actual_ord=null)
+        // 가드(L-001): 결과(ord)가 이미 도착한 경주는 재계산 스킵 — 사후 모드로
+        // 자동 분기해 수요일 사전 예측 스냅샷을 덮는 것을 방지. 결과가 없는
+        // 경주(정상 수·목요일 흐름)는 기존처럼 재계산해 경주 전 갱신을 반영.
         try {
+          const { data: ordRows } = await sb
+            .from('race_entries')
+            .select('ord')
+            .eq('race_date', rcDate)
+            .eq('meet', meet)
+            .eq('rc_no', rcNo);
+          const hasResult = ((ordRows ?? []) as { ord: number | null }[]).some(
+            (r) => r.ord != null
+          );
+          if (hasResult) {
+            console.warn(
+              `    rc_no=${rcNo} ⚠️ 결과 도착 경주 — 사전 예측 스냅샷 보호를 위해 예측 재계산 스킵`
+            );
+            result.racesSynced++;
+            result.horsesSynced += validItems.length;
+            continue;
+          }
+
           const preds = await predictRace(sb as unknown as ReadClient, rcDate, meet, rcNo);
           if (preds.length > 0) {
             await sb.from('predictions')
