@@ -23,8 +23,8 @@ export function TodayPicks() {
   if (picks.length === 0) {
     return (
       <div className="py-12 text-center text-[var(--color-text-secondary)]">
-        <p className="text-lg mb-1">이번 주 강추 없음</p>
-        <p className="text-sm">기준(연승 확률 임계값)을 넘는 출주마가 없습니다.</p>
+        <p className="text-lg mb-1">오늘 강추 없음</p>
+        <p className="text-sm">오늘 경주 중 기준(연승 확률 임계값)을 넘는 출주마가 없습니다.</p>
       </div>
     );
   }

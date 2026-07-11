@@ -4,6 +4,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   supabase,
+  getTodayRaceDate,
   type Race,
   type RaceEntry,
   type Prediction,
@@ -231,52 +232,30 @@ export function usePredictionsByDate(rcDate: number) {
 }
 
 /**
- * 다가오는(사전) 예측 — actual_ord NULL, p_top3 존재.
+ * 다가오는(사전) 예측 — race_date=오늘.
  *
- * ⚠️ 단순히 actual_ord NULL을 전부 "사전 예측"으로 보면, 결과가 동기화되지 않은
- * 과거 예측(리셋·재백필 잔재)이 "오늘의 강추"로 새어든다. 따라서 *가장 최근
- * 미확정 개최일*을 기준으로 7일(직전 주말 한 묶음) 이내만 남긴다.
- * 근본 차단은 운영전환 L-001(prediction_logs 불변 스냅샷). 그전까지의 방어 필터.
+ * predictions은 이제 INSERT-only다(수요일 사전 예측 1회 저장, 이후 dailySync가
+ * 재계산·삭제하지 않음 — docs/superpowers/plans/2026-07-11-v7-live-tracking.md
+ * Task 2). 따라서 과거 잔재를 걸러내던 방어 필터(최근 7일)가 더 이상 필요 없고,
+ * race_date=오늘 하나로 명확히 "오늘의 강추" 대상을 정의할 수 있다(동 Task 3).
  *
- * TodayPicks 뷰에서 classifyPick으로 강추/주목만 클라이언트 필터.
+ * TodayPicks 뷰에서 classifyPick으로 강추/주목만 클라이언트 필터
+ * (임계값은 selectivePicks.ts/config가 단일 출처 — 여기서 중복 정의하지 않음).
  */
 export function useUpcomingPicks() {
+  const today = getTodayRaceDate();
   return useQuery({
-    queryKey: ['upcoming-picks'],
+    queryKey: ['upcoming-picks', today],
     queryFn: async (): Promise<Prediction[]> => {
-      // 1) 결과 미동기화 예측 중 가장 최근 개최일 = 이번(직전) 개최
-      const { data: maxRow, error: maxErr } = await supabase
+      const { data, error } = await supabase
         .from('predictions')
-        .select('race_date')
-        .is('actual_ord', null)
+        .select('*')
+        .eq('race_date', today)
         .not('p_top3', 'is', null)
-        .order('race_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (maxErr) throw maxErr;
-      if (!maxRow) return [];
-      const cutoff = rcDateMinusDays(maxRow.race_date, 7);
-
-      // 2) 그 개최로부터 7일 이내만 fetch (오래된 누수 제외 + egress 절감)
-      const rows: Prediction[] = [];
-      const PAGE = 1000;
-      for (let off = 0; ; off += PAGE) {
-        const { data, error } = await supabase
-          .from('predictions')
-          .select('*')
-          .is('actual_ord', null)
-          .not('p_top3', 'is', null)
-          .gte('race_date', cutoff)
-          .order('race_date')
-          .order('meet')
-          .order('rc_no')
-          .range(off, off + PAGE - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        rows.push(...(data as Prediction[]));
-        if (data.length < PAGE) break;
-      }
-      return rows;
+        .order('meet')
+        .order('rc_no');
+      if (error) throw error;
+      return (data ?? []) as Prediction[];
     },
     staleTime: 10 * 60 * 1000,
   });
@@ -719,16 +698,6 @@ function dateMonthsAgo(monthsBack: number): number {
   const d = new Date();
   d.setMonth(d.getMonth() - monthsBack);
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-}
-
-/** YYYYMMDD 숫자에서 N일 뺀 YYYYMMDD 숫자 반환 */
-function rcDateMinusDays(rcDate: number, days: number): number {
-  const y = Math.floor(rcDate / 10000);
-  const m = Math.floor((rcDate % 10000) / 100) - 1;
-  const d = rcDate % 100;
-  const dt = new Date(y, m, d);
-  dt.setDate(dt.getDate() - days);
-  return dt.getFullYear() * 10000 + (dt.getMonth() + 1) * 100 + dt.getDate();
 }
 
 // ============================================

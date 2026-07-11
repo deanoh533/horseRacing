@@ -175,6 +175,19 @@ export function isCancelled(ord: number | null): boolean {
 }
 
 /**
+ * 오늘 날짜를 race_date 형식(YYYYMMDD 숫자)으로 반환
+ *  - TodayPicks 화면의 "오늘 이후 경주만" 필터 기준
+ *  - docs/superpowers/plans/2026-07-11-v7-live-tracking.md Task 3
+ */
+export function getTodayRaceDate(): number {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const date = String(now.getDate()).padStart(2, '0');
+  return parseInt(`${year}${month}${date}`, 10);
+}
+
+/**
  * training_logs — 일별 훈련 정보
  * (API18_1/dailyTraining_1 — 검증됨)
  */
