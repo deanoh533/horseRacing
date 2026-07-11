@@ -5,6 +5,7 @@
  *   npm run sync -- --date 20260517 --meet 3
  *   또는
  *   tsx src/sync/dailySync.ts --date 20260517
+ *   tsx src/sync/dailySync.ts --fail-on-empty   # 0건이면 exit 1 (자동화용)
  *
  * 흐름:
  *   1. KRA 결과 API → races upsert (거리/주로/날씨 채움)
@@ -29,6 +30,7 @@ import {
   calculatePopularities,
 } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
+import { yyyymmddOffset, isEmptySync } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
 
@@ -368,10 +370,15 @@ async function main() {
   const args = process.argv.slice(2);
   let rcDate = 0;
   let meets: MeetCode[] = [1, 3];
+  let failOnEmpty = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--date' && args[i + 1]) {
       rcDate = parseInt(args[i + 1]!, 10);
+      if (!Number.isFinite(rcDate) || String(rcDate).length !== 8) {
+        console.error(`❌ --date 값이 잘못됨: ${args[i + 1]} (YYYYMMDD 8자리 필요)`);
+        process.exit(1);
+      }
       i++;
     } else if (args[i] === '--meet' && args[i + 1]) {
       meets = args[i + 1]!
@@ -379,16 +386,13 @@ async function main() {
         .map((s) => parseInt(s, 10) as MeetCode)
         .filter((m) => m === 1 || m === 3);
       i++;
+    } else if (args[i] === '--fail-on-empty') {
+      failOnEmpty = true;
     }
   }
 
   if (!rcDate) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    rcDate =
-      yesterday.getFullYear() * 10000 +
-      (yesterday.getMonth() + 1) * 100 +
-      yesterday.getDate();
+    rcDate = yyyymmddOffset(-1);
     console.log(`📅 날짜 인자 없음 → 어제(${rcDate})로 자동 설정`);
   }
 
@@ -399,6 +403,11 @@ async function main() {
   console.log('='.repeat(50));
   for (const r of results) {
     console.log(`  meet=${r.meet}: ${r.racesSynced} 경주 / ${r.horsesSynced} 두 / 에러 ${r.errors.length}`);
+  }
+
+  if (failOnEmpty && isEmptySync(results)) {
+    console.error('❌ --fail-on-empty: 동기화된 경주 0건 (휴장일이거나 KRA 빈 응답)');
+    process.exit(1);
   }
 }
 
