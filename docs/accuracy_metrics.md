@@ -198,6 +198,31 @@ npx tsx scripts/accuracy_stats.ts
 
 ---
 
+## 8.6 v7 라이브 적중률 판정 (2026-07-11, L-001)
+
+기존 지표(§1~§8.5)는 모두 `predictions.actual_ord`가 **가중치 재학습 시 전체 재계산될 수 있는** 값이라는
+전제 위에서 계산됐다. v7 라이브 성능을 정직하게 판정하려면 "수요일에 실제로 뭘 찍었는가"가 이후에
+덮어써지지 않아야 한다 — 이를 위해 `dailySync`의 predictions 쓰기 전략을 바꿨다
+(설계: `docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md`).
+
+- **쓰기 전략:** predictions은 수요일(raceCardSync)에 한 번만 INSERT, 이후 `predicted_rank`·`total_score`·
+  `p_top3`·`p_win`·`item_scores` 등 예측값 필드는 절대 재계산하지 않는다. 금요일 결과 도착 시
+  `dailySync`는 `predictions.actual_ord`만 UPDATE(결과 기록 전용)하고, `race_entries.ord`도 별도로 채운다.
+  예측이 없는 경주(수요일 실패 등)만 `forcePrecompetition:true`로 사전 모드 보충 INSERT.
+- **판정 도구:** `npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD` — predictions × race_entries(ord)를
+  클라이언트에서 조인해(`race_entries.ord`가 원본, `predictions.actual_ord`에 의존하지 않는 독립 검증) 강추(`p_top3≥0.72`)/
+  주목(`[0.62,0.72)`)/전체 3개 티어를 `model_version`별로 집계. §8.5 선별 적중률과 같은 임계값(단일출처
+  `client/src/config/selective_picks.json`)을 쓰지만, 대상 표본이 다르다 — §8.5는 사후(과거) 전체 표본,
+  이 판정은 **v7이 실제로 라이브 운영 중 낸 예측만** 대상으로 한다.
+  - 순수 판정 로직: `src/engine/eval/v7Accuracy.ts` (`joinResults`/`computeTiers`/`computeTiersByVersion`, 테스트 동일 디렉터리)
+  - DB 조회·CLI: `scripts/probe_v7_accuracy.ts`
+  - ⚠️ DuckDB 미러가 기본 소스 — 최신 결과를 보려면 실행 전 `npm run db:pull` 선행 필요
+- **TODO.md L-001과의 관계:** 원래 계획은 `prediction_logs` 불변 로그 테이블을 신설하는 것이었으나, 기존
+  `predictions` 테이블의 쓰기 경로만 바꿔 같은 효과(사전 예측 불변 보존)를 얻는 방식으로 대체 구현했다 —
+  새 테이블·스키마 변경 없음.
+
+---
+
 ## 9. 변경 이력
 
 | 날짜 | 변경 내용 |
@@ -208,3 +233,4 @@ npx tsx scripts/accuracy_stats.ts
 | 2026-06-11 | PL 모델 폐기, Logistic 확정. class_move 채택(B +2.2%p, 5분기 4/5 강건) |
 | 2026-06-12 | §6 확장: Gate A/B → 멀티모델 → 승격 3레이어 통합 정리. 문서 갱신 규칙 추가 |
 | 2026-06-25 | §8.5 선별 적중률(Selective Picks) 추가 — 강추/주목 티어·probe:picks·임계값 데이터 확정 |
+| 2026-07-11 | §8.6 v7 라이브 적중률 판정 추가 — predictions 보존 전략(L-001) + probe:v7-accuracy |

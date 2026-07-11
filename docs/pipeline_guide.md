@@ -324,7 +324,16 @@ npm run backfill -- --date YYYYMMDD       # 특정 날짜만
 
 ```bash
 npx tsx scripts/accuracy_stats.ts        # 운영 적중률 (단/연/복승)
+npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판정(강추/주목/전체, model_version별)
 ```
+
+**v7 라이브 판정 (`probe:v7-accuracy`):** predictions(수요일 사전 예측, 무변경) × race_entries(금요일 결과 ord)를
+클라이언트 조인해 강추(`p_top3≥0.72`)/주목(`[0.62,0.72)`)/전체 티어별 연승(3착내) 적중률을 계산한다.
+읽기전용, DuckDB 미러 우선(`getReadClient()`). **DuckDB가 기본 소스이므로 최신 결과를 보려면 먼저
+`npm run db:pull -- --table predictions`와 `npm run db:pull -- --table race_entries`(또는 전체 `npm run db:pull`)로
+갱신해야 한다** — 안 하면 지난 미러 시점 데이터로 판정된다. 순수 판정 로직은
+`src/engine/eval/v7Accuracy.ts`(테스트: 동일 디렉터리 `.test.ts`), DB 조회·CLI 출력은
+`scripts/probe_v7_accuracy.ts`.
 
 ---
 
@@ -356,3 +365,4 @@ npx tsx scripts/accuracy_stats.ts        # 운영 적중률 (단/연/복승)
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-06-12 | 초안: 4개 데이터 소스 · 라이브 예측 흐름 · 3개 핵심 스크립트 · 전체 명령어 정리 |
+| 2026-07-11 | `probe:v7-accuracy` 추가 (v7 라이브 적중률 판정, L-001 predictions 보존 전략과 함께 도입) |

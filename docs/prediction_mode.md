@@ -125,7 +125,30 @@ predictions UPDATE (actual_ord = 3)
 > A. 같은 산식, 같은 과거 데이터 → 점수 자체는 동일. 다만 사후엔 `actual_ord` 비교가 가능해 "맞췄는지"를 알 수 있을 뿐.
 
 > **Q. 사전 예측 후 결과가 들어오면 점수가 바뀌나?**
-> A. backfill을 돌리지 않는 한 안 바뀜. `dailySync`는 결과 컬럼만 UPDATE하고 점수는 재계산함 (predictions upsert).
+> A. **2026-07-11부터 안 바뀜 (변경됨).** 이전에는 `dailySync`가 결과 컬럼 UPDATE 후 predictions을
+> DELETE→INSERT로 재계산했다. v7 라이브 적중률을 정직하게 추적하려면 "수요일에 실제로 뭘 찍었는가"가
+> 보존돼야 하므로, 지금은 `dailySync`가 예측값 필드(`predicted_rank`·`total_score`·`p_top3`·`p_win`·
+> `item_scores`)를 절대 재계산하지 않고 `predictions.actual_ord`만 UPDATE한다(결과 기록 전용).
+> backfill(`skipPredictions` 무관하게 별도 스크립트)을 돌려야만 점수가 바뀐다. → §8 참고.
 
 > **Q. 사전 모드에서 ⑰을 당일 win_odds로 바꿀 수 있나?**
 > A. 기술적으로 가능하지만 출마표 발표 직후엔 win_odds가 없음. 경주 직전 1~2시간에만 들어오므로, 일관성을 위해 **과거 popularity 기반**으로 통일했음.
+
+---
+
+## 8. predictions 쓰기 전략 변경 (2026-07-11, v7 라이브 추적 L-001)
+
+수요일(사전)·금요일(사후) **데이터 입력**은 §1~§7 그대로다. 바뀐 건 predictions **테이블에 언제 쓰는가**.
+
+- **금요일 `dailySync`는 예측을 재계산하지 않는다.** 이미 예측이 있는 경주는 건드리지 않고
+  `race_entries.ord`(결과)만 채운 뒤, `predictions.actual_ord`만 UPDATE한다.
+- **예측이 없는 경주만 보충한다.** 수요일 `raceCardSync`가 실패했거나 건너뛴 경주는 금요일에
+  `predictRace(sb, rcDate, meet, rcNo, { forcePrecompetition: true })`로 사전 모드를 강제해 계산한 뒤 INSERT.
+  `forcePrecompetition`은 `gatherRaceInputs()`가 `race_entries.ord`를 실제 값과 무관하게 `null`로
+  취급하게 만드는 옵션 — 결과가 이미 나온 경주라도 "경기 전이었다면 어떻게 예측했을지"를 재현한다.
+  단, ord 스크럽 외의 결과 필드(예: `wg_hr` 등 경기 후 수집 필드)까지 완전히 사전 상태로 되돌리진
+  않는다 — 알려진 한계(`src/engine/scorePredictor.ts` Task 1 커밋 참고).
+- **판정은 별도 스크립트로.** `npm run probe:v7-accuracy`가 predictions × race_entries(ord)를 조인해
+  강추/주목/전체 적중률을 계산한다 (`docs/accuracy_metrics.md §8.6`).
+
+상세 설계: `docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md`.

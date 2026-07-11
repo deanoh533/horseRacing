@@ -2,7 +2,7 @@
 
 > **역할: 흐름 SSOT** (데이터가 어떻게 이동하나). 구조는 [architecture](architecture.md), 명령어는 [pipeline_guide](pipeline_guide.md).
 
-> 최종 업데이트: 2026-06-12 (DuckDB 로컬 미러 + Multi-Model Benchmark 반영)
+> 최종 업데이트: 2026-07-11 (dailySync predictions 쓰기 전략 변경 — 사전 예측 보존 + actual_ord만 UPDATE, L-001)
 
 ---
 
@@ -76,7 +76,13 @@ npm run sync:daily -- --date YYYYMMDD
 | `API214_1` (경기 결과, 구간기록 포함) | `race_entries` (결과 컬럼 UPDATE), `races` UPDATE |
 | `racedetailresult` (상세 결과) | — |
 
-결과 저장 후 → `predictRace()` 자동 호출 → `predictions` upsert.
+**2026-07-11부터 predictions 쓰기 전략 변경 (L-001, v7 라이브 추적):**
+결과 저장 후 predictions을 재계산(upsert)하지 않는다. 수요일(raceCardSync)의 사전 예측을 보존하기 위해
+- 이미 예측이 있는 경주 → `predictions.actual_ord`만 UPDATE (예측값 필드는 불변)
+- 예측이 없는 경주(수요일 실패 등) → `forcePrecompetition:true`로 사전 모드 계산해 보충 INSERT 후 `actual_ord` UPDATE
+- 백필 경로(`skipPredictions=true`)는 이 단계 전체를 건너뜀 (egress 보호)
+
+상세: [prediction_mode.md §8](prediction_mode.md) · [accuracy_metrics.md §8.6](accuracy_metrics.md) · 설계 `docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md`.
 
 ### 1-3. 보조 수집 (필요 시)
 

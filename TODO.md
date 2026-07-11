@@ -39,10 +39,14 @@
 
 > 이 섹션이 전부 완료돼야 실사용(베팅 참고) 전환 가능.
 
-- [ ] **L-001 prediction_logs 테이블 분리**
-  - 현재 `predictions` = 가중치 재학습 시 전체 덮어씌워지는 백테스트 DB
-  - 운영 전환 후에는 경주 전 예측 스냅샷을 불변 로그로 별도 보존해야 함
-  - 설계: `prediction_logs(race_date, meet, rc_no, hr_name, predicted_rank, total_score, weights_version, created_at)` — INSERT only, UPDATE/DELETE 금지
+- [x] **L-001 predictions 보존 전략 (v7 라이브 적중률 추적)** — 완료 2026-07-11
+  - 원래 설계는 `prediction_logs` 불변 로그 테이블 신설이었으나, **기존 `predictions` 테이블의 쓰기 경로만
+    바꿔 대체 구현**함 (스키마 변경 없음): `dailySync`가 사전 예측(수요일)을 재계산하지 않고 보존, 금요일
+    결과 도착 시 `predictions.actual_ord`만 UPDATE(예측값 필드 불변). 예측 없는 경주는
+    `forcePrecompetition`으로 사전 모드 보충 INSERT.
+  - 판정: `npm run probe:v7-accuracy` (`src/engine/eval/v7Accuracy.ts` + `scripts/probe_v7_accuracy.ts`)
+  - 설계: `docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md` · 계획: `docs/superpowers/plans/2026-07-11-v7-live-tracking.md`
+  - 문서: `docs/accuracy_metrics.md §8.6`, `docs/prediction_mode.md §8`, `docs/data_flow.md`, `docs/status/02-model-benchmark.md`
 
 - [ ] **L-002 sync 자동화 스케줄링**
   - 현재: 수동 `tsx scripts/...` 실행
@@ -52,7 +56,7 @@
 - [ ] **L-003 가중치 재학습 주기 정책 결정**
   - 현재: 수동으로 `apply_learned_weights.ts --alpha=1.0` 실행
   - 결정 필요: 언제 재학습? (매월? 데이터 N경주 누적 시? 적중률 X% 이하 시?)
-  - 자동 재학습 시 predictions 전체 재계산이 수반됨 → L-001(logs 분리) 선행 필수
+  - 자동 재학습(백필) 시 predictions 전체 재계산이 수반됨 — L-001 완료로 dailySync 경로는 보호되나, 백필 스크립트가 도는 동안 라이브 판정용 사전 예측이 덮이지 않도록 주의 필요
 
 - [ ] **L-004 에러 알림 채널**
   - 현재: 콘솔 로그만 (아무도 안 보면 sync 실패 인지 불가)
