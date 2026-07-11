@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,7 +8,7 @@ import {
   ClipboardList,
   BarChart2,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   useRacesByDate,
   useAvailableDates,
@@ -32,12 +32,25 @@ const RECENT_WINDOW = 50; // 최근 N경주 복승권 적중률 표본
 export function Dashboard() {
   const { data: availableDates } = useAvailableDates();
   const { data: activeVersion } = useActiveModelVersion();
-  // 사용자가 ◀▶ 또는 "최근 동기화" 클릭하면 override 저장
-  // 그 외엔 availableDates 가장 최근 → 그것도 없으면 오늘 (derived state, useEffect 불필요)
-  const [manualDate, setManualDate] = useState<number | null>(null);
+  // 선택 날짜는 URL 쿼리(?date=)에 저장 — 다른 화면(출마정보·예상지)으로
+  // 이동했다 뒤로가기해도 대시보드가 리마운트되며 유실되지 않도록.
+  // 쿼리 없으면 availableDates 가장 최근 → 그것도 없으면 오늘.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const manualDate = searchParams.has('date')
+    ? Number(searchParams.get('date'))
+    : null;
   const dateNum =
     manualDate ?? availableDates?.[0] ?? rcDateFromDate(new Date());
-  const setDateNum = setManualDate;
+  const setDateNum = (next: number) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.set('date', String(next));
+        return params;
+      },
+      { replace: true },
+    );
+  };
 
   const { data: races, isLoading, error } = useRacesByDate(dateNum);
   const { data: predictions } = usePredictionsByDate(dateNum);

@@ -32,6 +32,7 @@
     "probe:alpha:bands": "tsx scripts/probe_alpha_bands.ts",
     "probe:alpha:gbt": "tsx scripts/probe_alpha_gbt.ts",
     "probe:features": "tsx scripts/probe_feature_audit.ts",
+    "probe:corr": "tsx scripts/probe_feature_corr.ts",
     "probe:blend": "tsx scripts/probe_odds_blend.ts",
     "probe:blend:picks": "tsx scripts/probe_blend_picks.ts",
     "sync:pg": "tsx scripts/sync_daily_pg.ts",

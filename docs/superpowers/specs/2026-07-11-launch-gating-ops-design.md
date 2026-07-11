@@ -39,16 +39,17 @@
 
 ### 1.3 secrets (사용자 작업)
 
-repo Settings → Secrets and variables → Actions에 등록:
-`KRA_API_KEY` · `SUPABASE_URL` · `SUPABASE_ANON_KEY` · `SUPABASE_SERVICE_ROLE_KEY`
+repo Settings → Secrets and variables → Actions에 등록 (근거: `src/utils/env.ts` zod 스키마의 필수 항목):
+`KRA_API_KEY` · `SUPABASE_URL` · `SUPABASE_ANON_KEY` · `SUPABASE_SERVICE_ROLE_KEY` · `ANTHROPIC_API_KEY`
 
-(스크립트가 실제 참조하는 env 키는 구현 시 `.env.example`·코드에서 재확인해 워크플로우에 매핑.)
+- `ANTHROPIC_API_KEY`는 sync가 Claude를 호출하지 않아도 **env 검증 스키마가 필수로 요구**(`sk-ant-` 접두 검사)해서 등록 필요. 실키 등록이 기본, 원치 않으면 `sk-ant-dummy` 같은 형식 충족 더미도 가능(호출 없음).
+- `DATABASE_URL`은 등록 불필요 (스키마상 optional, 스냅샷·db:pull 등 로컬 작업 전용).
 
 ## 2. L-004 알림
 
 - **기본**: 워크플로우 실패 → GitHub이 계정 이메일로 자동 통지. 구현 0줄.
 - **조용한 실패 방어 (0건 검사)**: sync 스크립트가 exit 0이어도 처리 건수 0이면 잡을 실패 처리.
-  - 구현: 스크립트 stdout의 처리 건수 요약을 워크플로우 스텝에서 검사하거나, 스크립트에 `--fail-on-empty` 플래그 추가 중 구현 시 단순한 쪽 선택. 판정 기준 = "upsert 대상 경주 0건".
+  - 구현: 두 sync 스크립트에 `--fail-on-empty` 플래그 추가 — 처리(upsert 대상) 경주 0건이면 exit 1. 워크플로우에서만 이 플래그를 켜고, 로컬 수동 실행 기본 동작은 불변. (stdout 파싱 방식은 출력 문구 변경에 취약해 배제)
   - 휴장일(혹서기 등)엔 오탐 알림 발생 가능 — **"확인 후 무시"로 운영**. 휴장 캘린더 연동은 범위 밖.
 
 ## 3. L-003 재학습 정책 (코드 없음 — 문서화만)

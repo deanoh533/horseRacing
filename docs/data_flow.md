@@ -54,7 +54,7 @@ Vercel (React UI)              (Pearson 중복)  (연승률 개선)  (Spearman/
 ### 1-1. 출전표 발표 (수요일 일괄, 경기 D-2~D-4)
 
 ```bash
-npm run sync:racecard -- --date YYYYMMDD
+npm run sync:cards -- --date YYYYMMDD
 # src/sync/raceCardSync.ts
 ```
 
@@ -67,7 +67,7 @@ npm run sync:racecard -- --date YYYYMMDD
 ### 1-2. 경기 결과 도착 (금~일 밤)
 
 ```bash
-npm run sync:daily -- --date YYYYMMDD
+npm run sync -- --date YYYYMMDD
 # src/sync/dailySync.ts
 ```
 
