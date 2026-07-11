@@ -50,7 +50,7 @@
 
 - [ ] **L-002 sync 자동화 스케줄링**
   - 현재: 수동 `tsx scripts/...` 실행
-  - 필요: 출마표(수 14:30) → `sync:racecard` 자동 실행, 경기 결과(금·토·일 밤) → `sync:daily` 자동 실행
+  - 필요: 출마표(수 14:30) → `sync:cards` 자동 실행, 경기 결과(금·토·일 밤) → `sync` 자동 실행
   - 방법 미정 (cron / GitHub Actions / Vercel Cron 중 선택 필요)
 
 - [ ] **L-003 가중치 재학습 주기 정책 결정**

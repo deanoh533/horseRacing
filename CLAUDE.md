@@ -98,10 +98,10 @@ npm run test:run     # vitest 단위 테스트
 
 | 요일 | 이벤트 | 명령 |
 |---|---|---|
-| 수 오후 | 금경 출마표 발표 | `sync:racecard --date YYYYMMDD` |
+| 수 오후 | 금경 출마표 발표 | `sync:cards --date YYYYMMDD` |
 | 목 오후 | 토경 출마표 발표 | 〃 |
 | 금 오후 | 일경 출마표 발표 | 〃 |
-| 금 밤 | 금경 결과 도착 | `sync:daily --date YYYYMMDD` |
+| 금 밤 | 금경 결과 도착 | `sync --date YYYYMMDD` |
 | 토 밤 | 토경 결과 도착 | 〃 |
 | 일 밤 | 일경 결과 도착 | 〃 |
 | 주중 | 가중치 학습 (선택) | `apply_learned_weights.ts` |

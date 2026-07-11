@@ -57,31 +57,29 @@
   • 다음 주말 경주 미리보기 없음 (출마표 미발표)
 
 [수요일 오후 — 주말 출마표 일괄 발표 (서울+부경 동시)]
-  npm run sync:racecard -- --date 20260529   # 금경
-  npm run sync:racecard -- --date 20260530   # 토경
-  npm run sync:racecard -- --date 20260531   # 일경
+  npm run sync:cards -- --date 20260529   # 금경
+  npm run sync:cards -- --date 20260530   # 토경
+  npm run sync:cards -- --date 20260531   # 일경
   → race_entries 사전 INSERT + races (3일치 한 번에)
 
 [금요일 저녁 — 금경 결과 들어옴]
-  npm run sync:daily -- --date 20260529
+  npm run sync -- --date 20260529
     → race_entries UPDATE (ord, rc_time, 구간기록, win_odds)
     → predictions upsert
     → races UPDATE (rc_dist, track_type)
 
 [토요일]
   • 저녁: 토경 결과
-    npm run sync:daily -- --date 20260530
+    npm run sync -- --date 20260530
 
 [일요일]
   • 저녁: 일경 결과
-    npm run sync:daily -- --date 20260531
+    npm run sync -- --date 20260531
 
 [월요일 — 주 정리]
   npx tsx scripts/accuracy_stats.ts
   npx tsx scripts/apply_learned_weights.ts   # 데이터 충분히 누적되면
 ```
-
-(스크립트 이름이 정확한지 npm scripts 정의 확인 필요)
 
 ---
 
