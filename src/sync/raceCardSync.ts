@@ -9,11 +9,14 @@
  * CLI:
  *   tsx src/sync/raceCardSync.ts --date 20260530
  *   tsx src/sync/raceCardSync.ts --date 20260530 --meet 1
+ *   tsx src/sync/raceCardSync.ts                    # 날짜 생략 → 오늘+2일 (발표일+2)
+ *   tsx src/sync/raceCardSync.ts --fail-on-empty    # 0건이면 exit 1 (자동화용)
  */
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
+import { yyyymmddOffset, isEmptySync } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
 
@@ -215,6 +218,7 @@ async function main() {
   const args = process.argv.slice(2);
   let rcDate = 0;
   let meets: MeetCode[] = [1, 3];
+  let failOnEmpty = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--date' && args[i + 1]) {
@@ -224,18 +228,26 @@ async function main() {
         .split(',')
         .map((s) => parseInt(s, 10) as MeetCode)
         .filter((m) => m === 1 || m === 3);
+    } else if (args[i] === '--fail-on-empty') {
+      failOnEmpty = true;
     }
   }
 
   if (!rcDate) {
-    console.error('Usage: tsx src/sync/raceCardSync.ts --date YYYYMMDD [--meet 1,3]');
-    process.exit(1);
+    // 출마표 발표일 → 경주일은 항상 +2일 (수 발표=금경, 목=토경, 금=일경)
+    rcDate = yyyymmddOffset(2);
+    console.log(`📅 날짜 인자 없음 → 이틀 뒤(${rcDate})로 자동 설정 (발표일+2)`);
   }
 
   const results = await syncRaceCards({ rcDate, meets });
   console.log('\n' + '='.repeat(50));
   for (const r of results) {
     console.log(`  meet=${r.meet}: ${r.racesSynced} races / ${r.horsesSynced} horses / ${r.errors.length} errors`);
+  }
+
+  if (failOnEmpty && isEmptySync(results)) {
+    console.error('❌ --fail-on-empty: 동기화된 경주 0건 (휴장일이거나 KRA 빈 응답)');
+    process.exit(1);
   }
 }
 
