@@ -223,6 +223,10 @@ async function main() {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--date' && args[i + 1]) {
       rcDate = parseInt(args[i + 1]!, 10);
+      if (!Number.isFinite(rcDate) || String(rcDate).length !== 8) {
+        console.error(`❌ --date 값이 잘못됨: ${args[i + 1]} (YYYYMMDD 8자리 필요)`);
+        process.exit(1);
+      }
     } else if (args[i] === '--meet' && args[i + 1]) {
       meets = args[i + 1]!
         .split(',')
