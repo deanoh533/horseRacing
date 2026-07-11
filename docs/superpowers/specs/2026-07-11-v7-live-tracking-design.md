@@ -52,7 +52,7 @@ v7 모델이 라이브 환경에서 실제로 얼마나 잘 맞추는가를 정�
 
 금요일 (dailySync)
   ├─ race_entries UPDATE (ord=2) ✓ 결과만 저장
-  └─ predictions 무변경 ✓
+  └─ predictions.actual_ord만 UPDATE ✓ (예측값 필드는 무변경)
 
 화면 "오늘의 강추"
   ├─ predictions 읽기
@@ -72,7 +72,10 @@ race_date, meet, rc_no, hr_name,
 predicted_rank, total_score, item_scores,
 p_top3, p_win,
 model_version,
-actual_ord (NULL 유지)  ← 사전 모드이므로
+actual_ord  ← 수요일 NULL → 금요일 결과 도착 시 이 필드만 UPDATE
+             (예측값(점수·확률·순위)은 불변 — 결과 기록이지 예측 덮어쓰기가 아님.
+              기존 적중률 화면들(useMonthlyHitRate 등)이 이 필드를 읽으므로 계속 채움.
+              2026-07-11 사용자 결정)
 ```
 
 **race_entries**
@@ -148,7 +151,7 @@ if (!hasPrediction) {
 
 **조건:**
 - 보충 예측도 사전 모드 (ord 무시)
-- actual_ord = NULL (결과 미기록)
+- actual_ord = 삽입 시 NULL, 이후 결과 UPDATE 단계에서 채워짐
 - 라이브 판정에 포함됨
 
 ### 3.4 신규 스크립트: probe_v7_accuracy.ts
@@ -202,15 +205,15 @@ npm run probe:v7-accuracy [--from YYYYMMDD] [--to YYYYMMDD]
    ord=2 (실제 결과)
    ↓
 3. 예측 재계산 안 함 ✓
-   (skipPredictions=true)
+   (DELETE→INSERT 경로 제거)
    ↓
-4. predictions 무변경 ✓
-   (수요일 데이터 그대로)
-   
+4. predictions.actual_ord만 UPDATE ✓
+   (예측값 필드는 수요일 데이터 그대로 — 결과 기록 전용)
+
 [예측이 없는 경우만]
 5. 보충 예측 (사전 모드)
    forcePrecompetition=true
-   predictions INSERT
+   predictions INSERT (actual_ord는 이후 결과 UPDATE로 채워짐)
 ```
 
 ### 언제든 (라이브 판정)

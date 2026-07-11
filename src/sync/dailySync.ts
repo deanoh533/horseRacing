@@ -14,6 +14,12 @@
  *      재계산(DELETE→INSERT)하지 않음. 해당 경주에 예측이 하나도 없을 때만
  *      forcePrecompetition 모드로 계산해 INSERT (v7 라이브 추적,
  *      docs/superpowers/plans/2026-07-11-v7-live-tracking.md Task 2)
+ *   4. predictions.actual_ord만 UPDATE — 결과(ord) 도착 시 이 필드만 채움.
+ *      total_score·predicted_rank·p_top3·p_win·item_scores 등 예측값 필드는
+ *      절대 건드리지 않음 (결과 기록이지 예측 덮어쓰기가 아님).
+ *      skipPredictions=true(대량 백필)일 때는 3·4단계 모두 건너뜀
+ *      (docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md §3.1,
+ *       사용자 결정 2026-07-11)
  */
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
@@ -98,6 +104,10 @@ async function syncMeet(
         // 2. 인기도 계산
         const popMap = calculatePopularities(horses);
 
+        // 결과 도착 시 predictions.actual_ord만 채우기 위해 말별 (hr_name, ord) 수집
+        // (skipPredictions=true인 백필 경로에서는 사용하지 않음 — 아래 6단계 참고)
+        const resultOrds: Array<{ hrName: string; ord: number | null }> = [];
+
         // 4. race_entries 결과 컬럼 UPDATE (hr_name 기준)
         for (const horse of horses) {
           if (!horse.hrName) {
@@ -106,6 +116,7 @@ async function syncMeet(
           }
           const resultRow = toRaceEntryResultRow(horse);
           resultRow.popularity = popMap.get(horse.hrNo) ?? null;
+          resultOrds.push({ hrName: horse.hrName, ord: resultRow.ord });
 
           // race_entries UPDATE 시도
           const { data: existing } = await supabase
@@ -286,6 +297,29 @@ async function syncMeet(
             console.warn(
               `    [meet=${meet}, rcNo=${rcNo}] 예측 보충 실패 (계속): ${(err as Error).message}`
             );
+          }
+
+          // 6. predictions.actual_ord만 UPDATE — 결과 기록 전용, 예측값 필드는 절대 건드리지 않음
+          //    (총점·순위·확률 등은 수요일 사전 예측 그대로 유지)
+          //    보충(위 5단계)된 예측도 여기서 함께 채워짐.
+          //    skipPredictions=true(대량 백필)일 때는 건너뜀: backfill_results.ts가 다루는
+          //    과거 날짜는 predictions이 아직 없어(별도 backfill_predictions 경로) 매 말마다
+          //    빈 UPDATE만 쏘게 되어 Supabase egress만 낭비 — 사용자 결정 2026-07-11,
+          //    docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md §3.1
+          for (const { hrName, ord } of resultOrds) {
+            if (ord == null) continue; // 실격/미도착 등 결과 미확정 → 스킵
+            const { error: actualOrdErr } = await supabase
+              .from('predictions')
+              .update({ actual_ord: ord })
+              .eq('race_date', rcDate)
+              .eq('meet', meet)
+              .eq('rc_no', rcNo)
+              .eq('hr_name', hrName);
+            if (actualOrdErr) {
+              console.warn(
+                `    [meet=${meet}, rcNo=${rcNo}, hr=${hrName}] actual_ord UPDATE 실패 (계속): ${actualOrdErr.message}`
+              );
+            }
           }
         }
 

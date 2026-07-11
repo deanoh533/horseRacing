@@ -135,7 +135,7 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
     mockPredictRace = vi.fn().mockResolvedValue([]);
   });
 
-  it('기존 predictions이 있으면 재계산하지 않고 그대로 보존한다', async () => {
+  it('기존 predictions이 있으면 재계산하지 않고 그대로 보존하되 actual_ord만 채운다', async () => {
     // 수요일에 저장된 사전 예측이 이미 존재 (race_entries도 카드로 이미 있음 → UPDATE 분기)
     fakeSb.tables['race_entries'] = {
       rows: [{
@@ -145,7 +145,7 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
     fakeSb.tables['predictions'] = {
       rows: [{
         race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말',
-        predicted_rank: 1, p_top3: 0.75, actual_ord: null,
+        predicted_rank: 1, total_score: 0.68, p_top3: 0.75, p_win: 0.3, actual_ord: null,
       }],
     };
 
@@ -155,18 +155,21 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
     // predictRace가 호출되지 않았어야 함 (이미 예측 존재 → 보충 불필요)
     expect(mockPredictRace).not.toHaveBeenCalled();
 
-    // predictions은 무변경 (여전히 1건, predicted_rank=1)
+    // predictions은 예측값 필드 무변경 + actual_ord만 결과(ord=2)로 채워짐
     const predRows = fakeSb.tables['predictions']!.rows;
     expect(predRows).toHaveLength(1);
     expect(predRows[0]!.predicted_rank).toBe(1);
-    expect(predRows[0]!.actual_ord).toBeNull(); // 사전 모드 그대로
+    expect(predRows[0]!.total_score).toBe(0.68);
+    expect(predRows[0]!.p_top3).toBe(0.75);
+    expect(predRows[0]!.p_win).toBe(0.3);
+    expect(predRows[0]!.actual_ord).toBe(2); // 결과 도착 → 채워짐
 
     // race_entries는 결과(ord)로 업데이트됨
     const entryRows = fakeSb.tables['race_entries']!.rows;
     expect(entryRows[0]!.ord).toBe(2);
   });
 
-  it('predictions이 없으면 forcePrecompetition 모드로 보충 삽입한다', async () => {
+  it('predictions이 없으면 forcePrecompetition 모드로 보충 삽입하고 actual_ord도 채운다', async () => {
     // race_entries만 있고 predictions은 없음 (수요일 사전 예측 실패 시나리오)
     fakeSb.tables['race_entries'] = {
       rows: [{
@@ -194,21 +197,57 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
     expect(call[3]).toBe(RC_NO);
     expect(call[4]).toEqual({ forcePrecompetition: true });
 
-    // predictions에 보충 삽입됨 (actual_ord는 사전 모드라 null)
+    // predictions에 보충 삽입되고, 같은 sync 내에서 actual_ord도 결과(ord=2)로 채워짐
     const predRows = fakeSb.tables['predictions']!.rows;
     expect(predRows).toHaveLength(1);
-    expect(predRows[0]!.actual_ord).toBeNull();
     expect(predRows[0]!.hr_name).toBe('테스트말');
+    expect(predRows[0]!.total_score).toBe(0.5); // 예측값 필드는 보충된 그대로
+    expect(predRows[0]!.actual_ord).toBe(2); // 보충 예측도 결과가 채워짐
   });
 
-  it('skipPredictions=true면 보충 로직도 건너뛴다 (백필 경로 보호)', async () => {
+  it('ord가 NULL(실격 등)인 엔트리는 actual_ord를 건드리지 않는다', async () => {
+    // KRA API 실격 코드(>=90) → transformer가 ord를 null로 변환
+    mockGetAllRaceResults.mockResolvedValue([makeHorseFixture({ ord: 99 })]);
+
+    fakeSb.tables['race_entries'] = {
+      rows: [{
+        race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null,
+      }],
+    };
+    fakeSb.tables['predictions'] = {
+      rows: [{
+        race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말',
+        predicted_rank: 1, total_score: 0.68, actual_ord: 5, // 센티널: 건드려지면 안 됨
+      }],
+    };
+
+    const { syncDay } = await import('../../src/sync/dailySync.js');
+    await syncDay({ rcDate: RC_DATE, meets: [MEET] });
+
+    // race_entries의 ord는 null (실격)
+    const entryRows = fakeSb.tables['race_entries']!.rows;
+    expect(entryRows[0]!.ord).toBeNull();
+
+    // predictions.actual_ord는 손대지 않아 센티널 값 그대로
+    const predRows = fakeSb.tables['predictions']!.rows;
+    expect(predRows[0]!.actual_ord).toBe(5);
+  });
+
+  it('skipPredictions=true면 보충 로직도 건너뛰고 actual_ord UPDATE도 건너뛴다 (백필 경로 보호)', async () => {
     fakeSb.tables['race_entries'] = { rows: [] }; // 과거 데이터: 카드 없이 결과만
-    fakeSb.tables['predictions'] = { rows: [] };
+    // 우연히 같은 키로 predictions row가 있어도(과거 backfill_predictions 흔적 등) 건드리지 않아야 함
+    fakeSb.tables['predictions'] = {
+      rows: [{
+        race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', actual_ord: null,
+      }],
+    };
 
     const { syncDay } = await import('../../src/sync/dailySync.js');
     await syncDay({ rcDate: RC_DATE, meets: [MEET], skipPredictions: true });
 
     expect(mockPredictRace).not.toHaveBeenCalled();
-    expect(fakeSb.tables['predictions']!.rows).toHaveLength(0);
+    // 백필 경로에서는 actual_ord도 건드리지 않음 (predictions 관련 쿼리 자체를 스킵 — egress 보호)
+    expect(fakeSb.tables['predictions']!.rows).toHaveLength(1);
+    expect(fakeSb.tables['predictions']!.rows[0]!.actual_ord).toBeNull();
   });
 });
