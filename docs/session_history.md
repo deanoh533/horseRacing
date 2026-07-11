@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-11 — L-001 완료: v7 라이브 적중률 추적 (predictions 보존 방식)
+prediction_logs 테이블 신설(원설계) 대신 **predictions 쓰기 경로 변경**으로 대체 구현, SDD(태스크별 서브에이전트+이중 리뷰)로 커밋 10개 push. ① `forcePrecompetition` 옵션(ord만 스크럽 — wg_hr 미스크럽은 문서화된 한계) ② dailySync: DELETE→INSERT 제거 → 없는 경주만 사전모드 보충 + **actual_ord만 UPDATE**(기존 적중률 화면 유지, 사용자 결정) ③ /picks `race_date=오늘` 단일 필터(−7일 방어필터 폐기, 당일만 표시=확인된 의도) ④ `probe:v7-accuracy`(race_entries.ord 조인·model_version별·config 임계 단일출처, **db:pull 선행**) ⑤ 수→금→판정 통합테스트+문서 6종 ⑥ 최종 전체리뷰(Opus) I-1 픽스: **raceCardSync 결과도착 가드**(재실행 시 사전 스냅샷 덮임 지뢰 차단)+stale status 3종 정정. 테스트 458 통과. 다음: 주말 결과 수집 → 차주 첫 라이브 판정 + L-002~005 스펙 착수(`docs/superpowers/specs/2026-07-11-launch-gating-ops-design.md` 승인됨). 상세 → [02-model-benchmark](status/02-model-benchmark.md) · [[project_v7_live_tracking]]
+
 ## 2026-07-10 — v7-shape 승격: 전개 피처 라이브 반영 완료
 t3 채택 후속 promote 사이클. ① 학습행렬 2022~ 재추출(82,716행, shape 피처 as-of 포함) ② v7-shape 후보 등록(id=7, 피처 108 — Sonnet 서브에이전트 위임, 벤치마크가 읽는 로컬 미러에 후보 없던 블로커는 `db:pull --table model_versions`로 해결) ③ 검증 벤치 v7 61.9% vs v6 61.6%(in-sample 새너티, 이상 없음) ④ **promote 활성 전환**(서브에이전트는 프로덕션 변경 거부 → 메인에서 사용자 승인 하에 실행; DATABASE_URL 경로가 재생성 생략하나 대상 없음 — 6/27-28 v6 사전기록 보존이 오히려 정직) ⑤ Platt 재적합(platt3 a=1.057·b=0.047 near-identity) ⑥ probe:picks 임계 0.72/0.62 유효 재확인. 다음: 주말 sync:racecard부터 v7 예측 시작, 라이브 적중률 추적. 상세 → [02-model-benchmark](status/02-model-benchmark.md) · [04-signals](status/04-signals.md)
 
