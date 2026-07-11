@@ -23,6 +23,7 @@
     "calib:recal": "tsx scripts/recalibration_report.ts",
     "calib:fit-live": "tsx scripts/fit_live_calibration.ts",
     "probe:shape": "tsx scripts/probe_race_shape.ts",
+    "probe:v7-accuracy": "tsx scripts/probe_v7_accuracy.ts",
     "probe:picks": "tsx scripts/probe_selective_picks.ts",
     "probe:picks:roi": "tsx scripts/probe_picks_roi.ts",
     "probe:picks:oos": "tsx scripts/probe_picks_oos.ts",
