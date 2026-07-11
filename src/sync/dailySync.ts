@@ -10,7 +10,10 @@
  *   1. KRA 결과 API → races upsert (거리/주로/날씨 채움)
  *   2. KRA 결과 API → race_entries UPDATE (결과 컬럼: ord, rc_time 등)
  *      - race_entries가 없는 경우 (출주표 없이 결과만 있는 경우) INSERT
- *   3. Score Engine → predictions upsert
+ *   3. predictions 보충 — 수요일 사전 예측(raceCardSync)을 보존하기 위해
+ *      재계산(DELETE→INSERT)하지 않음. 해당 경주에 예측이 하나도 없을 때만
+ *      forcePrecompetition 모드로 계산해 INSERT (v7 라이브 추적,
+ *      docs/superpowers/plans/2026-07-11-v7-live-tracking.md Task 2)
  */
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
@@ -248,23 +251,40 @@ async function syncMeet(
           }
         }
 
-        // 5. Score Engine → predictions upsert (백필 시 생략)
+        // 5. predictions 보충 (v7 라이브 추적: 수요일 사전 예측 보존, 재계산·삭제하지 않음)
+        //    - 이미 예측이 있으면 절대 건드리지 않음 (DELETE→INSERT 재계산 제거)
+        //    - 예측이 없는 경주만 사전 모드(forcePrecompetition)로 보충 INSERT
+        //      (docs/superpowers/plans/2026-07-11-v7-live-tracking.md Task 2)
         if (!skipPredictions) {
           try {
-            const predictions = await predictRace(supabase as unknown as ReadClient, rcDate, meet, rcNo);
-            if (predictions.length > 0) {
-              await supabase
-                .from('predictions')
-                .delete()
-                .eq('race_date', rcDate)
-                .eq('meet', meet)
-                .eq('rc_no', rcNo);
-              const { error: predErr } = await supabase.from('predictions').insert(predictions);
-              if (predErr) throw predErr;
+            const { data: existingPred, error: existErr } = await supabase
+              .from('predictions')
+              .select('id')
+              .eq('race_date', rcDate)
+              .eq('meet', meet)
+              .eq('rc_no', rcNo)
+              .limit(1);
+            if (existErr) throw existErr;
+
+            if (!existingPred || existingPred.length === 0) {
+              const predictions = await predictRace(
+                supabase as unknown as ReadClient,
+                rcDate,
+                meet,
+                rcNo,
+                { forcePrecompetition: true }
+              );
+              if (predictions.length > 0) {
+                const { error: predErr } = await supabase.from('predictions').insert(predictions);
+                if (predErr) throw predErr;
+                console.warn(
+                  `    [meet=${meet}, rcNo=${rcNo}] ⚠️ 예측 미보유 → 사전 모드로 보충 (${predictions.length}건)`
+                );
+              }
             }
           } catch (err) {
             console.warn(
-              `    [meet=${meet}, rcNo=${rcNo}] 예측 저장 실패 (계속): ${(err as Error).message}`
+              `    [meet=${meet}, rcNo=${rcNo}] 예측 보충 실패 (계속): ${(err as Error).message}`
             );
           }
         }
