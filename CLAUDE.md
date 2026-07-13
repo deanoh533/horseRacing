@@ -31,7 +31,7 @@ KRA(한국마사회) 출마정보를 한 화면에 비교하고, 21개 항목 �
 ## 🛠 기술 스택
 
 - **프론트엔드:** React + Vite + Tailwind ([client/](client/))
-- **백엔드/스크립트:** Node.js + TypeScript ([src/](src/), [scripts/](scripts/)) — **로컬 수동 실행 전용** (상시 서버 X). Vercel에는 `client/`만 배포.
+- **백엔드/스크립트:** Node.js + TypeScript ([src/](src/), [scripts/](scripts/)) — **로컬 수동 실행 + GitHub Actions 무인 sync** (상시 서버 X). Vercel에는 `client/`만 배포.
 - **DB:** Supabase (PostgreSQL)
 - **배포:** Vercel — main push 시 자동 배포 (`horse-racing-xi-one.vercel.app`)
 
@@ -105,6 +105,8 @@ npm run test:run     # vitest 단위 테스트
 | 토 밤 | 토경 결과 도착 | 〃 |
 | 일 밤 | 일경 결과 도착 | 〃 |
 | 주중 | 가중치 학습 (선택) | `apply_learned_weights.ts` |
+
+> 위 sync 명령은 2026-07-12부터 GitHub Actions로 무인 실행 (수동 실행도 가능) — .github/workflows/sync.yml
 
 상세 → [docs/data_lifecycle.md](docs/data_lifecycle.md)
 

@@ -360,9 +360,38 @@ npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판�
 
 ---
 
+## sync 자동화·백업 (2026-07-12, L-002~005)
+
+### 무인 sync (GitHub Actions)
+- `.github/workflows/sync.yml` — 출마표 수·목·금 15:00 KST(`sync:cards`, 기본 날짜 오늘+2), 결과 토·일·월 01:00 KST(`sync`, 기본 어제).
+- 실패·0건(`--fail-on-empty`) 시 GitHub이 계정 이메일로 통지. 휴장일엔 0건 오탐 가능 — 확인 후 무시.
+- 수동 재실행: GitHub → Actions → Sync → Run workflow (target·date 선택).
+- 필요 secrets: `KRA_API_KEY`·`SUPABASE_URL`·`SUPABASE_ANON_KEY`·`SUPABASE_SERVICE_ROLE_KEY`·`ANTHROPIC_API_KEY`(env 검증 스키마가 요구, sync는 호출 안 함).
+
+### predictions 스냅샷 (재학습·백필 전 필수)
+- `npm run db:snapshot` — `predictions_snapshot_YYYYMMDD` 생성 (같은 날 재실행은 유지·종료, `--force` 교체, `--prune 3` 오래된 것 정리).
+- **복원 (수동 SQL, Supabase SQL Editor):**
+  ```sql
+  BEGIN;
+  TRUNCATE predictions;
+  INSERT INTO predictions SELECT * FROM predictions_snapshot_20260712;  -- 날짜 교체
+  COMMIT;
+  ```
+
+### 최후 방어선 — DuckDB 로컬 미러
+- `npm run db:pull` 미러가 전 테이블 사본 (마지막 pull 시점 기준 — 이후 변경분은 복원 불가).
+- 복원 개요: 미러에서 해당 테이블을 CSV/Parquet로 내보내 Supabase에 테이블 단위 upsert (사고 시 상황 봐서 수동 진행).
+
+### 재학습 정책 (L-003)
+- v7 라이브 1개 분기(약 12주) 누적 + `probe:v7-accuracy` 첫 판정까지 **재학습·승격 동결**.
+- 이후 분기 1회 수동 사이클: `db:snapshot` → `learn:candidate` → `db:pull --table model_versions` → `benchmark` → 판단 → `promote`.
+
+---
+
 ## 9. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-06-12 | 초안: 4개 데이터 소스 · 라이브 예측 흐름 · 3개 핵심 스크립트 · 전체 명령어 정리 |
 | 2026-07-11 | `probe:v7-accuracy` 추가 (v7 라이브 적중률 판정, L-001 predictions 보존 전략과 함께 도입) |
+| 2026-07-12 | sync 자동화·predictions 스냅샷·재학습 동결 정책 섹션 추가 (L-002~005) |
