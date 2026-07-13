@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-12~13 — L-002~005 완료: 런치 게이팅 운영 기반 (main 머지 48c6f6d)
+브레인스토밍(버튼 결정 4건: Actions cron / 동결→분기1회 / GitHub 이메일 / 스냅샷+미러)→스펙→플랜→SDD 7 Task로 런치 게이팅 잔여 4항목 종결. ① `src/utils/syncCli.ts` 순수 헬퍼(TDD) ② raceCardSync **날짜 기본값 오늘+2일**(발표일+2 도메인 규칙 코드화)+`--fail-on-empty`+`--date` 검증(리뷰가 잡은 회귀: 오타가 조용히 자동날짜로 대체) ③ dailySync 동일 와이어링 ④ `db:snapshot`(predictions→snapshot_YYYYMMDD, --force/--prune, **실DB 리허설 40,515행 행수일치**) ⑤ `.github/workflows/sync.yml` — 출마표 수목금 15:00·결과 토일월 01:00 KST, 함정 2개 명시(`TZ: Asia/Seoul`·`DB_SOURCE: supabase`), workflow_dispatch ⑥ 문서 6종(TODO L-002~005 완료·pipeline_guide §9·status 02/05·accuracy_metrics·CLAUDE.md) ⑦ 최종 whole-branch 리뷰 **머지가능(Critical/Important 0)**. 재학습 동결 정책 명문화: v7 라이브 1분기+첫 판정까지. 테스트 470 통과. **남은 사용자 작업**: repo secrets 5종 등록(ANTHROPIC_API_KEY 포함 — env 스키마 요구)·dispatch 리허설·수요일 첫 스케줄 확인. 상세 → [05-data-infra](status/05-data-infra.md) · [[project_launch_gating_ops]]
+
 ## 2026-07-11 — L-001 완료: v7 라이브 적중률 추적 (predictions 보존 방식)
 prediction_logs 테이블 신설(원설계) 대신 **predictions 쓰기 경로 변경**으로 대체 구현, SDD(태스크별 서브에이전트+이중 리뷰)로 커밋 10개 push. ① `forcePrecompetition` 옵션(ord만 스크럽 — wg_hr 미스크럽은 문서화된 한계) ② dailySync: DELETE→INSERT 제거 → 없는 경주만 사전모드 보충 + **actual_ord만 UPDATE**(기존 적중률 화면 유지, 사용자 결정) ③ /picks `race_date=오늘` 단일 필터(−7일 방어필터 폐기, 당일만 표시=확인된 의도) ④ `probe:v7-accuracy`(race_entries.ord 조인·model_version별·config 임계 단일출처, **db:pull 선행**) ⑤ 수→금→판정 통합테스트+문서 6종 ⑥ 최종 전체리뷰(Opus) I-1 픽스: **raceCardSync 결과도착 가드**(재실행 시 사전 스냅샷 덮임 지뢰 차단)+stale status 3종 정정. 테스트 458 통과. 다음: 주말 결과 수집 → 차주 첫 라이브 판정 + L-002~005 스펙 착수(`docs/superpowers/specs/2026-07-11-launch-gating-ops-design.md` 승인됨). 상세 → [02-model-benchmark](status/02-model-benchmark.md) · [[project_v7_live_tracking]]
 
