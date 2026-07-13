@@ -48,25 +48,19 @@
   - 설계: `docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md` · 계획: `docs/superpowers/plans/2026-07-11-v7-live-tracking.md`
   - 문서: `docs/accuracy_metrics.md §8.6`, `docs/prediction_mode.md §8`, `docs/data_flow.md`, `docs/status/02-model-benchmark.md`
 
-- [ ] **L-002 sync 자동화 스케줄링**
-  - 현재: 수동 `tsx scripts/...` 실행
-  - 필요: 출마표(수 14:30) → `sync:cards` 자동 실행, 경기 결과(금·토·일 밤) → `sync` 자동 실행
-  - 방법 미정 (cron / GitHub Actions / Vercel Cron 중 선택 필요)
+- [x] **L-002 sync 자동화 스케줄링** — 완료 2026-07-12
+  - GitHub Actions `.github/workflows/sync.yml`: 출마표 수·목·금 15:00 KST(`sync:cards`, 날짜 기본값=오늘+2일 코드 추가) / 결과 토·일·월 01:00 KST(`sync`, 어제 기본값). `workflow_dispatch`로 수동 재실행(날짜 입력 가능).
+  - 함정 처리: 러너 UTC → `TZ: Asia/Seoul` / 러너에 미러 없음 → `DB_SOURCE: supabase`.
 
-- [ ] **L-003 가중치 재학습 주기 정책 결정**
-  - 현재: 수동으로 `apply_learned_weights.ts --alpha=1.0` 실행
-  - 결정 필요: 언제 재학습? (매월? 데이터 N경주 누적 시? 적중률 X% 이하 시?)
-  - 자동 재학습(백필) 시 predictions 전체 재계산이 수반됨 — L-001 완료로 dailySync 경로는 보호되나, 백필 스크립트가 도는 동안 라이브 판정용 사전 예측이 덮이지 않도록 주의 필요
+- [x] **L-003 가중치 재학습 주기 정책 결정** — 완료 2026-07-12 (정책 문서화)
+  - **v7 라이브 1개 분기(약 12주) 누적 + probe:v7-accuracy 첫 판정까지 재학습·승격 동결.** 이후 분기 1회 수동 사이클: `db:snapshot` → `learn:candidate` → `db:pull --table model_versions` → `benchmark` → 사용자 판단 → `promote`. 자동 재학습·자동 승격 없음.
 
-- [ ] **L-004 에러 알림 채널**
-  - 현재: 콘솔 로그만 (아무도 안 보면 sync 실패 인지 불가)
-  - 필요: sync 실패·API 오류 시 이메일 or 슬랙 or 카카오 알림
-  - 최소 구현: sync 스크립트 exit code != 0 → 알림 발송
+- [x] **L-004 에러 알림 채널** — 완료 2026-07-12
+  - 워크플로우 실패 → GitHub 이메일 자동. `--fail-on-empty`로 "성공인데 0건" 조용한 실패도 실패 처리(휴장일 오탐은 확인 후 무시).
 
-- [ ] **L-005 DB 백업·복구 계획**
-  - 위험: `apply_learned_weights.ts` 버그 or 잘못된 alpha로 predictions 38K 행 오염
-  - 필요: Supabase 자동 백업 주기 확인 + 수동 복원 절차 문서화
-  - 최소 구현: 재학습 전 `predictions` 스냅샷 테이블 생성 스크립트
+- [x] **L-005 DB 백업·복구 계획** — 완료 2026-07-12
+  - `npm run db:snapshot`(predictions → predictions_snapshot_YYYYMMDD, DB 내부 복사·egress 0, `--force`/`--prune N`). 복원 SQL·db:pull 미러 복원 개요는 docs/pipeline_guide.md.
+  - 설계: `docs/superpowers/specs/2026-07-11-launch-gating-ops-design.md`
 
 ---
 

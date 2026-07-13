@@ -1,10 +1,11 @@
 # 데이터인프라 — 진행 상황
-> 마지막 업데이트: 2026-06-26 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
+> 마지막 업데이트: 2026-07-12 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
 
 ## 현재 상태
 - **DuckDB 로컬 미러** 배포 — Supabase egress 영구 탈출, 오프라인 분석 전용(benchmark·backtest·probe 전부). `npm run db:pull`로 동기화.
 - **Supabase egress** — REST/웹앱만 영향. `DATABASE_URL` Postgres 직결(db:pull·SQL·upsert)은 egress 무관.
 - **조교 로그 376k** — `npm run training:upload`(JSONL→Supabase 멱등 upsert)로 6,540→376,372행.
+- **sync 자동화 + 백업 (L-002~005, 2026-07-12)** — Actions cron(출마표 수목금 15시·결과 토일월 새벽 1시 KST, 실패·0건 이메일) + `db:snapshot`. 절차: [pipeline_guide.md](../pipeline_guide.md).
 
 ### DB 현황
 | 테이블/뷰 | rows | 기준 |
@@ -19,7 +20,6 @@
 서울 구간기록 backfill: 2024 100% / 2025 97.3% / 2026 97.9% (부경 99.9%) — 에러 ~3%는 KRA 원천 없음.
 
 ## 다음 후보·남음
-- 🔲 런치 게이팅 (운영 전환 필수): sync 자동화 / 재학습 주기 정책 / 에러 알림 / DB 백업 → TODO L-002~005. **L-001은 2026-07-11 완료** — prediction_logs 신설 대신 predictions 쓰기 경로 변경(dailySync 미덮어쓰기·actual_ord만 기록·raceCardSync 결과도착 가드)으로 대체 구현.
 - 🔲 외부 데이터 출처 검토 (조교상태·마필가격·복기평·경주로 빠르기) → TODO T-013
 - 🔲 win_odds 시계열 캡처 (경주 직전 변동) → TODO P3
 - 🔲 복승 배당 결손 보충 — 2026-05-10~06-05 미수집
@@ -27,6 +27,7 @@
 
 ## 종결·기각 (요약)
 - ✅ DuckDB 로컬 미러 + db:pull (2026-06-12 설계 → 배포). [[project_duckdb_local_mirror]]
+- ✅ 런치 게이팅 L-001~005 완료 (2026-07-11~12) — predictions 보존 전략(L-001) + sync 자동화·재학습 동결 정책·에러 알림·DB 백업(L-002~005). 상세: [TODO.md](../../TODO.md), [pipeline_guide.md](../pipeline_guide.md).
 
 ## 참고
 - 문서: [data_flow.md](../data_flow.md), [pipeline_guide.md](../pipeline_guide.md), [api_spec.md](../api_spec.md), [kra_api_quirks.md](../kra_api_quirks.md)

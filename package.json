@@ -57,7 +57,8 @@
     "refresh:logistic": "tsx scripts/refresh_logistic.ts",
     "backtest:box": "tsx scripts/backtest_box.ts",
     "backtest:box:quarters": "tsx scripts/backtest_box_quarters.ts",
-    "db:pull": "tsx scripts/sync_local_db.ts"
+    "db:pull": "tsx scripts/sync_local_db.ts",
+    "db:snapshot": "tsx scripts/snapshot_predictions.ts"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -220,6 +220,7 @@ npx tsx scripts/accuracy_stats.ts
 - **TODO.md L-001과의 관계:** 원래 계획은 `prediction_logs` 불변 로그 테이블을 신설하는 것이었으나, 기존
   `predictions` 테이블의 쓰기 경로만 바꿔 같은 효과(사전 예측 불변 보존)를 얻는 방식으로 대체 구현했다 —
   새 테이블·스키마 변경 없음.
+- **재학습 동결:** 라이브 1개 분기 누적·첫 판정까지 (L-003, pipeline_guide 참고).
 
 ---
 

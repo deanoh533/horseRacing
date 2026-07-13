@@ -1,0 +1,60 @@
+name: Sync
+
+on:
+  schedule:
+    # 출마표: 수·목·금 15:00 KST (발표 14:30 + 여유) = 06:00 UTC
+    - cron: '0 6 * * 3,4,5'
+    # 결과: 토·일·월 01:00 KST (금·토·일 경주 다음날 새벽) = 전날 16:00 UTC
+    - cron: '0 16 * * 5,6,0'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '실행할 잡'
+        required: true
+        type: choice
+        options: [racecard, results]
+      date:
+        description: '대상 날짜 YYYYMMDD (생략 시 자동: 출마표=오늘+2, 결과=어제)'
+        required: false
+        type: string
+
+env:
+  # 러너는 UTC — 이 설정이 없으면 스크립트의 "어제/오늘+2" 계산이 하루 어긋난다
+  TZ: Asia/Seoul
+  # 러너엔 DuckDB 로컬 미러가 없다 — 예측 생성 읽기를 Supabase로
+  DB_SOURCE: supabase
+  KRA_API_KEY: ${{ secrets.KRA_API_KEY }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  DATE_ARG: ${{ inputs.date }}
+
+jobs:
+  racecard:
+    name: 출마표 sync (발표일+2)
+    if: github.event.schedule == '0 6 * * 3,4,5' || (github.event_name == 'workflow_dispatch' && inputs.target == 'racecard')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: raceCardSync
+        run: npm run sync:cards -- --fail-on-empty ${DATE_ARG:+--date $DATE_ARG}
+
+  results:
+    name: 결과 sync (어제)
+    if: github.event.schedule == '0 16 * * 5,6,0' || (github.event_name == 'workflow_dispatch' && inputs.target == 'results')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: dailySync
+        run: npm run sync -- --fail-on-empty ${DATE_ARG:+--date $DATE_ARG}
