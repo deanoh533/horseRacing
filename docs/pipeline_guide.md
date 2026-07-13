@@ -360,7 +360,7 @@ npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판�
 
 ---
 
-## sync 자동화·백업 (2026-07-12, L-002~005)
+## 9. sync 자동화·백업 (2026-07-12, L-002~005)
 
 ### 무인 sync (GitHub Actions)
 - `.github/workflows/sync.yml` — 출마표 수·목·금 15:00 KST(`sync:cards`, 기본 날짜 오늘+2), 결과 토·일·월 01:00 KST(`sync`, 기본 어제).
@@ -388,7 +388,7 @@ npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판�
 
 ---
 
-## 9. 변경 이력
+## 10. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
