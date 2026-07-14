@@ -134,6 +134,7 @@ npm run test:run     # vitest 단위 테스트
 ### 알고리즘·예측
 - [docs/score_algorithm.md](docs/score_algorithm.md) — 알고리즘 흐름 + **수정 가이드** (항목 목록·비중·산식은 roadmap·score_items 위임)
 - [docs/score_roadmap.md](docs/score_roadmap.md) — **평가항목 고도화 로드맵** (클린 슬레이트 비교·변경 이력 Living Doc)
+- [docs/feature_catalog.md](docs/feature_catalog.md) — **v7 피처 카탈로그 (SSOT)**: 라이브 모델이 먹는 raw 피처 전체의 측정 기준·산식. ⚠️ buildFeatures 변경 시 함께 갱신
 - [docs/prediction_mode.md](docs/prediction_mode.md) — 사전/사후 데이터 소스 차이
 - [docs/accuracy_metrics.md](docs/accuracy_metrics.md) — **지표 관리 통합 문서**: 적중률 4개 지표 + Gate A/B 검증 표준 + 멀티모델 벤치마크 레이어. ⚠️ 새 검증/학습 방법 추가 시 이 문서도 갱신
 
