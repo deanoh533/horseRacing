@@ -22,6 +22,7 @@ export interface HorseShapeStats {
   meanD3: number;          // G3F 누적시간의 par 대비 편차 평균 (n≥2)
   meanD6: number;          // 종반 600m의 par 대비 편차 평균 (n≥2)
   stdD6: number | null;    // 표본표준편차 (n≥3 아니면 null)
+  bestD6: number;          // 종반 600m 최고 기록 = d6 최솟값 (평균에 묻히는 "한 방" 능력)
   n: number;
 }
 
@@ -52,7 +53,10 @@ export function horseShapeStats(rows: ShapeHistRace[], par: ShapeParMap): HorseS
   }
   if (d3s.length < 2) return null;
   const mean = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
-  return { meanD3: mean(d3s), meanD6: mean(d6s), stdD6: sampleStd(d6s), n: d3s.length };
+  return {
+    meanD3: mean(d3s), meanD6: mean(d6s), stdD6: sampleStd(d6s),
+    bestD6: Math.min(...d6s), n: d3s.length,
+  };
 }
 
 export interface ShapeSignal {

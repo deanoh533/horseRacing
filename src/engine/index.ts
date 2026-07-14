@@ -174,6 +174,8 @@ export interface ScoreEngineInput {
   /** 경주 전개(shape) — 경주 단위 사전패스 주입 (스펙 2026-07-08). 결측이면 피처 미생성 */
   shapePredGap?: number;
   shapePAchieve?: number;
+  /** 종반 600m 역대 최고(par 대비 최솟값, 초). 평균에 묻히는 "한 방" 능력 후보 */
+  shapeD6Best?: number;
 }
 
 /**

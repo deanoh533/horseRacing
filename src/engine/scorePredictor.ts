@@ -281,6 +281,8 @@ export async function gatherRaceInputs(
         input.shapePredGap = shapeSig.predGap;
         if (shapeSig.pAchieve != null) input.shapePAchieve = shapeSig.pAchieve;
       }
+      const shapeStat = shapeStatsList[ei];
+      if (shapeStat) input.shapeD6Best = shapeStat.bestD6;
       // forcePrecompetition: ord만 null로 강제. wg_hr 등 결과 필드(daily update)는
       // 이미 race_entries에 채워져 있을 수 있으므로 스크럽되지 않음.
       // 금요일 보충 예측 시 사전 모드를 완전히 보장하려면 race_entries 조회 단계에서
