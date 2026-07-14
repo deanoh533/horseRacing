@@ -1,5 +1,12 @@
 # 신호발굴 — 진행 상황
-> 마지막 업데이트: 2026-07-09 · 관련 메모리: [[project_feature_gate_findings]], [[project_training_signals]], [[project_gate_multimetric]], [[project_medical_signals]], [[feedback_no_human_compression]], [[project_race_shape_track]]
+> 마지막 업데이트: 2026-07-14 · 관련 메모리: [[project_feature_gate_findings]], [[project_training_signals]], [[project_gate_multimetric]], [[project_medical_signals]], [[feedback_no_human_compression]], [[project_race_shape_track]]
+
+## shape_d6_best (종반 600m 역대 최고) — ❌ 기각 (2026-07-14)
+7/10 부경 6R 분석에서 발굴한 후보(우승마 투혼파이터: 종반 평균은 들쭉날쭉하나 피크는 필드 1위 — 평균에 묻히는 "한 방" 능력 가설).
+- 구현: `horseShapeStats.bestD6`(par 대비 d6 최솟값) → `shape_d6_best` 피처. 행렬 46,203행 재추출.
+- 게이트A: 기존 최대 |r|=0.719 (rating_abs·speed_ability_raw) — 능력 지표와 강한 중복 경고.
+- **게이트B: 연승 60.8→60.6% (Δ−0.2%p), 분기 1/5 양수 → 기각.** 피크 능력 정보는 레이팅·속도지수가 이미 담고 있음 확인.
+- 코드는 raw 후보로 잔류(기각 전례와 동일 — 라이브 모델 스키마 밖이라 무영향).
 
 ## 경주 전개 shape_signal t3 사전등록 판정 (2026-07-09) — ✅ 채택
 t2 미채택 후 사전등록한 t3 후속 검증(스펙 `docs/superpowers/specs/2026-07-09-race-shape-t3-prereg.md`)이 **무오염 신선 구간(2024H2)에서 합격**.
@@ -30,6 +37,7 @@ probe H1~H9([[project_race_shape_track]])에서 발굴한 전개 피처 2종(`sh
 - ✅ 전개 shape_signal t2 미채택 → t3 사전등록 재검증 **채택** (2026-07-09) — t2 Δ+0.2%p 미달이었으나 2024H2 신선 구간 t3 판정 Δ+2.1%p 합격. [[project_race_shape_track]]
 - ❌ 조교 train_signal 흡수 확정 (2026-06-19) — 게이트B +1.8%p였으나 통제 A/B(같은 스펙 ON/OFF) Δ−0.12% = 흡수. ⚠️ **승격 판정은 통제 A/B로**(게이트B 한계기여 과대보고 의심). [[project_training_signals]]
 - ❌ 의료 신호 기각 (2026-06-15) — 출혈·피로치료 게이트B 한계기여 ~0. [[project_medical_signals]]
+- ❌ shape_d6_best 기각 (2026-07-14) — 종반 피크 능력, 게이트B Δ−0.2%p·1/5분기. 레이팅·속도지수에 흡수 (상단 섹션).
 - ❌ z-score·구간6·경쟁강도3·장구·기수변경·class_dropped 탈락 (2026-06-10).
 - ⏸ 마체중 게이트B +7.2%p 보류 — `wg_hr` 라이브 누수.
 
