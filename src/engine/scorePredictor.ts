@@ -17,7 +17,7 @@ import { buildFeatures } from './features/buildFeatures.js';
 import { toVector } from './features/alignFeatures.js';
 import { horseShapeStats, raceShapeSignals } from './features/shapeSignals.js';
 import { shapeParMapAsOf } from './shapePar.js';
-import { paceParMapAsOf } from './pacePar.js';
+import { paceParMapAsOf, type PaceParMap } from './pacePar.js';
 
 interface EntryRow {
   race_date: number;
@@ -66,6 +66,7 @@ export interface RaceInputRow {
 }
 
 let warnedNoTraining = false; // training_logs 조회 실패 경고 1회만
+let warnedNoPacePar = false; // pacePar 조회 실패 경고 1회만
 
 export async function gatherRaceInputs(
   sb: ReadClient,
@@ -151,7 +152,17 @@ export async function gatherRaceInputs(
   // ⑤⑥⑫⑲⑳ 통계: 누수 방지 as-of(말별 과거 경주만) 사전 패스 — 전역 뷰 미사용
   const distCat = distCategoryOf(rcDist ?? 1600);
   const parMap = await loadParMap(sb); // ⑳ par-time 기준표 (1회 로드)
-  const pacePar = await paceParMapAsOf(sb, opts?.shapeParCutoff ?? rcDate); // 페이스 par (1회 로드, cutoff 메모이즈)
+  // pacePar: 기각된 pace_form 후보의 잔존 인프라(재조작화 대비 유지) — 라이브 기여 0이므로
+  // 로드 실패가 예측을 막으면 안 됨(L-001). 실패 시 빈 Map 폴백(라벨 전부 null → paceForm {}).
+  let pacePar: PaceParMap = new Map();
+  try {
+    pacePar = await paceParMapAsOf(sb, opts?.shapeParCutoff ?? rcDate);
+  } catch (e) {
+    if (!warnedNoPacePar) {
+      console.warn('⚠️ pacePar 로드 실패 — paceForm 집계 생략하고 진행:', (e as Error).message.slice(0, 80));
+      warnedNoPacePar = true;
+    }
+  }
   const asOfMap = new Map<string, AsOfHorseStats>();
   await Promise.all(
     entryList.map(async (e) => {
