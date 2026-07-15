@@ -189,9 +189,6 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   // ㉑ 경주 전개(shape) — 경주 단위 사전패스 주입값 (스펙 2026-07-08, probe H9 검증)
   if (input.shapePredGap != null) add('shape_pred_gap', input.shapePredGap);
   if (input.shapePAchieve != null) add('shape_p_achieve', input.shapePAchieve);
-  // 종반 600m 역대 최고 후보 (2026-07-14): 평균(meanD6)에 묻히는 "한 방" 능력.
-  // 음수=par보다 빠른 종반 경험 있음. 게이트 A/B 검증 대상.
-  if (input.shapeD6Best != null) add('shape_d6_best', input.shapeD6Best);
 
   // ⑪ 경주간격 버킷 (실측 ∩자: 정점 28-35일)
   if (input.intervalDays != null) {

@@ -26,15 +26,6 @@ describe('horseShapeStats', () => {
     expect(s!.stdD6).toBeNull();
   });
 
-  it('bestD6: 종반 600m 최고 기록 = d6 최솟값 (한 방 능력)', () => {
-    // d6 = 0.0, 0.4, 0.8 → best(min) = 0.0
-    const s = horseShapeStats([row(47.5, 38.0), row(47.9, 38.4), row(48.3, 38.8)], PAR);
-    expect(s!.bestD6).toBeCloseTo(0.0, 6);
-    // par보다 빠른 이력이 섞이면 음수: d6 = −0.6, 0.4 → best −0.6
-    const s2 = horseShapeStats([row(47.5, 37.4), row(47.9, 38.4)], PAR);
-    expect(s2!.bestD6).toBeCloseTo(-0.6, 6);
-  });
-
   it('유효 이력 1회 → null', () => {
     expect(horseShapeStats([row(48.0, 38.0)], PAR)).toBeNull();
   });
@@ -53,7 +44,7 @@ describe('horseShapeStats', () => {
 });
 
 const stat = (meanD3: number, meanD6: number, stdD6: number | null): HorseShapeStats =>
-  ({ meanD3, meanD6, stdD6, bestD6: meanD6, n: 3 });
+  ({ meanD3, meanD6, stdD6, n: 3 });
 
 describe('raceShapeSignals', () => {
   it('예측 선두는 gap 0·pAchieve 0.5, 나머지는 gap·z 계산', () => {
@@ -67,7 +58,7 @@ describe('raceShapeSignals', () => {
   });
 
   it('stdD6 null인 말은 pAchieve null, predGap은 계산', () => {
-    const out = raceShapeSignals([stat(-0.1, 0.4, 0.4), { meanD3: 0.5, meanD6: 1.0, stdD6: null, bestD6: 1.0, n: 2 }]);
+    const out = raceShapeSignals([stat(-0.1, 0.4, 0.4), { meanD3: 0.5, meanD6: 1.0, stdD6: null, n: 2 }]);
     expect(out[1]!.predGap).toBeCloseTo(0.6, 6);
     expect(out[1]!.pAchieve).toBeNull();
   });
