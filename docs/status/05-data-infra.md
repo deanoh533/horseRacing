@@ -1,11 +1,12 @@
 # 데이터인프라 — 진행 상황
-> 마지막 업데이트: 2026-07-12 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
+> 마지막 업데이트: 2026-07-15 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
 
 ## 현재 상태
 - **DuckDB 로컬 미러** 배포 — Supabase egress 영구 탈출, 오프라인 분석 전용(benchmark·backtest·probe 전부). `npm run db:pull`로 동기화.
 - **Supabase egress** — REST/웹앱만 영향. `DATABASE_URL` Postgres 직결(db:pull·SQL·upsert)은 egress 무관.
 - **조교 로그 376k** — `npm run training:upload`(JSONL→Supabase 멱등 upsert)로 6,540→376,372행.
 - **sync 자동화 + 백업 (L-002~005, 2026-07-12)** — Actions cron(출마표 수목금 15시·결과 토일월 새벽 1시 KST, 실패·0건 이메일) + `db:snapshot`. 절차: [pipeline_guide.md](../pipeline_guide.md).
+- **✅ 무인 운영 진입 (2026-07-15)** — secrets 5종 등록 후 수요일 15:00 첫 스케줄 실행 성공, 사이트에서 신규 출마표 확인. 남은 관찰: 주말 결과 sync(토일월 01:00) 첫 실행 + v7 라이브 적중률 누적.
 
 ### DB 현황
 | 테이블/뷰 | rows | 기준 |
