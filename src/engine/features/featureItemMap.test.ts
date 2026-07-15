@@ -44,4 +44,11 @@ describe('featureToItem', () => {
     expect(featureToItem('trainer_top3')).toBe('10_trainer_form');
     expect(featureToItem('trainer_recent_n')).toBe('10b_trainer_recent');
   });
+  it('pace_fit·pace_sens 계열은 pace_form 그룹', () => {
+    expect(featureToItem('pace_fit')).toBe('pace_form');
+    expect(featureToItem('pace_fit_n')).toBe('pace_form');
+    expect(featureToItem('pace_fit__missing')).toBe('pace_form');
+    expect(featureToItem('pace_sens')).toBe('pace_form');
+    expect(featureToItem('pace_hot')).not.toBe('pace_form'); // 기존 경주단위 one-hot과 분리
+  });
 });

@@ -532,6 +532,7 @@ function buildEngineInput(
     runningStyleAvgRatio: styleMap.get(e.hr_name)?.avg ?? null,
     runningStyleStddev: styleMap.get(e.hr_name)?.std ?? null,
     paceType,
+    paceForm: asOf.paceForm,
     speedFigureAbilityRaw: asOf.speedFigureAbilityRaw,
     careerFinishRatio: asOf.careerFinishRatio,
     careerPlaceRate: asOf.careerPlaceRate,

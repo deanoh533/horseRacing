@@ -8,6 +8,7 @@ import type { Feature, FeatureVector } from './types.js';
 import { slope, mean, std } from './mathUtils.js';
 import { trainingFeatures } from './trainingFeatures.js';
 import { medicalFeatures } from './medicalFeatures.js';
+import { paceFormFeatures } from './paceForm.js';
 
 export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   const f: Feature[] = [];
@@ -229,6 +230,12 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
     add('x_old_long', old && long ? 1 : 0);
   }
 
+  // 페이스 조건부 성적 (2026-07-15 스펙): 예상 페이스 버킷의 통산 대비 초과 성적 + 환경 민감도
+  const pf = paceFormFeatures(input.paceForm, input.careerFinishRatio, input.paceType ?? 'NORMAL');
+  if (pf.paceFit != null) add('pace_fit', pf.paceFit);
+  if (pf.paceSens != null) add('pace_sens', pf.paceSens);
+  add('pace_fit_n', pf.paceFitN);
+
   // --- 표본수 (작은표본 할인용) ---
   add('jockey_recent_n', (input.jockeyRecentOrds ?? []).length);
   add('trainer_recent_n', (input.trainerRecentOrds ?? []).length);
@@ -251,6 +258,8 @@ export function buildFeatures(input: ScoreEngineInput): FeatureVector {
   missingFlag('pedigree_dsa_mean', dsa.length > 0);
   missingFlag('style_avg_ratio', input.runningStyleAvgRatio != null);
   missingFlag('style_stddev', input.runningStyleStddev != null);
+  missingFlag('pace_fit', pf.paceFit != null);
+  missingFlag('pace_sens', pf.paceSens != null);
 
   // --- 카테고리 one-hot ---
   add('sex_mare', input.sex === '암' ? 1 : 0);

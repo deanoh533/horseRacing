@@ -43,6 +43,7 @@ import {
   type PaceType,
 } from './scoreItems/19_running_style_pace.js';
 import { calculateSpeedFigureScore } from './scoreItems/20_speed_figure.js';
+import type { PaceFormStats } from './features/paceForm.js';
 
 /** training_logs의 조교 세션 한 건 (as-of: train_date < race_date). */
 export interface TrainingSession {
@@ -174,6 +175,9 @@ export interface ScoreEngineInput {
   /** 경주 전개(shape) — 경주 단위 사전패스 주입 (스펙 2026-07-08). 결측이면 피처 미생성 */
   shapePredGap?: number;
   shapePAchieve?: number;
+
+  /** 페이스 버킷별 과거 성적 (스펙 2026-07-15) */
+  paceForm?: PaceFormStats;
 }
 
 /**

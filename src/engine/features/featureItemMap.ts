@@ -46,5 +46,6 @@ export function featureToItem(feature: string): string {
   if (base.startsWith('med_fatigue')) return 'med_fatigue';
   if (base.startsWith('train_')) return 'train_signal';
   if (base.startsWith('shape_')) return 'shape_signal';
+  if (base.startsWith('pace_fit') || base.startsWith('pace_sens')) return 'pace_form';
   return MAP[base] ?? 'context';
 }
