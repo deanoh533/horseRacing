@@ -11,6 +11,8 @@
 import type { ReadClient } from '../db/localDb.js';
 import { parBucketKey, raceSpeedFigure, computeAbilityRaw } from './speedFigure.js';
 import { SPEED_FIGURE_N } from './scoreItems/20_speed_figure.js';
+import { computePaceFormStats, labelPastRacePace, type PaceBucket, type PaceFormStats } from './features/paceForm.js';
+import { paceParKey, type PaceParMap } from './pacePar.js';
 
 export type DistCategory = 'short' | 'middle' | 'long';
 
@@ -19,6 +21,7 @@ export interface AsOfPastRace {
   ord: number | null; // 결승 순위
   fieldSize: number; // 그 경주 출전두수
   distCategory: DistCategory | null;
+  paceLabel: PaceBucket | null; // 그 경주의 실측 초반 페이스 (par 없으면 null)
 }
 
 export interface AsOfHorseStats {
@@ -30,6 +33,7 @@ export interface AsOfHorseStats {
   careerFinishRatio: number | null;     // ⑱ 통산 평균착순율 (earnings 대체)
   careerPlaceRate: number | null;       // ⑱ 통산 입상율 (KRA 연승규칙)
   careerN: number;                      // ⑱ 유효 과거 경주 수
+  paceForm: PaceFormStats;              // 페이스 버킷별 {finish_ratio 평균, n} — 스펙 2026-07-15
 }
 
 // 뷰의 HAVING 임계와 동일
@@ -45,6 +49,7 @@ const EMPTY: AsOfHorseStats = {
   careerFinishRatio: null,
   careerPlaceRate: null,
   careerN: 0,
+  paceForm: {},
 };
 
 export function distCategoryOf(dist: number | null | undefined): DistCategory | null {
@@ -112,10 +117,18 @@ export function computeAsOfHorseStats(
   const careerFinishRatio = careerN > 0 ? mean(finishRatios) : null;
   const careerPlaceRate = placeEligible > 0 ? placeHit / placeEligible : null;
 
+  // 페이스 버킷별 finish_ratio 집계 (스펙 2026-07-15)
+  const paceForm = computePaceFormStats(
+    past
+      .filter((r) => r.fieldSize >= 2 && r.ord != null)
+      .map((r) => ({ finishRatio: (r.ord! - 1) / (r.fieldSize - 1), paceLabel: r.paceLabel }))
+  );
+
   return {
     avgPositionRatio, stddevPositionRatio, frontRunSuccessRate, distFinishRatio,
     speedFigureAbilityRaw: null,
     careerFinishRatio, careerPlaceRate, careerN,
+    paceForm,
   };
 }
 
@@ -138,7 +151,8 @@ export async function fetchAsOfHorseStats(
   hrName: string,
   beforeDate: number,
   currentDistCategory: DistCategory | null,
-  parMap: Map<string, number>
+  parMap: Map<string, number>,
+  pacePar: PaceParMap
 ): Promise<AsOfHorseStats> {
   const { data: pastRaw } = await sb
     .from('race_entries')
@@ -156,19 +170,22 @@ export async function fetchAsOfHorseStats(
   if (past.length === 0) return { ...EMPTY };
 
   // field_size: 과거 경주들의 출전두수 (race_sectional_stats.horses)
+  // avg_s1f도 같은 조회에 실어 페이스 라벨링(s1fMap)에 사용 — 새 쿼리 추가 없이 select만 확장.
   const dates = [...new Set(past.map((r) => r.race_date))];
   const fsMap = new Map<string, number>();
+  const s1fMap = new Map<string, number>();
   const PAGE = 1000;
   for (let off = 0; ; off += PAGE) {
     const { data, error } = await sb
       .from('race_sectional_stats')
-      .select('race_date, meet, rc_no, horses')
+      .select('race_date, meet, rc_no, horses, avg_s1f')
       .in('race_date', dates)
       .range(off, off + PAGE - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
-    for (const r of data as Array<{ race_date: number; meet: number; rc_no: number; horses: number }>) {
+    for (const r of data as Array<{ race_date: number; meet: number; rc_no: number; horses: number; avg_s1f: number | null }>) {
       fsMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, r.horses);
+      if (r.avg_s1f != null) s1fMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, r.avg_s1f);
     }
     if (data.length < PAGE) break;
   }
@@ -178,6 +195,10 @@ export async function fetchAsOfHorseStats(
     ord: r.ord ?? null,
     fieldSize: fsMap.get(`${r.race_date}-${r.meet}-${r.rc_no}`) ?? 0,
     distCategory: distCategoryOf(r.rc_dist),
+    paceLabel: labelPastRacePace(
+      s1fMap.get(`${r.race_date}-${r.meet}-${r.rc_no}`) ?? null,
+      r.rc_dist != null ? (pacePar.get(paceParKey(r.meet, r.rc_dist)) ?? null) : null
+    ),
   }));
   const base = computeAsOfHorseStats(races, currentDistCategory);
 

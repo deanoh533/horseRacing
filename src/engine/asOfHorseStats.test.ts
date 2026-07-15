@@ -1,6 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { computeAsOfHorseStats, distCategoryOf, type AsOfPastRace } from './asOfHorseStats.js';
 
+describe('paceForm 버킷 집계', () => {
+  it('paceLabel별 finish_ratio 평균·n이 paceForm에 담긴다', () => {
+    const past = [
+      { s1fOrd: 1, ord: 2, fieldSize: 11, distCategory: 'short' as const, paceLabel: 'HOT' as const },
+      { s1fOrd: 2, ord: 6, fieldSize: 11, distCategory: 'short' as const, paceLabel: 'HOT' as const },
+      { s1fOrd: 3, ord: 11, fieldSize: 11, distCategory: 'short' as const, paceLabel: 'SLOW' as const },
+      { s1fOrd: 4, ord: 6, fieldSize: 11, distCategory: 'short' as const, paceLabel: null },
+    ];
+    const s = computeAsOfHorseStats(past, 'short');
+    // finish_ratio = (ord-1)/10 → HOT: (0.1+0.5)/2=0.3, SLOW: 1.0
+    expect(s.paceForm.HOT).toEqual({ mean: expect.closeTo(0.3, 10), n: 2 });
+    expect(s.paceForm.SLOW).toEqual({ mean: 1.0, n: 1 });
+    expect(s.paceForm.NORMAL).toBeUndefined();
+  });
+  it('past 없음 → paceForm 빈 객체', () => {
+    expect(computeAsOfHorseStats([], null).paceForm).toEqual({});
+  });
+});
+
 describe('computeAsOfHorseStats — 누수 방지 as-of 통계', () => {
   it('과거 경주 없으면 전부 null/undefined', () => {
     const r = computeAsOfHorseStats([], 'middle');
@@ -12,21 +31,21 @@ describe('computeAsOfHorseStats — 누수 방지 as-of 통계', () => {
 
   it('position 통계는 ≥3경주부터 산출(뷰 HAVING≥3)', () => {
     const two: AsOfPastRace[] = [
-      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'middle' },
-      { s1fOrd: 2, ord: 2, fieldSize: 11, distCategory: 'middle' },
+      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'middle', paceLabel: null },
+      { s1fOrd: 2, ord: 2, fieldSize: 11, distCategory: 'middle', paceLabel: null },
     ];
     expect(computeAsOfHorseStats(two, 'middle').avgPositionRatio).toBeNull();
 
-    const three = [...two, { s1fOrd: 3, ord: 3, fieldSize: 11, distCategory: 'middle' as const }];
+    const three = [...two, { s1fOrd: 3, ord: 3, fieldSize: 11, distCategory: 'middle' as const, paceLabel: null }];
     expect(computeAsOfHorseStats(three, 'middle').avgPositionRatio).not.toBeNull();
   });
 
   it('position_ratio = (s1fOrd-1)/(fieldSize-1) 평균', () => {
     // 11두 경주: s1fOrd 1,1,1 → ratio 0,0,0 → avg 0 (항상 선두)
     const front: AsOfPastRace[] = [
-      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'short' },
-      { s1fOrd: 1, ord: 2, fieldSize: 11, distCategory: 'short' },
-      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'short' },
+      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'short', paceLabel: null },
+      { s1fOrd: 1, ord: 2, fieldSize: 11, distCategory: 'short', paceLabel: null },
+      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'short', paceLabel: null },
     ];
     expect(computeAsOfHorseStats(front, 'short').avgPositionRatio).toBeCloseTo(0, 5);
   });
@@ -34,10 +53,10 @@ describe('computeAsOfHorseStats — 누수 방지 as-of 통계', () => {
   it('frontRunSuccessRate = 출발상위30% 중 결승상위30% 비율', () => {
     // 11두: pos≤0.3 → s1fOrd ≤ 4 (=(4-1)/10=0.3). fin≤0.3 → ord ≤ 4
     const races: AsOfPastRace[] = [
-      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'middle' }, // 선두→성공
-      { s1fOrd: 2, ord: 9, fieldSize: 11, distCategory: 'middle' }, // 선두→실패
-      { s1fOrd: 3, ord: 2, fieldSize: 11, distCategory: 'middle' }, // 선두→성공
-      { s1fOrd: 10, ord: 10, fieldSize: 11, distCategory: 'middle' }, // 후미(분모 제외)
+      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'middle', paceLabel: null }, // 선두→성공
+      { s1fOrd: 2, ord: 9, fieldSize: 11, distCategory: 'middle', paceLabel: null }, // 선두→실패
+      { s1fOrd: 3, ord: 2, fieldSize: 11, distCategory: 'middle', paceLabel: null }, // 선두→성공
+      { s1fOrd: 10, ord: 10, fieldSize: 11, distCategory: 'middle', paceLabel: null }, // 후미(분모 제외)
     ];
     // 선두 3경주 중 2 성공 → 0.667
     expect(computeAsOfHorseStats(races, 'middle').frontRunSuccessRate).toBeCloseTo(2 / 3, 5);
@@ -45,9 +64,9 @@ describe('computeAsOfHorseStats — 누수 방지 as-of 통계', () => {
 
   it('distFinishRatio는 현재 거리 카테고리만, ≥2경주', () => {
     const races: AsOfPastRace[] = [
-      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'short' }, // fin 0.0
-      { s1fOrd: 5, ord: 6, fieldSize: 11, distCategory: 'short' }, // fin 0.5
-      { s1fOrd: 2, ord: 11, fieldSize: 11, distCategory: 'long' }, // 다른 거리 → 제외
+      { s1fOrd: 1, ord: 1, fieldSize: 11, distCategory: 'short', paceLabel: null }, // fin 0.0
+      { s1fOrd: 5, ord: 6, fieldSize: 11, distCategory: 'short', paceLabel: null }, // fin 0.5
+      { s1fOrd: 2, ord: 11, fieldSize: 11, distCategory: 'long', paceLabel: null }, // 다른 거리 → 제외
     ];
     // short 2경주: (0.0 + 0.5)/2 = 0.25
     expect(computeAsOfHorseStats(races, 'short').distFinishRatio).toBeCloseTo(0.25, 5);
@@ -57,9 +76,9 @@ describe('computeAsOfHorseStats — 누수 방지 as-of 통계', () => {
 
   it('fieldSize<2 경주는 무시', () => {
     const races: AsOfPastRace[] = [
-      { s1fOrd: 1, ord: 1, fieldSize: 1, distCategory: 'middle' },
-      { s1fOrd: 1, ord: 1, fieldSize: 1, distCategory: 'middle' },
-      { s1fOrd: 1, ord: 1, fieldSize: 1, distCategory: 'middle' },
+      { s1fOrd: 1, ord: 1, fieldSize: 1, distCategory: 'middle', paceLabel: null },
+      { s1fOrd: 1, ord: 1, fieldSize: 1, distCategory: 'middle', paceLabel: null },
+      { s1fOrd: 1, ord: 1, fieldSize: 1, distCategory: 'middle', paceLabel: null },
     ];
     expect(computeAsOfHorseStats(races, 'middle').avgPositionRatio).toBeNull();
   });
@@ -83,8 +102,8 @@ describe('computeAsOfHorseStats — 통산 클래스 신호 (earnings 누수 대
 
   it('careerFinishRatio = (ord-1)/(fieldSize-1) 평균, careerN=유효경주수', () => {
     const past: AsOfPastRace[] = [
-      { s1fOrd: null, ord: 1, fieldSize: 11, distCategory: 'middle' },  // ratio 0
-      { s1fOrd: null, ord: 11, fieldSize: 11, distCategory: 'middle' }, // ratio 1
+      { s1fOrd: null, ord: 1, fieldSize: 11, distCategory: 'middle', paceLabel: null },  // ratio 0
+      { s1fOrd: null, ord: 11, fieldSize: 11, distCategory: 'middle', paceLabel: null }, // ratio 1
     ];
     const r = computeAsOfHorseStats(past, 'middle');
     expect(r.careerFinishRatio).toBeCloseTo(0.5, 5);
@@ -93,24 +112,24 @@ describe('computeAsOfHorseStats — 통산 클래스 신호 (earnings 누수 대
 
   it('careerPlaceRate: 8두↑는 3착내 입상', () => {
     const past: AsOfPastRace[] = [
-      { s1fOrd: null, ord: 3, fieldSize: 10, distCategory: 'middle' }, // 입상
-      { s1fOrd: null, ord: 4, fieldSize: 10, distCategory: 'middle' }, // 비입상
+      { s1fOrd: null, ord: 3, fieldSize: 10, distCategory: 'middle', paceLabel: null }, // 입상
+      { s1fOrd: null, ord: 4, fieldSize: 10, distCategory: 'middle', paceLabel: null }, // 비입상
     ];
     expect(computeAsOfHorseStats(past, 'middle').careerPlaceRate).toBeCloseTo(0.5, 5);
   });
 
   it('careerPlaceRate: 5~7두는 2착내만 입상', () => {
     const past: AsOfPastRace[] = [
-      { s1fOrd: null, ord: 2, fieldSize: 6, distCategory: 'middle' }, // 입상
-      { s1fOrd: null, ord: 3, fieldSize: 6, distCategory: 'middle' }, // 비입상(6두라 3착은 미입상)
+      { s1fOrd: null, ord: 2, fieldSize: 6, distCategory: 'middle', paceLabel: null }, // 입상
+      { s1fOrd: null, ord: 3, fieldSize: 6, distCategory: 'middle', paceLabel: null }, // 비입상(6두라 3착은 미입상)
     ];
     expect(computeAsOfHorseStats(past, 'middle').careerPlaceRate).toBeCloseTo(0.5, 5);
   });
 
   it('careerPlaceRate: 4두↓는 연승 미발매라 분모서 제외 (단 finishRatio엔 포함)', () => {
     const past: AsOfPastRace[] = [
-      { s1fOrd: null, ord: 1, fieldSize: 4, distCategory: 'middle' },  // place 제외, finish 포함
-      { s1fOrd: null, ord: 1, fieldSize: 10, distCategory: 'middle' }, // 입상
+      { s1fOrd: null, ord: 1, fieldSize: 4, distCategory: 'middle', paceLabel: null },  // place 제외, finish 포함
+      { s1fOrd: null, ord: 1, fieldSize: 10, distCategory: 'middle', paceLabel: null }, // 입상
     ];
     const r = computeAsOfHorseStats(past, 'middle');
     expect(r.careerPlaceRate).toBeCloseTo(1.0, 5); // 1/1 (4두 경주 제외)

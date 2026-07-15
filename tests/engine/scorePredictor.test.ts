@@ -42,7 +42,7 @@ describe('forcePrecompetition 옵션 - 실제 동작', () => {
     `);
     await conn.run(`CREATE TABLE races (race_date INTEGER, meet INTEGER, rc_no INTEGER, rc_dist INTEGER, track_type VARCHAR, prize_cond VARCHAR)`);
     await conn.run(`CREATE TABLE race_par_times (meet INTEGER, rc_dist INTEGER, track_type VARCHAR, par_time DOUBLE, n_wins INTEGER)`);
-    await conn.run(`CREATE TABLE race_sectional_stats (race_date INTEGER, meet INTEGER, rc_no INTEGER, horses INTEGER)`);
+    await conn.run(`CREATE TABLE race_sectional_stats (race_date INTEGER, meet INTEGER, rc_no INTEGER, horses INTEGER, rc_dist INTEGER, avg_s1f DOUBLE)`);
     await conn.run(`CREATE TABLE horses (hr_no VARCHAR, dsa_bri_vl DOUBLE, dsa_clc_vl DOUBLE, dsa_ier_vl DOUBLE, dsa_prf_vl DOUBLE, dsidx_vl DOUBLE)`);
     await conn.run(`CREATE TABLE jockey_stats (jcky_no VARCHAR, meet INTEGER, win_rate_t DOUBLE, qu_rate_t DOUBLE)`);
     await conn.run(`CREATE TABLE training_logs (hr_no VARCHAR, train_date INTEGER, tr_term INTEGER, run1_cnt INTEGER, run2_cnt INTEGER, pr_gubun VARCHAR)`);

@@ -17,6 +17,7 @@ import { buildFeatures } from './features/buildFeatures.js';
 import { toVector } from './features/alignFeatures.js';
 import { horseShapeStats, raceShapeSignals } from './features/shapeSignals.js';
 import { shapeParMapAsOf } from './shapePar.js';
+import { paceParMapAsOf } from './pacePar.js';
 
 interface EntryRow {
   race_date: number;
@@ -150,10 +151,11 @@ export async function gatherRaceInputs(
   // ⑤⑥⑫⑲⑳ 통계: 누수 방지 as-of(말별 과거 경주만) 사전 패스 — 전역 뷰 미사용
   const distCat = distCategoryOf(rcDist ?? 1600);
   const parMap = await loadParMap(sb); // ⑳ par-time 기준표 (1회 로드)
+  const pacePar = await paceParMapAsOf(sb, opts?.shapeParCutoff ?? rcDate); // 페이스 par (1회 로드, cutoff 메모이즈)
   const asOfMap = new Map<string, AsOfHorseStats>();
   await Promise.all(
     entryList.map(async (e) => {
-      asOfMap.set(e.hr_name, await fetchAsOfHorseStats(sb, e.hr_name, rcDate, distCat, parMap));
+      asOfMap.set(e.hr_name, await fetchAsOfHorseStats(sb, e.hr_name, rcDate, distCat, parMap, pacePar));
     })
   );
   // paceType(⑲)도 as-of position_ratio 기반 → 누수 제거
