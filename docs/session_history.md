@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-13~15 — 7/10 경주 분석 → 피처 카탈로그 신설 + shape_d6_best 기각 (브랜치 feat/feature-catalog-d6best)
+7/10 부경 6R 실전 분석(예측 1위 퀸메이커 2착=연승 적중·우승마 투혼파이터는 모델 5위/시장 7위 — 선행 3두 과열→페이스 붕괴 경주, 시장도 동반 실패, picks는 올바르게 침묵)에서 파생된 3갈래. ① **docs/feature_catalog.md 신설(SSOT)** — v7 raw 피처 ~90개 측정 기준·산식·주의점(body_weight 회색지대 등) 한 장 정리, "라이브=raw만, 수제 맵=레거시" 구조 명문화. ② **shape_d6_best(종반 600m 역대 최고=한 방 능력) 게이트 실험 → 기각** — 게이트A |r|=0.72(rating·speed와 중복 경고), 게이트B 연승 Δ−0.2%p·1/5분기 → 피크 능력은 능력 지표에 이미 흡수. 코드는 raw 후보 잔류(라이브 무영향). ③ probe:features 감사로 recent_ord 계열 신뢰성 확인 — **recent_ord_last가 109개 중 1위 일꾼(coef −0.159)**, std·hist_n은 죽은 무게(무해). 결론: 피처 정리·재설계 불필요(L2 자기조절), 실질 구멍은 경주 단위 페이스 집계(F-001). 부수 수정: 문서 sync 명령 오기 정정(sync:racecard→sync:cards 등 4파일)·probe:corr archive 복구 재등록·대시보드 날짜 URL 쿼리 유지 fix(전부 main 머지됨). 상세 → [04-signals](status/04-signals.md) · [[project_shape_d6_best_rejected]]
+
 ## 2026-07-12~13 — L-002~005 완료: 런치 게이팅 운영 기반 (main 머지 48c6f6d)
 브레인스토밍(버튼 결정 4건: Actions cron / 동결→분기1회 / GitHub 이메일 / 스냅샷+미러)→스펙→플랜→SDD 7 Task로 런치 게이팅 잔여 4항목 종결. ① `src/utils/syncCli.ts` 순수 헬퍼(TDD) ② raceCardSync **날짜 기본값 오늘+2일**(발표일+2 도메인 규칙 코드화)+`--fail-on-empty`+`--date` 검증(리뷰가 잡은 회귀: 오타가 조용히 자동날짜로 대체) ③ dailySync 동일 와이어링 ④ `db:snapshot`(predictions→snapshot_YYYYMMDD, --force/--prune, **실DB 리허설 40,515행 행수일치**) ⑤ `.github/workflows/sync.yml` — 출마표 수목금 15:00·결과 토일월 01:00 KST, 함정 2개 명시(`TZ: Asia/Seoul`·`DB_SOURCE: supabase`), workflow_dispatch ⑥ 문서 6종(TODO L-002~005 완료·pipeline_guide §9·status 02/05·accuracy_metrics·CLAUDE.md) ⑦ 최종 whole-branch 리뷰 **머지가능(Critical/Important 0)**. 재학습 동결 정책 명문화: v7 라이브 1분기+첫 판정까지. 테스트 470 통과. **남은 사용자 작업**: repo secrets 5종 등록(ANTHROPIC_API_KEY 포함 — env 스키마 요구)·dispatch 리허설·수요일 첫 스케줄 확인. 상세 → [05-data-infra](status/05-data-infra.md) · [[project_launch_gating_ops]]
 
