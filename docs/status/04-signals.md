@@ -1,5 +1,27 @@
 # 신호발굴 — 진행 상황
-> 마지막 업데이트: 2026-07-14 · 관련 메모리: [[project_feature_gate_findings]], [[project_training_signals]], [[project_gate_multimetric]], [[project_medical_signals]], [[feedback_no_human_compression]], [[project_race_shape_track]]
+> 마지막 업데이트: 2026-07-15 · 관련 메모리: [[project_feature_gate_findings]], [[project_training_signals]], [[project_gate_multimetric]], [[project_medical_signals]], [[feedback_no_human_compression]], [[project_race_shape_track]]
+
+## 페이스 조건부 성적 (pace_fit·pace_sens·pace_fit_n) — ❌ 기각 (2026-07-15)
+환경(예상 페이스)이 변할 때 말의 과거 전적을 페이스 버킷별로 직접 쪼갠 조작화(⑲ 성향×페이스 간접추정과 다른 각도). 스펙 [2026-07-15](../superpowers/specs/2026-07-15-pace-conditional-form-design.md).
+- 게이트A는 진단 전용(판정 없음): pace_fit 최대 |r|=0.227(vs pace_hot), pace_sens 최대 |r|=0.226(vs recent_ord_std) — 중복 경고 없음.
+- **게이트B = 통제 A/B(사전등록 유일 판정)**: 같은 스펙(v7-shape 챔피언, 2024-01~ 학습, 2025Q1~2026Q2 6분기 롤링), `--exclude pace_form` vs `--include pace_form` 외 완전 동일.
+- 판정 지표 Logistic(t3) 연승(분기별, ON−OFF):
+
+  | 분기 | OFF | ON | Δ |
+  |---|---|---|---|
+  | 2025-Q1 | 52.5% | 52.8% | +0.3%p |
+  | 2025-Q2 | 58.8% | 61.0% | +2.2%p |
+  | 2025-Q3 | 54.8% | 55.5% | +0.7%p |
+  | 2025-Q4 | 58.6% | 58.2% | −0.4%p |
+  | 2026-Q1 | 58.8% | 58.5% | −0.3%p |
+  | 2026-Q2 | 60.0% | 60.9% | +0.9%p |
+  | 전체 | 57.2% | 57.8% | +0.6%p |
+
+- **평균 Δ = +0.57%p(6분기 단순평균) < 사전등록 합격선 +1.0%p → 기각.** 양수 분기는 4/6(과반 조건은 충족)이나 AND 조건의 평균 기준 미달.
+- 참고: 사전등록 시점엔 "5분기"를 가정했으나 실행 시점(2026-07-15) 기준 기본 롤링 윈도우가 6분기(2025Q1~2026Q2)로 산출됨 — 판정 규칙은 그대로 적용(변경 없음).
+- 해석: 환경 조건부 실전 성적 자체는 신호가 있으나(2/6분기 제외 대체로 양수 방향), 표본 분할로 인한 노이즈가 커 문턱을 못 넘김. shape_d6_best와 마찬가지로 raw 후보 각도이지 흡수 확정은 아님 — 재조작화(예: 버킷 2개로 축소, shrinkage k 재조정) 여지는 있으나 우선순위 낮음.
+- 코드 정리: `buildFeatures.ts`의 pace_fit/pace_sens/pace_fit_n 노출 라인(add 3줄+missingFlag 2줄) 제거, `buildFeatures.test.ts` 해당 케이스 제거. **`paceForm.ts`·`pacePar.ts`·`asOfHorseStats` 집계는 유지**(다음 조작화 재사용, 재학습 오염 없음).
+- 로그: `.superpowers/sdd/pace_off.log`·`pace_on.log`.
 
 ## shape_d6_best (종반 600m 역대 최고) — ❌ 기각 (2026-07-14)
 7/10 부경 6R 분석에서 발굴한 후보(우승마 투혼파이터: 종반 평균은 들쭉날쭉하나 피크는 필드 1위 — 평균에 묻히는 "한 방" 능력 가설).
@@ -30,8 +52,6 @@ probe H1~H9([[project_race_shape_track]])에서 발굴한 전개 피처 2종(`sh
 - **채택: 전개 `shape_signal`** — t3 사전등록 판정 통과(2024H2 신선 구간 Δ+2.1%p, 위 섹션). 라이브 반영은 promote 사이클 대기.
 
 ## 다음 후보·남음
-- 🔄 **진행중: 페이스 조건부 성적 (pace_fit·pace_sens)** — 환경별 직접 전적(⑲ 간접추정과 다른 각도). 스펙 [2026-07-15](../superpowers/specs/2026-07-15-pace-conditional-form-design.md). 게이트A 진단전용·판정=통제 A/B 사전등록(연승 Δ≥+1.0%p, 3/5분기)
-  - 게이트A 진단(2026-07-15): pace_fit 최대 |r|=0.227 (vs pace_hot), pace_sens 최대 |r|=0.226 (vs recent_ord_std) — 진단 전용, 판정은 통제 A/B
 - 🔲 조교 *다른* 조작화 (강도·간격 등 recent_form이 못 담는 각도) — 단 흡수 입증 후라 기대↓
 - 🔲 마체중 직전수집 (D1) — `wg_hr` 경기후수집=라이브누수 회피할 사전수집 경로 필요
 - 🔲 전개 트랙 잔여 후보 (스펙 §7 범위 밖, [2026-07-08 스펙](../superpowers/specs/2026-07-08-race-shape-features-design.md)):
@@ -40,6 +60,7 @@ probe H1~H9([[project_race_shape_track]])에서 발굴한 전개 피처 2종(`sh
   - H7 교차표 UI 노출·사후 리뷰 도구 — 모델 무변경(UI/도구), 재학습 동결 기간에 적합 → [06-ui](06-ui.md)
 
 ## 종결·기각 (요약)
+- ❌ 페이스 조건부 성적 pace_form 기각 (2026-07-15) — 통제 A/B Logistic(t3) 연승 Δ+0.57%p<+1.0%p, 4/6분기 양수(과반은 충족·평균 미달). buildFeatures 노출 제거, 집계 인프라(paceForm.ts·pacePar.ts)는 유지 (상단 섹션).
 - ✅ 전개 shape_signal t2 미채택 → t3 사전등록 재검증 **채택** (2026-07-09) — t2 Δ+0.2%p 미달이었으나 2024H2 신선 구간 t3 판정 Δ+2.1%p 합격. [[project_race_shape_track]]
 - ❌ 조교 train_signal 흡수 확정 (2026-06-19) — 게이트B +1.8%p였으나 통제 A/B(같은 스펙 ON/OFF) Δ−0.12% = 흡수. ⚠️ **승격 판정은 통제 A/B로**(게이트B 한계기여 과대보고 의심). [[project_training_signals]]
 - ❌ 의료 신호 기각 (2026-06-15) — 출혈·피로치료 게이트B 한계기여 ~0. [[project_medical_signals]]

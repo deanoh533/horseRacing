@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { buildFeatures } from './buildFeatures.js';
 import type { ScoreEngineInput } from '../index.js';
 import { featureToItem } from './featureItemMap.js';
-import { PACE_FIT_SHRINK_K } from './paceForm.js';
 
 const base: ScoreEngineInput = { rating: 0 };
 
@@ -177,26 +176,8 @@ describe('buildFeatures — 버킷·교차항', () => {
   // ⑫b draw×거리 상호작용: 2026-06-16 게이트B 기각(연승 −0.7%p, 흡수). 피처 제거됨.
 });
 
-describe('pace_fit·pace_sens (페이스 조건부 성적)', () => {
-  it('paceForm 있으면 수축 델타·민감도·표본수 노출', () => {
-    const input: ScoreEngineInput = {
-      ...base,
-      paceType: 'HOT',
-      careerFinishRatio: 0.5,
-      paceForm: { HOT: { mean: 0.25, n: 3 }, SLOW: { mean: 0.65, n: 2 } },
-    };
-    expect(val(input, 'pace_fit')).toBeCloseTo((0.25 - 0.5) * (3 / (3 + PACE_FIT_SHRINK_K)), 10);
-    expect(val(input, 'pace_sens')).toBeCloseTo(0.4, 10);
-    expect(val(input, 'pace_fit_n')).toBe(3);
-    expect(val(input, 'pace_fit__missing')).toBe(0);
-  });
-  it('paceForm 없으면 결측 플래그', () => {
-    expect(val({ ...base }, 'pace_fit')).toBe(0);
-    expect(val({ ...base }, 'pace_fit__missing')).toBe(1);
-    expect(val({ ...base }, 'pace_sens__missing')).toBe(1);
-    expect(val({ ...base }, 'pace_fit_n')).toBe(0);
-  });
-});
+// pace_fit·pace_sens (페이스 조건부 성적): 2026-07-15 통제 A/B 기각(연승 Δ+0.6%p<+1.0%p 미달)
+// — buildFeatures 노출 제거로 테스트도 제거. paceForm.ts 자체 단위 테스트는 유지.
 
 describe('shape 피처 (경주 전개)', () => {
   it('주입값 있으면 shape_pred_gap·shape_p_achieve 추가', () => {
