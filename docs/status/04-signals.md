@@ -31,6 +31,7 @@ probe H1~H9([[project_race_shape_track]])에서 발굴한 전개 피처 2종(`sh
 
 ## 다음 후보·남음
 - 🔄 **진행중: 페이스 조건부 성적 (pace_fit·pace_sens)** — 환경별 직접 전적(⑲ 간접추정과 다른 각도). 스펙 [2026-07-15](../superpowers/specs/2026-07-15-pace-conditional-form-design.md). 게이트A 진단전용·판정=통제 A/B 사전등록(연승 Δ≥+1.0%p, 3/5분기)
+  - 게이트A 진단(2026-07-15): pace_fit 최대 |r|=0.227 (vs pace_hot), pace_sens 최대 |r|=0.226 (vs recent_ord_std) — 진단 전용, 판정은 통제 A/B
 - 🔲 조교 *다른* 조작화 (강도·간격 등 recent_form이 못 담는 각도) — 단 흡수 입증 후라 기대↓
 - 🔲 마체중 직전수집 (D1) — `wg_hr` 경기후수집=라이브누수 회피할 사전수집 경로 필요
 - 🔲 전개 트랙 잔여 후보 (스펙 §7 범위 밖, [2026-07-08 스펙](../superpowers/specs/2026-07-08-race-shape-features-design.md)):
