@@ -6,9 +6,11 @@
  */
 export type PaceBucket = 'HOT' | 'NORMAL' | 'SLOW';
 
-// 초깃값 — Task 4 probe(델타 30/70 분위)로 갱신. 갱신 시 이 주석에 probe 실행일 기록.
-export const PACE_HOT_DELTA = -0.25;  // avg_s1f − par ≤ 이 값(초) → HOT
-export const PACE_SLOW_DELTA = 0.25;  // avg_s1f − par ≥ 이 값(초) → SLOW
+// probe:pace-form 2026-07-15: 경주 7805건(par 15버킷, 커버리지 99.8%) delta 분위
+// p10=-0.270 p30=-0.110 p50=0.000 p70=0.110 p90=0.285 → 30/70 분위로 HOT/SLOW 확정(직관 ±0.25초 대비 절반).
+// 말별 HOT 버킷 n 분위: p50=2 p70=4 p90=9, 0 제외 중앙값=3 → K는 직관값 3과 일치, 유지.
+export const PACE_HOT_DELTA = -0.11;  // avg_s1f − par ≤ 이 값(초) → HOT
+export const PACE_SLOW_DELTA = 0.11;  // avg_s1f − par ≥ 이 값(초) → SLOW
 export const PACE_FIT_SHRINK_K = 3;   // pace_fit 수축: × n/(n+K)
 const SENS_MIN_N = 2;                 // pace_sens에 참여하는 버킷 최소 표본
 

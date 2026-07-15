@@ -6,8 +6,11 @@ import {
 
 describe('labelPastRacePace', () => {
   it('par보다 임계 이상 빠르면 HOT, 느리면 SLOW, 사이는 NORMAL', () => {
-    expect(labelPastRacePace(13.0 + PACE_HOT_DELTA, 13.0)).toBe('HOT');
-    expect(labelPastRacePace(13.0 + PACE_SLOW_DELTA, 13.0)).toBe('SLOW');
+    // 부동소수점 경계 라운딩 회피: 0.11초처럼 이진소수로 정확히 표현 안 되는 상수는
+    // 13.0 + delta − 13.0 왕복 계산 시 ulp 단위로 임계값을 벗어나 오분류될 수 있음
+    // → 임계 안쪽 0.01초 여유를 둬 상수 변경에도 안전하게 검증.
+    expect(labelPastRacePace(13.0 + PACE_HOT_DELTA - 0.01, 13.0)).toBe('HOT');
+    expect(labelPastRacePace(13.0 + PACE_SLOW_DELTA + 0.01, 13.0)).toBe('SLOW');
     expect(labelPastRacePace(13.0, 13.0)).toBe('NORMAL');
   });
   it('결측·비양수는 null', () => {
