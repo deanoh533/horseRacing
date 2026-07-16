@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-15 — 무인 운영 진입 + 페이스 조건부 성적(pace_fit·pace_sens) 기각 (main 머지 5c32ae1)
+① **무인 운영 진입** — secrets 등록 후 수요일 15:00 첫 스케줄 cron sync 성공, 사이트 자료 확인(L-002~005 잔여 사용자 작업 완료). ② **페이스 조건부 성적 기각** — F-001 UI 브레인스토밍 중 사용자 가설("환경 변화에 누가 일관/비일관하게 강한가")로 전환. 과거 경주를 실측 초반 페이스로 라벨(avg_s1f vs par ±0.11초=probe 30/70분위)해 pace_fit(통산 대비 델타, n/(n+3) 수축)·pace_sens(버킷 간 격차) 구현 → 게이트A 진단전용(|r|max 0.23, 사용자 결정으로 탈락판정 제거) → **통제 A/B 6분기 평균 Δ+0.57%p < 사전등록 +1.0%p → 기각**(t1/t2 교차도 미달). 낮은 상관인데도 기여 0 = 흡수 계열 재확인. 노출 제거·집계 인프라 유지(재조작화 대비)·pacePar 라이브 로드 방어(L-001 보호). shape_d6_best 코드 revert(기각 즉시 제거 원칙 확립) + 전개 스펙 §7 잔여 후보 TODO 이월(F-004 H7 교차표·F-005 사후 리뷰). F-001 UI는 설계 초안 승인 상태로 재개 가능. 상세 → [04-signals](status/04-signals.md) · [[project_pace_conditional_form_rejected]]
+
 ## 2026-07-13~15 — 7/10 경주 분석 → 피처 카탈로그 신설 + shape_d6_best 기각 (브랜치 feat/feature-catalog-d6best)
 7/10 부경 6R 실전 분석(예측 1위 퀸메이커 2착=연승 적중·우승마 투혼파이터는 모델 5위/시장 7위 — 선행 3두 과열→페이스 붕괴 경주, 시장도 동반 실패, picks는 올바르게 침묵)에서 파생된 3갈래. ① **docs/feature_catalog.md 신설(SSOT)** — v7 raw 피처 ~90개 측정 기준·산식·주의점(body_weight 회색지대 등) 한 장 정리, "라이브=raw만, 수제 맵=레거시" 구조 명문화. ② **shape_d6_best(종반 600m 역대 최고=한 방 능력) 게이트 실험 → 기각** — 게이트A |r|=0.72(rating·speed와 중복 경고), 게이트B 연승 Δ−0.2%p·1/5분기 → 피크 능력은 능력 지표에 이미 흡수. 코드는 raw 후보 잔류(라이브 무영향). ③ probe:features 감사로 recent_ord 계열 신뢰성 확인 — **recent_ord_last가 109개 중 1위 일꾼(coef −0.159)**, std·hist_n은 죽은 무게(무해). 결론: 피처 정리·재설계 불필요(L2 자기조절), 실질 구멍은 경주 단위 페이스 집계(F-001). 부수 수정: 문서 sync 명령 오기 정정(sync:racecard→sync:cards 등 4파일)·probe:corr archive 복구 재등록·대시보드 날짜 URL 쿼리 유지 fix(전부 main 머지됨). 상세 → [04-signals](status/04-signals.md) · [[project_shape_d6_best_rejected]]
 
