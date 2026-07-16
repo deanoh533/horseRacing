@@ -365,7 +365,7 @@ npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판�
 ### 무인 sync (GitHub Actions)
 - `.github/workflows/sync.yml` — 출마표 수·목·금 15:00 KST(`sync:cards`, 기본 날짜 오늘+2), 결과 토·일·월 01:00 KST(`sync`, 기본 어제).
 - 실패·0건(`--fail-on-empty`) 시 GitHub이 계정 이메일로 통지. 휴장일엔 0건 오탐 가능 — 확인 후 무시.
-- 수동 재실행: GitHub → Actions → Sync → Run workflow (target·date 선택).
+- 수동 재실행: GitHub → Actions → Sync → Run workflow — **target은 `racecard`(출마표) 또는 `results`(결과)**, date는 YYYYMMDD(생략 시 자동). ⚠️ npm 스크립트명(`sync:cards`)과 잡/입력값(`racecard`)이 다름 — 혼동 주의.
 - 필요 secrets: `KRA_API_KEY`·`SUPABASE_URL`·`SUPABASE_ANON_KEY`·`SUPABASE_SERVICE_ROLE_KEY`·`ANTHROPIC_API_KEY`(env 검증 스키마가 요구, sync는 호출 안 함).
 
 ### predictions 스냅샷 (재학습·백필 전 필수)
