@@ -612,6 +612,26 @@ export function useHorseSectionalAbilityByNames(hrNames: string[]) {
 }
 
 /**
+ * 특정 날짜 전체 출전마 명단 (F-001 /picks 페이스 배지용 — 경주별 성향 집계에 전체 명단 필요).
+ * 픽 없는 날은 raceDate null → 쿼리 스킵.
+ */
+export function useRaceEntryNamesByDate(raceDate: number | null) {
+  return useQuery({
+    queryKey: ['race-entry-names', raceDate],
+    queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }>> => {
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('race_date, meet, rc_no, hr_name')
+        .eq('race_date', raceDate!);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: raceDate != null,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
  * 거리 카테고리별 마별 주행 성향 (horse_running_style_by_distance view)
  *  - 한 말이 short/middle/long 거리에서 다른 ratio 보일 수 있음
  *  - 펼침 영역 "거리별 성향" 표시용
