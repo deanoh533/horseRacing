@@ -33,6 +33,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { classifyRunningStyle, STYLE_INFO, describeFrontRunSuccess, type RunningStyle } from '../lib/runningStyle';
 import { getSectionalInfo, fmtSec, computeSameDistStats, fmtPct, fmtScore } from '../lib/sectional';
 import { PickBadge } from '../components/PickBadge';
+import { RacePaceBadge } from '../components/RacePaceBadge';
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
@@ -108,6 +109,12 @@ export function RaceEntries() {
     return map;
   }, [abilities]);
 
+  // F-001: 경주 페이스 예상 — 출전마 전원의 성향 배열 (데이터 없는 말은 unknown)
+  const paceStyles = useMemo(
+    () => hrNames.map((n) => styleByName.get(n) ?? ('unknown' as RunningStyle)),
+    [hrNames, styleByName]
+  );
+
   const predRankByName = useMemo(() => {
     const map = new Map<string, number>();
     (predictions ?? []).forEach((p) => map.set(p.hr_name, p.predicted_rank));
@@ -163,6 +170,13 @@ export function RaceEntries() {
       </div>
 
       <RaceInfoBlock rcDate={rcDate} meet={meet} rcNo={rcNo} race={race} horses={horses} gradeStats={gradeStats} />
+
+      {/* F-001: 경주 페이스 예상 */}
+      {hrNames.length > 0 && (
+        <div className="bg-[var(--color-bg-surface)] rounded-xl p-3 border border-[var(--color-bg-elevated)]">
+          <RacePaceBadge styles={paceStyles} />
+        </div>
+      )}
 
       {/* AI 예측 요약 */}
       {top3.length > 0 && (
