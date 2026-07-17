@@ -233,37 +233,7 @@ export function usePredictionsByDate(rcDate: number) {
 }
 
 /**
- * 다가오는(사전) 예측 — race_date=오늘.
- *
- * predictions은 이제 INSERT-only다(수요일 사전 예측 1회 저장, 이후 dailySync가
- * 재계산·삭제하지 않음 — docs/superpowers/plans/2026-07-11-v7-live-tracking.md
- * Task 2). 따라서 과거 잔재를 걸러내던 방어 필터(최근 7일)가 더 이상 필요 없고,
- * race_date=오늘 하나로 명확히 "오늘의 강추" 대상을 정의할 수 있다(동 Task 3).
- *
- * TodayPicks 뷰에서 classifyPick으로 강추/주목만 클라이언트 필터
- * (임계값은 selectivePicks.ts/config가 단일 출처 — 여기서 중복 정의하지 않음).
- */
-export function useUpcomingPicks() {
-  const today = getTodayRaceDate();
-  return useQuery({
-    queryKey: ['upcoming-picks', today],
-    queryFn: async (): Promise<Prediction[]> => {
-      const { data, error } = await supabase
-        .from('predictions')
-        .select('*')
-        .eq('race_date', today)
-        .not('p_top3', 'is', null)
-        .order('meet')
-        .order('rc_no');
-      if (error) throw error;
-      return (data ?? []) as Prediction[];
-    },
-    staleTime: 10 * 60 * 1000,
-  });
-}
-
-/**
- * 이번 주(월~일) 강추 후보 — 주간 강추 화면용. useUpcomingPicks(당일)의 주간 버전.
+ * 이번 주(월~일) 강추 후보 — 주간 강추 화면용.
  * 스펙: docs/superpowers/specs/2026-07-17-weekly-picks-design.md §3
  */
 export function useWeeklyPicks() {
@@ -638,27 +608,7 @@ export function useHorseSectionalAbilityByNames(hrNames: string[]) {
 }
 
 /**
- * 특정 날짜 전체 출전마 명단 (F-001 /picks 페이스 배지용 — 경주별 성향 집계에 전체 명단 필요).
- * 픽 없는 날은 raceDate null → 쿼리 스킵.
- */
-export function useRaceEntryNamesByDate(raceDate: number | null) {
-  return useQuery({
-    queryKey: ['race-entry-names', raceDate],
-    queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }>> => {
-      const { data, error } = await supabase
-        .from('race_entries')
-        .select('race_date, meet, rc_no, hr_name')
-        .eq('race_date', raceDate!);
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: raceDate != null,
-    staleTime: 10 * 60 * 1000,
-  });
-}
-
-/**
- * 날짜 범위 출전마 명단 (주간 강추 페이스 배지용) — useRaceEntryNamesByDate의 범위 버전.
+ * 날짜 범위 출전마 명단 (주간 강추 페이스 배지용).
  * 픽 0건이면 from/to null → 쿼리 스킵.
  */
 export function useRaceEntryNamesByRange(from: number | null, to: number | null) {
