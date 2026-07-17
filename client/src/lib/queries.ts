@@ -610,18 +610,31 @@ export function useHorseSectionalAbilityByNames(hrNames: string[]) {
 /**
  * 날짜 범위 출전마 명단 (주간 강추 페이스 배지용).
  * 픽 0건이면 from/to null → 쿼리 스킵.
+ * 1000행 페이지네이션 fetch (공휴일 등 바쁜 주 경주 누락 방어).
  */
 export function useRaceEntryNamesByRange(from: number | null, to: number | null) {
   return useQuery({
     queryKey: ['race-entry-names-range', from, to],
     queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }>> => {
-      const { data, error } = await supabase
-        .from('race_entries')
-        .select('race_date, meet, rc_no, hr_name')
-        .gte('race_date', from!)
-        .lte('race_date', to!);
-      if (error) throw error;
-      return data ?? [];
+      const rows: Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }> = [];
+      const PAGE = 1000;
+      for (let off = 0; ; off += PAGE) {
+        const { data, error } = await supabase
+          .from('race_entries')
+          .select('race_date, meet, rc_no, hr_name')
+          .gte('race_date', from!)
+          .lte('race_date', to!)
+          .order('race_date')
+          .order('meet')
+          .order('rc_no')
+          .order('hr_name')
+          .range(off, off + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < PAGE) break;
+      }
+      return rows;
     },
     enabled: from != null && to != null,
     staleTime: 10 * 60 * 1000,
