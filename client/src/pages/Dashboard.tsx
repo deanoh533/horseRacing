@@ -15,7 +15,7 @@ import {
   usePredictionsByDate,
   useActiveModelVersion,
   useRecentArchives,
-  useUpcomingPicks,
+  useWeeklyPicks,
   type PredictionPreview,
 } from '../lib/queries';
 import { classifyPick } from '../lib/selectivePicks';
@@ -87,7 +87,7 @@ export function Dashboard() {
   // 현 활성 모델은 로지스틱 → weights={}, 계수는 artifact. 가중치 숫자 대신
   // "최근 복승권 적중률 + 이번주 강추/주목 수"로 모델 상태를 요약한다.
   const { data: archives } = useRecentArchives(RECENT_WINDOW);
-  const { data: upcoming } = useUpcomingPicks();
+  const { data: upcoming } = useWeeklyPicks();
 
   // 최근 N경주 예측 1위가 3착 안에 든 비율 (바운드 쿼리 — egress 작음)
   const recentShow = useMemo(() => {

@@ -17,6 +17,7 @@ import {
   type GradeDistStat,
 } from './supabase';
 import { pickConfig } from './selectivePicks';
+import { weekRange } from './week';
 
 /**
  * 특정 날짜의 모든 경주 (서울 + 부산경남)
@@ -232,26 +233,21 @@ export function usePredictionsByDate(rcDate: number) {
 }
 
 /**
- * 다가오는(사전) 예측 — race_date=오늘.
- *
- * predictions은 이제 INSERT-only다(수요일 사전 예측 1회 저장, 이후 dailySync가
- * 재계산·삭제하지 않음 — docs/superpowers/plans/2026-07-11-v7-live-tracking.md
- * Task 2). 따라서 과거 잔재를 걸러내던 방어 필터(최근 7일)가 더 이상 필요 없고,
- * race_date=오늘 하나로 명확히 "오늘의 강추" 대상을 정의할 수 있다(동 Task 3).
- *
- * TodayPicks 뷰에서 classifyPick으로 강추/주목만 클라이언트 필터
- * (임계값은 selectivePicks.ts/config가 단일 출처 — 여기서 중복 정의하지 않음).
+ * 이번 주(월~일) 강추 후보 — 주간 강추 화면용.
+ * 스펙: docs/superpowers/specs/2026-07-17-weekly-picks-design.md §3
  */
-export function useUpcomingPicks() {
-  const today = getTodayRaceDate();
+export function useWeeklyPicks() {
+  const { from, to } = weekRange(getTodayRaceDate());
   return useQuery({
-    queryKey: ['upcoming-picks', today],
+    queryKey: ['weekly-picks', from],
     queryFn: async (): Promise<Prediction[]> => {
       const { data, error } = await supabase
         .from('predictions')
         .select('*')
-        .eq('race_date', today)
+        .gte('race_date', from)
+        .lte('race_date', to)
         .not('p_top3', 'is', null)
+        .order('race_date')
         .order('meet')
         .order('rc_no');
       if (error) throw error;
@@ -608,6 +604,40 @@ export function useHorseSectionalAbilityByNames(hrNames: string[]) {
     },
     enabled: hrNames.length > 0,
     staleTime: 60 * 60 * 1000,
+  });
+}
+
+/**
+ * 날짜 범위 출전마 명단 (주간 강추 페이스 배지용).
+ * 픽 0건이면 from/to null → 쿼리 스킵.
+ * 1000행 페이지네이션 fetch (공휴일 등 바쁜 주 경주 누락 방어).
+ */
+export function useRaceEntryNamesByRange(from: number | null, to: number | null) {
+  return useQuery({
+    queryKey: ['race-entry-names-range', from, to],
+    queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }>> => {
+      const rows: Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }> = [];
+      const PAGE = 1000;
+      for (let off = 0; ; off += PAGE) {
+        const { data, error } = await supabase
+          .from('race_entries')
+          .select('race_date, meet, rc_no, hr_name')
+          .gte('race_date', from!)
+          .lte('race_date', to!)
+          .order('race_date')
+          .order('meet')
+          .order('rc_no')
+          .order('hr_name')
+          .range(off, off + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < PAGE) break;
+      }
+      return rows;
+    },
+    enabled: from != null && to != null,
+    staleTime: 10 * 60 * 1000,
   });
 }
 
