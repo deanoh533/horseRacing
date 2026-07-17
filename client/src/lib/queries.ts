@@ -17,6 +17,7 @@ import {
   type GradeDistStat,
 } from './supabase';
 import { pickConfig } from './selectivePicks';
+import { weekRange } from './week';
 
 /**
  * 특정 날짜의 모든 경주 (서울 + 부산경남)
@@ -252,6 +253,31 @@ export function useUpcomingPicks() {
         .select('*')
         .eq('race_date', today)
         .not('p_top3', 'is', null)
+        .order('meet')
+        .order('rc_no');
+      if (error) throw error;
+      return (data ?? []) as Prediction[];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 이번 주(월~일) 강추 후보 — 주간 강추 화면용. useUpcomingPicks(당일)의 주간 버전.
+ * 스펙: docs/superpowers/specs/2026-07-17-weekly-picks-design.md §3
+ */
+export function useWeeklyPicks() {
+  const { from, to } = weekRange(getTodayRaceDate());
+  return useQuery({
+    queryKey: ['weekly-picks', from],
+    queryFn: async (): Promise<Prediction[]> => {
+      const { data, error } = await supabase
+        .from('predictions')
+        .select('*')
+        .gte('race_date', from)
+        .lte('race_date', to)
+        .not('p_top3', 'is', null)
+        .order('race_date')
         .order('meet')
         .order('rc_no');
       if (error) throw error;
@@ -627,6 +653,27 @@ export function useRaceEntryNamesByDate(raceDate: number | null) {
       return data ?? [];
     },
     enabled: raceDate != null,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 날짜 범위 출전마 명단 (주간 강추 페이스 배지용) — useRaceEntryNamesByDate의 범위 버전.
+ * 픽 0건이면 from/to null → 쿼리 스킵.
+ */
+export function useRaceEntryNamesByRange(from: number | null, to: number | null) {
+  return useQuery({
+    queryKey: ['race-entry-names-range', from, to],
+    queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }>> => {
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('race_date, meet, rc_no, hr_name')
+        .gte('race_date', from!)
+        .lte('race_date', to!);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: from != null && to != null,
     staleTime: 10 * 60 * 1000,
   });
 }
