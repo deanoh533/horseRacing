@@ -3,6 +3,7 @@
  * 복사해 로컬 DuckDB(READ_ONLY)에서 실행, buildH7Table 검증 후 client/src/data/h7_table.json 출력.
  * probe 원본은 수정하지 않는다. 갱신: npm run export:h7 (수동 — 재학습 사이클 등).
  * KRA API·Supabase 호출 0.
+ * SET threads TO 1 — 윈도우 동률 병렬 배정 비결정성 고정(리뷰 발견).
  */
 import { DuckDBInstance } from '@duckdb/node-api';
 import { writeFileSync } from 'fs';
@@ -15,6 +16,7 @@ const MIN_FIELD = 5;
 
 const inst = await DuckDBInstance.create('data/local.duckdb', { access_mode: 'READ_ONLY' });
 const conn = await inst.connect();
+await conn.run('SET threads TO 1');
 
 async function q(sql: string): Promise<Record<string, unknown>[]> {
   const r = await conn.run(sql);

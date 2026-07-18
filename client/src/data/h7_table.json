@@ -8,65 +8,65 @@
     {
       "gapBucket": "~0.5초",
       "achieveBucket": "낮음(~30%)",
-      "starts": 4796,
-      "winRate": 0.07235195996663886,
-      "placeRate": 0.2518765638031693
+      "starts": 4787,
+      "winRate": 0.07207019009818258,
+      "placeRate": 0.2515145184875705
     },
     {
       "gapBucket": "~0.5초",
       "achieveBucket": "중간(30~70%)",
-      "starts": 7508,
-      "winRate": 0.12306872669152903,
-      "placeRate": 0.35082578582844964
+      "starts": 7510,
+      "winRate": 0.1233022636484687,
+      "placeRate": 0.35086551264980026
     },
     {
       "gapBucket": "~0.5초",
       "achieveBucket": "높음(70%+)",
-      "starts": 2893,
-      "winRate": 0.1894227445558244,
-      "placeRate": 0.4555824403733149
+      "starts": 2900,
+      "winRate": 0.1889655172413793,
+      "placeRate": 0.4555172413793103
     },
     {
       "gapBucket": "~1.0초",
       "achieveBucket": "낮음(~30%)",
-      "starts": 9540,
-      "winRate": 0.0559748427672956,
-      "placeRate": 0.21677148846960168
+      "starts": 9531,
+      "winRate": 0.05602769908718917,
+      "placeRate": 0.21687126219704123
     },
     {
       "gapBucket": "~1.0초",
       "achieveBucket": "중간(30~70%)",
-      "starts": 8387,
-      "winRate": 0.08930487659472994,
-      "placeRate": 0.2976034338857756
+      "starts": 8391,
+      "winRate": 0.08926230485043499,
+      "placeRate": 0.29746156596353235
     },
     {
       "gapBucket": "~1.0초",
       "achieveBucket": "높음(70%+)",
-      "starts": 2372,
-      "winRate": 0.1357504215851602,
-      "placeRate": 0.3785834738617201
+      "starts": 2377,
+      "winRate": 0.13546487168700042,
+      "placeRate": 0.3782078249894825
     },
     {
       "gapBucket": "~1.5초",
       "achieveBucket": "낮음(~30%)",
-      "starts": 8995,
-      "winRate": 0.04691495275152863,
-      "placeRate": 0.19633129516397999
+      "starts": 8990,
+      "winRate": 0.046941045606229144,
+      "placeRate": 0.196440489432703
     },
     {
       "gapBucket": "~1.5초",
       "achieveBucket": "중간(30~70%)",
-      "starts": 4029,
-      "winRate": 0.08140977910151402,
-      "placeRate": 0.2640853809878382
+      "starts": 4034,
+      "winRate": 0.0813088745661874,
+      "placeRate": 0.2640059494298463
     },
     {
       "gapBucket": "~1.5초",
       "achieveBucket": "높음(70%+)",
       "starts": 981,
       "winRate": 0.11314984709480122,
-      "placeRate": 0.3547400611620795
+      "placeRate": 0.35372069317023447
     },
     {
       "gapBucket": "1.5초+",
