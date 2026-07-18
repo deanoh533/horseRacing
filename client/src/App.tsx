@@ -10,6 +10,7 @@ import { Settings } from './pages/Settings';
 import { Lab } from './pages/Lab';
 import { VersionCompare } from './pages/VersionCompare';
 import { TodayPicks } from './pages/TodayPicks';
+import { Insights } from './pages/Insights';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
           <Route path="/stats" element={<Statistics />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/lab" element={<Lab />} />
+          <Route path="/insights" element={<Insights />} />
           <Route path="/versions" element={<VersionCompare />} />
         </Route>
       </Routes>
