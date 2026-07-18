@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-07-18",
+  "raceDateFrom": 20220225,
+  "raceDateTo": 20260626,
+  "totalStarts": 56645,
+  "formula": "격차=예측 G3F 시간차(as-of 이력) · 달성확률=필요 종반속도 달성 확률(개체 이력 정규근사)",
+  "cells": [
+    {
+      "gapBucket": "~0.5초",
+      "achieveBucket": "낮음(~30%)",
+      "starts": 4796,
+      "winRate": 0.07235195996663886,
+      "placeRate": 0.2518765638031693
+    },
+    {
+      "gapBucket": "~0.5초",
+      "achieveBucket": "중간(30~70%)",
+      "starts": 7508,
+      "winRate": 0.12306872669152903,
+      "placeRate": 0.35082578582844964
+    },
+    {
+      "gapBucket": "~0.5초",
+      "achieveBucket": "높음(70%+)",
+      "starts": 2893,
+      "winRate": 0.1894227445558244,
+      "placeRate": 0.4555824403733149
+    },
+    {
+      "gapBucket": "~1.0초",
+      "achieveBucket": "낮음(~30%)",
+      "starts": 9540,
+      "winRate": 0.0559748427672956,
+      "placeRate": 0.21677148846960168
+    },
+    {
+      "gapBucket": "~1.0초",
+      "achieveBucket": "중간(30~70%)",
+      "starts": 8387,
+      "winRate": 0.08930487659472994,
+      "placeRate": 0.2976034338857756
+    },
+    {
+      "gapBucket": "~1.0초",
+      "achieveBucket": "높음(70%+)",
+      "starts": 2372,
+      "winRate": 0.1357504215851602,
+      "placeRate": 0.3785834738617201
+    },
+    {
+      "gapBucket": "~1.5초",
+      "achieveBucket": "낮음(~30%)",
+      "starts": 8995,
+      "winRate": 0.04691495275152863,
+      "placeRate": 0.19633129516397999
+    },
+    {
+      "gapBucket": "~1.5초",
+      "achieveBucket": "중간(30~70%)",
+      "starts": 4029,
+      "winRate": 0.08140977910151402,
+      "placeRate": 0.2640853809878382
+    },
+    {
+      "gapBucket": "~1.5초",
+      "achieveBucket": "높음(70%+)",
+      "starts": 981,
+      "winRate": 0.11314984709480122,
+      "placeRate": 0.3547400611620795
+    },
+    {
+      "gapBucket": "1.5초+",
+      "achieveBucket": "낮음(~30%)",
+      "starts": 5778,
+      "winRate": 0.033229491173416406,
+      "placeRate": 0.15835929387331257
+    },
+    {
+      "gapBucket": "1.5초+",
+      "achieveBucket": "중간(30~70%)",
+      "starts": 1112,
+      "winRate": 0.05665467625899281,
+      "placeRate": 0.23201438848920863
+    },
+    {
+      "gapBucket": "1.5초+",
+      "achieveBucket": "높음(70%+)",
+      "starts": 254,
+      "winRate": 0.10236220472440945,
+      "placeRate": 0.3188976377952756
+    }
+  ]
+}

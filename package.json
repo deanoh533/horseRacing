@@ -59,7 +59,8 @@
     "backtest:box": "tsx scripts/backtest_box.ts",
     "backtest:box:quarters": "tsx scripts/backtest_box_quarters.ts",
     "db:pull": "tsx scripts/sync_local_db.ts",
-    "db:snapshot": "tsx scripts/snapshot_predictions.ts"
+    "db:snapshot": "tsx scripts/snapshot_predictions.ts",
+    "export:h7": "tsx scripts/export_h7_table.ts"
   },
   "engines": {
     "node": ">=20.0.0"
