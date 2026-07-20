@@ -236,8 +236,8 @@ export function usePredictionsByDate(rcDate: number) {
  * 이번 주(월~일) 강추 후보 — 주간 강추 화면용.
  * 스펙: docs/superpowers/specs/2026-07-17-weekly-picks-design.md §3
  */
-export function useWeeklyPicks() {
-  const { from, to } = weekRange(getTodayRaceDate());
+export function useWeeklyPicks(anchorDate: number = getTodayRaceDate()) {
+  const { from, to } = weekRange(anchorDate);
   return useQuery({
     queryKey: ['weekly-picks', from],
     queryFn: async (): Promise<Prediction[]> => {
