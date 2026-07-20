@@ -23,6 +23,15 @@ function fmtDate(d: number): string {
   return `${m}/${day}(${DOW[dow]})`;
 }
 
+/** YYYYMMDD 숫자가 실제 존재하는 달력 날짜인지 확인 (예: 20260230, 20261301은 false). */
+function isValidYmd(n: number): boolean {
+  const y = Math.floor(n / 10000);
+  const m = Math.floor(n / 100) % 100;
+  const d = n % 100;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
 /** 경주 카드 (다가오는/지난 공용). showResult=true면 픽마다 실착순 ✅/❌ 표기(지난 경주는 날짜 그룹이 없어 Link에 날짜도 표기). */
 function RaceCard({
   raceKey, horses, styles, showResult,
@@ -73,17 +82,19 @@ export function TodayPicks() {
   const thisWeekMonday = weekRange(today).from;
 
   const weekParam = searchParams.get('week');
-  const parsedWeek = weekParam && /^\d{8}$/.test(weekParam) ? Number(weekParam) : null;
+  const parsedWeek =
+    weekParam && /^\d{8}$/.test(weekParam) && isValidYmd(Number(weekParam)) ? Number(weekParam) : null;
   const anchor = parsedWeek ?? today;
   const { from, to } = weekRange(anchor);
   const isCurrentWeek = from === thisWeekMonday;
 
-  // URL의 week 값이 그 주의 월요일이 아니면(예: 수동 편집) 월요일로 정규화
+  // URL의 week 값이 그 주의 월요일이 아니거나(예: 수동 편집) 미래 주면 정규화
   useEffect(() => {
-    if (parsedWeek !== null && parsedWeek !== from) {
-      setSearchParams({ week: String(from) }, { replace: true });
+    const clamped = Math.min(from, thisWeekMonday);
+    if (parsedWeek !== null && parsedWeek !== clamped) {
+      setSearchParams({ week: String(clamped) }, { replace: true });
     }
-  }, [parsedWeek, from, setSearchParams]);
+  }, [parsedWeek, from, thisWeekMonday, setSearchParams]);
 
   const goToWeek = (monday: number) => setSearchParams({ week: String(monday) });
 
@@ -160,7 +171,7 @@ export function TodayPicks() {
       <button
         type="button"
         onClick={() => goToWeek(addDaysToYmd(from, 7))}
-        disabled={isCurrentWeek}
+        disabled={from >= thisWeekMonday}
         aria-label="다음 주"
         className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] disabled:opacity-30 disabled:hover:bg-transparent"
       >
