@@ -228,7 +228,7 @@ export function TodayPicks() {
 
       {pastRaces.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-[var(--color-text-secondary)]">지난 경주 (이번 주 결과)</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-text-secondary)]">지난 경주{isCurrentWeek ? ' (이번 주 결과)' : ''}</h2>
           {pastRaces.map(([key, horses]) => (
             <RaceCard key={key} raceKey={key} horses={horses} styles={stylesByRace.get(key)} showResult={true} />
           ))}
