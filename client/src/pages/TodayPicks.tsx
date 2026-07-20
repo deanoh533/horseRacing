@@ -1,6 +1,7 @@
-// client/src/pages/TodayPicks.tsx — 이번 주 강추 (월~일, 다가오는/지난 섹션)
-import { Link } from 'react-router-dom';
-import { useMemo } from 'react';
+// client/src/pages/TodayPicks.tsx — 주간 강추 (월~일, 다가오는/지난 섹션 + 지난 주 탐색)
+import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useWeeklyPicks, useRaceEntryNamesByRange, useHorseSectionalAbilityByNames } from '../lib/queries';
 import { classifyPick } from '../lib/selectivePicks';
 import { PickBadge } from '../components/PickBadge';
@@ -8,7 +9,7 @@ import { RacePaceBadge } from '../components/RacePaceBadge';
 import { classifyRunningStyle, type RunningStyle } from '../lib/runningStyle';
 import { fmtPct } from '../lib/sectional';
 import { getTodayRaceDate } from '../lib/supabase';
-import { weekRange } from '../lib/week';
+import { addDaysToYmd, weekRange } from '../lib/week';
 import type { Prediction } from '../lib/supabase';
 
 const MEET_NAME: Record<number, string> = { 1: '서울', 2: '제주', 3: '부경' };
@@ -67,8 +68,26 @@ function RaceCard({
 }
 
 export function TodayPicks() {
-  const { from, to } = weekRange(getTodayRaceDate());
-  const { data, isLoading } = useWeeklyPicks();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const today = getTodayRaceDate();
+  const thisWeekMonday = weekRange(today).from;
+
+  const weekParam = searchParams.get('week');
+  const parsedWeek = weekParam && /^\d{8}$/.test(weekParam) ? Number(weekParam) : null;
+  const anchor = parsedWeek ?? today;
+  const { from, to } = weekRange(anchor);
+  const isCurrentWeek = from === thisWeekMonday;
+
+  // URL의 week 값이 그 주의 월요일이 아니면(예: 수동 편집) 월요일로 정규화
+  useEffect(() => {
+    if (parsedWeek !== null && parsedWeek !== from) {
+      setSearchParams({ week: String(from) }, { replace: true });
+    }
+  }, [parsedWeek, from, setSearchParams]);
+
+  const goToWeek = (monday: number) => setSearchParams({ week: String(monday) });
+
+  const { data, isLoading } = useWeeklyPicks(anchor);
 
   const picks = useMemo(
     () => (data ?? []).filter((p) => classifyPick(p.p_top3) !== null),
@@ -127,20 +146,59 @@ export function TodayPicks() {
 
   if (isLoading) return <div className="text-[var(--color-text-secondary)]">불러오는 중…</div>;
 
+  const weekNav = (
+    <div className="flex items-center gap-2 text-sm">
+      <button
+        type="button"
+        onClick={() => goToWeek(addDaysToYmd(from, -7))}
+        aria-label="이전 주"
+        className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)]"
+      >
+        <ChevronLeft size={16} />
+      </button>
+      <span className="font-medium">{fmtDate(from)} ~ {fmtDate(to)}</span>
+      <button
+        type="button"
+        onClick={() => goToWeek(addDaysToYmd(from, 7))}
+        disabled={isCurrentWeek}
+        aria-label="다음 주"
+        className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] disabled:opacity-30 disabled:hover:bg-transparent"
+      >
+        <ChevronRight size={16} />
+      </button>
+      {!isCurrentWeek && (
+        <button
+          type="button"
+          onClick={() => goToWeek(thisWeekMonday)}
+          className="ml-1 text-xs text-[var(--color-accent-cyan)] hover:underline"
+        >
+          이번 주로
+        </button>
+      )}
+    </div>
+  );
+
   if (picks.length === 0) {
     return (
-      <div className="py-12 text-center text-[var(--color-text-secondary)]">
-        <p className="text-lg mb-1">이번 주 강추 없음</p>
-        <p className="text-sm">기준(연승 확률 임계값)을 넘는 출주마가 없습니다. 출마표는 수·목·금 오후에 도착합니다.</p>
+      <div className="space-y-4">
+        <h1 className="text-xl font-semibold">{isCurrentWeek ? '이번 주 강추' : '지난 강추'}</h1>
+        {weekNav}
+        <div className="py-12 text-center text-[var(--color-text-secondary)]">
+          <p className="text-lg mb-1">선택한 주 강추 없음</p>
+          {isCurrentWeek && (
+            <p className="text-sm">기준(연승 확률 임계값)을 넘는 출주마가 없습니다. 출마표는 수·목·금 오후에 도착합니다.</p>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">이번 주 강추</h1>
+      <h1 className="text-xl font-semibold">{isCurrentWeek ? '이번 주 강추' : '지난 강추'}</h1>
+      {weekNav}
       <p className="text-sm text-[var(--color-text-secondary)]">
-        {fmtDate(from)} ~ {fmtDate(to)} · 보정 연승확률 기준 강추/주목 {picks.length}마리 · {raceCount}경주
+        보정 연승확률 기준 강추/주목 {picks.length}마리 · {raceCount}경주
       </p>
 
       {upcomingByDate.length > 0 && (
