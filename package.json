@@ -38,6 +38,7 @@
     "probe:pace-form": "tsx scripts/probe_pace_form.ts",
     "probe:pace-actual": "tsx scripts/probe_pace_actual.ts",
     "export:pace-par": "tsx scripts/export_pace_par.ts",
+    "check:pace-par": "tsx scripts/check_pace_par.ts",
     "sync:pg": "tsx scripts/sync_daily_pg.ts",
     "test": "vitest",
     "test:run": "vitest run",
