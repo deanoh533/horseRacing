@@ -13,6 +13,8 @@ const CUTOFF = 99991231; // all-time (측정 기준선)
 async function main() {
   const sb = await getLocalDb();
   const rows: PaceParSourceRow[] = [];
+  // pacePar.ts의 loadPaceParSource와 같은 페치를 의도적으로 재현 — 그 로더는 unexported +
+  // 모듈 캐시 결합이라 import 불가. 스크립트를 self-contained로 두려는 파일범위 절충(중복 이유).
   const PAGE = 5000;
   for (let off = 0; ; off += PAGE) {
     const { data, error } = await sb.from('race_sectional_stats')
