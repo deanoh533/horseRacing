@@ -642,6 +642,38 @@ export function useRaceEntryNamesByRange(from: number | null, to: number | null)
 }
 
 /**
+ * 이번 주(월~일) 경주별 초반 페이스 실측 — 지난 경주 배지의 실측 표시용.
+ * race_sectional_stats에서 avg_s1f·rc_dist만. 지난 경주 없으면 from/to=null로 스킵.
+ */
+export function useRaceSectionalStatsByRange(from: number | null, to: number | null) {
+  return useQuery({
+    queryKey: ['race-sectional-range', from, to],
+    queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; rc_dist: number | null; avg_s1f: number | null }>> => {
+      const rows: Array<{ race_date: number; meet: number; rc_no: number; rc_dist: number | null; avg_s1f: number | null }> = [];
+      const PAGE = 1000;
+      for (let off = 0; ; off += PAGE) {
+        const { data, error } = await supabase
+          .from('race_sectional_stats')
+          .select('race_date, meet, rc_no, rc_dist, avg_s1f')
+          .gte('race_date', from!)
+          .lte('race_date', to!)
+          .order('race_date')
+          .order('meet')
+          .order('rc_no')
+          .range(off, off + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < PAGE) break;
+      }
+      return rows;
+    },
+    enabled: from != null && to != null,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
  * 거리 카테고리별 마별 주행 성향 (horse_running_style_by_distance view)
  *  - 한 말이 short/middle/long 거리에서 다른 ratio 보일 수 있음
  *  - 펼침 영역 "거리별 성향" 표시용

@@ -2,7 +2,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useWeeklyPicks, useRaceEntryNamesByRange, useHorseSectionalAbilityByNames } from '../lib/queries';
+import { useWeeklyPicks, useRaceEntryNamesByRange, useHorseSectionalAbilityByNames, useRaceSectionalStatsByRange } from '../lib/queries';
 import { classifyPick } from '../lib/selectivePicks';
 import { PickBadge } from '../components/PickBadge';
 import { RacePaceBadge } from '../components/RacePaceBadge';
@@ -34,12 +34,13 @@ function isValidYmd(n: number): boolean {
 
 /** 경주 카드 (다가오는/지난 공용). showResult=true면 픽마다 실착순 ✅/❌ 표기(지난 경주는 날짜 그룹이 없어 Link에 날짜도 표기). */
 function RaceCard({
-  raceKey, horses, styles, showResult,
+  raceKey, horses, styles, showResult, actual,
 }: {
   raceKey: string;
   horses: Prediction[];
   styles: RunningStyle[] | undefined;
   showResult: boolean;
+  actual?: { avgS1f: number | null; meet: number; dist: number | null };
 }) {
   const h0 = horses[0]!;
   return (
@@ -52,7 +53,7 @@ function RaceCard({
       </Link>
       {styles && (
         <div className="mt-1.5">
-          <RacePaceBadge styles={styles} />
+          <RacePaceBadge styles={styles} actual={actual} />
         </div>
       )}
       <ul className="mt-2 space-y-1">
@@ -155,6 +156,17 @@ export function TodayPicks() {
     return { upcomingByDate: [...byDate.entries()], pastRaces: past, raceCount: byRace.size };
   }, [picks]);
 
+  // 지난 경주 실측 페이스 — 지난 경주 있을 때만 조회(훅 규칙 위해 항상 호출, 인자 null 스킵)
+  const hasPast = pastRaces.length > 0;
+  const { data: sectionalRows } = useRaceSectionalStatsByRange(hasPast ? from : null, hasPast ? to : null);
+  const sectionalByKey = useMemo(() => {
+    const m = new Map<string, { avgS1f: number | null; meet: number; dist: number | null }>();
+    for (const r of sectionalRows ?? []) {
+      m.set(`${r.race_date}-${r.meet}-${r.rc_no}`, { avgS1f: r.avg_s1f, meet: r.meet, dist: r.rc_dist });
+    }
+    return m;
+  }, [sectionalRows]);
+
   if (isLoading) return <div className="text-[var(--color-text-secondary)]">불러오는 중…</div>;
 
   const weekNav = (
@@ -230,7 +242,7 @@ export function TodayPicks() {
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-[var(--color-text-secondary)]">지난 경주{isCurrentWeek ? ' (이번 주 결과)' : ''}</h2>
           {pastRaces.map(([key, horses]) => (
-            <RaceCard key={key} raceKey={key} horses={horses} styles={stylesByRace.get(key)} showResult={true} />
+            <RaceCard key={key} raceKey={key} horses={horses} styles={stylesByRace.get(key)} showResult={true} actual={sectionalByKey.get(key)} />
           ))}
         </section>
       )}
