@@ -73,9 +73,14 @@ describe('labelActualPace — avg_s1f vs par → 실측 페이스 (서버 labelP
   it('par보다 충분히 느림(+0.15) = SLOW', () => {
     expect(labelActualPace(somePar + 0.15, meet, dist)).toBe('SLOW');
   });
-  it('경계 안쪽(±0.05) = NORMAL', () => {
-    expect(labelActualPace(somePar - 0.05, meet, dist)).toBe('NORMAL');
-    expect(labelActualPace(somePar + 0.05, meet, dist)).toBe('NORMAL');
+  it('경계 바로 바깥(±0.12) = HOT / SLOW', () => {
+    // −0.11/+0.11 임계를 0.01만 넘김 → 임계값 회귀(−0.08·−0.15 등)를 잡음. FP 오차(~1e-15)≪0.01로 안전.
+    expect(labelActualPace(somePar - 0.12, meet, dist)).toBe('HOT');
+    expect(labelActualPace(somePar + 0.12, meet, dist)).toBe('SLOW');
+  });
+  it('경계 바로 안쪽(±0.10) = NORMAL', () => {
+    expect(labelActualPace(somePar - 0.10, meet, dist)).toBe('NORMAL');
+    expect(labelActualPace(somePar + 0.10, meet, dist)).toBe('NORMAL');
   });
   it('par 없는 버킷 → null', () => {
     expect(labelActualPace(14, 9, 99999)).toBeNull();
@@ -105,10 +110,14 @@ describe('paceMatchLevel — HOT<NORMAL<SLOW ordinal 차이', () => {
 });
 
 describe('PACE_MATCH_UI', () => {
-  it('세 단계 모두 symbol·label·className 보유', () => {
+  it('세 단계 symbol·label 정확 값 + className 보유', () => {
+    expect(PACE_MATCH_UI.exact.symbol).toBe('✅');
+    expect(PACE_MATCH_UI.exact.label).toBe('예측 적중');
+    expect(PACE_MATCH_UI.adjacent.symbol).toBe('≈');
+    expect(PACE_MATCH_UI.adjacent.label).toBe('근접');
+    expect(PACE_MATCH_UI.opposite.symbol).toBe('❌');
+    expect(PACE_MATCH_UI.opposite.label).toBe('빗나감');
     for (const m of ['exact', 'adjacent', 'opposite'] as const) {
-      expect(PACE_MATCH_UI[m].symbol).toBeTruthy();
-      expect(PACE_MATCH_UI[m].label).toBeTruthy();
       expect(PACE_MATCH_UI[m].className).toBeTruthy();
     }
   });
