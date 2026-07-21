@@ -27,6 +27,7 @@ import {
   useTrainerStats,
   useJockeyHorseComboBatch,
   useJockeyRecentForm,
+  useRaceSectionalStats,
 } from '../lib/queries';
 import { supabase, type RaceEntry, type Race } from '../lib/supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
@@ -96,6 +97,8 @@ export function RaceEntries() {
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
   const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
   const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
+  // F-001 실측: 경기 후 이 경주 초반 페이스(avg_s1f). 사전(결과 전)이면 null → 실측 줄 자동 생략.
+  const { data: sectional } = useRaceSectionalStats(rcDate, meet, rcNo);
 
   const hrNames = useMemo(() => (horses ?? []).map((h) => h.hr_name), [horses]);
   const historyQueries = useMultipleHorseHistories(hrNames, rcDate);
@@ -174,7 +177,10 @@ export function RaceEntries() {
       {/* F-001: 경주 페이스 예상 */}
       {hrNames.length > 0 && (
         <div className="bg-[var(--color-bg-surface)] rounded-xl p-3 border border-[var(--color-bg-elevated)]">
-          <RacePaceBadge styles={paceStyles} />
+          <RacePaceBadge
+            styles={paceStyles}
+            actual={{ avgS1f: sectional?.avg_s1f ?? null, meet, dist: sectional?.rc_dist ?? race?.rc_dist ?? null }}
+          />
         </div>
       )}
 
