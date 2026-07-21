@@ -36,6 +36,7 @@
     "probe:blend": "tsx scripts/probe_odds_blend.ts",
     "probe:blend:picks": "tsx scripts/probe_blend_picks.ts",
     "probe:pace-form": "tsx scripts/probe_pace_form.ts",
+    "probe:pace-actual": "tsx scripts/probe_pace_actual.ts",
     "sync:pg": "tsx scripts/sync_daily_pg.ts",
     "test": "vitest",
     "test:run": "vitest run",
