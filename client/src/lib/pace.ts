@@ -6,6 +6,7 @@
  * 스펙: docs/superpowers/specs/2026-07-16-f001-pace-ui-design.md
  */
 import type { RunningStyle } from './runningStyle';
+import paceParJson from '../config/pace_par.json';
 
 export type PaceType = 'HOT' | 'NORMAL' | 'SLOW';
 
@@ -55,4 +56,41 @@ export const PACE_UI: Record<PaceType, { emoji: string; label: string; insight: 
     insight: '느린 전개 실측: 추입마 최악(막판 가속 여지 없음), 선입마 유리',
     className: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
   },
+};
+
+const PACE_PAR = paceParJson as Record<string, number>;
+
+/**
+ * 실측 페이스 — 그 경주 avg_s1f가 par(meet×거리 중앙값)보다 빨랐/느렸나.
+ * 서버 SSOT: src/engine/features/paceForm.ts labelPastRacePace (±0.11초). par: src/engine/pacePar.ts.
+ * par JSON은 npm run export:pace-par로 생성.
+ */
+export function labelActualPace(
+  avgS1f: number | null,
+  meet: number,
+  dist: number | null
+): PaceType | null {
+  if (avgS1f == null || !(avgS1f > 0) || dist == null) return null;
+  const par = PACE_PAR[`${meet}|${dist}`];
+  if (par == null) return null;
+  const d = avgS1f - par;
+  if (d <= -0.11) return 'HOT';
+  if (d >= 0.11) return 'SLOW';
+  return 'NORMAL';
+}
+
+export type PaceMatch = 'exact' | 'adjacent' | 'opposite';
+
+const PACE_ORD: Record<PaceType, number> = { HOT: 0, NORMAL: 1, SLOW: 2 };
+
+/** 예측 vs 실측 3단계 일치도 (HOT<NORMAL<SLOW ordinal 차이). */
+export function paceMatchLevel(predicted: PaceType, actual: PaceType): PaceMatch {
+  const diff = Math.abs(PACE_ORD[predicted] - PACE_ORD[actual]);
+  return diff === 0 ? 'exact' : diff === 1 ? 'adjacent' : 'opposite';
+}
+
+export const PACE_MATCH_UI: Record<PaceMatch, { symbol: string; label: string; className: string }> = {
+  exact: { symbol: '✅', label: '예측 적중', className: 'text-emerald-300' },
+  adjacent: { symbol: '≈', label: '근접', className: 'text-amber-300' },
+  opposite: { symbol: '❌', label: '빗나감', className: 'text-red-400' },
 };

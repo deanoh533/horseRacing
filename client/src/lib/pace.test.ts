@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { computeRacePace, PACE_UI } from './pace';
+import { computeRacePace, PACE_UI, labelActualPace, paceMatchLevel, PACE_MATCH_UI } from './pace';
+import paceParJson from '../config/pace_par.json';
 import { classifyRunningStyle, type RunningStyle } from './runningStyle';
 
 const S = (s: string) => s as RunningStyle;
@@ -55,6 +56,60 @@ describe('PACE_UI', () => {
       expect(PACE_UI[t].label).toBeTruthy();
       expect(PACE_UI[t].insight).toContain('실측');
       expect(PACE_UI[t].className).toMatch(/bg-.+text-.+border-/s);
+    }
+  });
+});
+
+describe('labelActualPace — avg_s1f vs par → 실측 페이스 (서버 labelPastRacePace 미러)', () => {
+  const [someKey, somePar] = Object.entries(paceParJson as Record<string, number>)[0]!;
+  const [meet, dist] = someKey.split('|').map(Number) as [number, number];
+
+  it('par 정확히 = NORMAL', () => {
+    expect(labelActualPace(somePar, meet, dist)).toBe('NORMAL');
+  });
+  it('par보다 충분히 빠름(−0.15) = HOT', () => {
+    expect(labelActualPace(somePar - 0.15, meet, dist)).toBe('HOT');
+  });
+  it('par보다 충분히 느림(+0.15) = SLOW', () => {
+    expect(labelActualPace(somePar + 0.15, meet, dist)).toBe('SLOW');
+  });
+  it('경계 안쪽(±0.05) = NORMAL', () => {
+    expect(labelActualPace(somePar - 0.05, meet, dist)).toBe('NORMAL');
+    expect(labelActualPace(somePar + 0.05, meet, dist)).toBe('NORMAL');
+  });
+  it('par 없는 버킷 → null', () => {
+    expect(labelActualPace(14, 9, 99999)).toBeNull();
+  });
+  it('avgS1f null/0 → null', () => {
+    expect(labelActualPace(null, meet, dist)).toBeNull();
+    expect(labelActualPace(0, meet, dist)).toBeNull();
+  });
+});
+
+describe('paceMatchLevel — HOT<NORMAL<SLOW ordinal 차이', () => {
+  it('같으면 exact', () => {
+    expect(paceMatchLevel('HOT', 'HOT')).toBe('exact');
+    expect(paceMatchLevel('NORMAL', 'NORMAL')).toBe('exact');
+    expect(paceMatchLevel('SLOW', 'SLOW')).toBe('exact');
+  });
+  it('한 칸 차이 adjacent', () => {
+    expect(paceMatchLevel('HOT', 'NORMAL')).toBe('adjacent');
+    expect(paceMatchLevel('NORMAL', 'HOT')).toBe('adjacent');
+    expect(paceMatchLevel('NORMAL', 'SLOW')).toBe('adjacent');
+    expect(paceMatchLevel('SLOW', 'NORMAL')).toBe('adjacent');
+  });
+  it('정반대 opposite', () => {
+    expect(paceMatchLevel('HOT', 'SLOW')).toBe('opposite');
+    expect(paceMatchLevel('SLOW', 'HOT')).toBe('opposite');
+  });
+});
+
+describe('PACE_MATCH_UI', () => {
+  it('세 단계 모두 symbol·label·className 보유', () => {
+    for (const m of ['exact', 'adjacent', 'opposite'] as const) {
+      expect(PACE_MATCH_UI[m].symbol).toBeTruthy();
+      expect(PACE_MATCH_UI[m].label).toBeTruthy();
+      expect(PACE_MATCH_UI[m].className).toBeTruthy();
     }
   });
 });
