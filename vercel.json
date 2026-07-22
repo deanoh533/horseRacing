@@ -6,6 +6,6 @@
   "installCommand": "echo 'skip root install (handled in buildCommand)'",
   "devCommand": "cd client && npm run dev",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
