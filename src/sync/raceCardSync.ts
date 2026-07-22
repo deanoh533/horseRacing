@@ -9,14 +9,14 @@
  * CLI:
  *   tsx src/sync/raceCardSync.ts --date 20260530
  *   tsx src/sync/raceCardSync.ts --date 20260530 --meet 1
- *   tsx src/sync/raceCardSync.ts                    # 날짜 생략 → 오늘+2일 (발표일+2)
- *   tsx src/sync/raceCardSync.ts --fail-on-empty    # 0건이면 exit 1 (자동화용)
+ *   tsx src/sync/raceCardSync.ts                    # 날짜 생략 → 이번 주말 남은 경주(금·토·일) 전체
+ *   tsx src/sync/raceCardSync.ts --fail-on-empty    # 전 날짜 0건이면 exit 1 (자동화용)
  */
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
-import { yyyymmddOffset, isEmptySync } from '../utils/syncCli.js';
+import { upcomingCardDates, isEmptySync } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
 
@@ -237,16 +237,21 @@ async function main() {
     }
   }
 
+  // --date 명시 시 단일 날짜, 미지정 시 이번 주말 남은 경주(금·토·일) 전체.
+  // (출마표는 수요일에 3일치 동시 발표 → 각 실행이 남은 주말을 다 긁어 조기 노출 + 임박 갱신)
+  const dates = rcDate ? [rcDate] : upcomingCardDates();
   if (!rcDate) {
-    // 출마표 발표일 → 경주일은 항상 +2일 (수 발표=금경, 목=토경, 금=일경)
-    rcDate = yyyymmddOffset(2);
-    console.log(`📅 날짜 인자 없음 → 이틀 뒤(${rcDate})로 자동 설정 (발표일+2)`);
+    console.log(`📅 날짜 인자 없음 → 이번 주말 대상 [${dates.join(', ')}] (발표일+2 ~ 일요일)`);
   }
 
-  const results = await syncRaceCards({ rcDate, meets });
+  const results: RaceCardSyncResult[] = [];
+  for (const d of dates) {
+    results.push(...(await syncRaceCards({ rcDate: d, meets })));
+  }
+
   console.log('\n' + '='.repeat(50));
   for (const r of results) {
-    console.log(`  meet=${r.meet}: ${r.racesSynced} races / ${r.horsesSynced} horses / ${r.errors.length} errors`);
+    console.log(`  ${r.rcDate} meet=${r.meet}: ${r.racesSynced} races / ${r.horsesSynced} horses / ${r.errors.length} errors`);
   }
 
   if (failOnEmpty && isEmptySync(results)) {
