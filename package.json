@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "typecheck:api": "tsc -p api/tsconfig.json",
     "start": "node dist/index.js",
     "sync": "tsx src/sync/dailySync.ts",
     "sync:cards": "tsx src/sync/raceCardSync.ts",

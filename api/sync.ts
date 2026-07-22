@@ -22,3 +22,59 @@ export function parseSyncBody(raw: unknown): SyncParse {
   if (typeof body.date === 'string' && /^\d{8}$/.test(body.date)) inputs.date = body.date;
   return { ok: true, inputs };
 }
+
+export const config = { runtime: 'edge' };
+
+const REPO = 'deanoh533/horseRacing';
+const WORKFLOW = 'sync.yml';
+
+function json(obj: unknown, status: number): Response {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method !== 'POST') return json({ error: 'POST만 허용' }, 405);
+
+  const secret = process.env.SYNC_SECRET;
+  const token = process.env.GH_DISPATCH_TOKEN;
+  if (!secret || !token) {
+    return json({ error: '서버 환경변수 미설정(SYNC_SECRET/GH_DISPATCH_TOKEN)' }, 500);
+  }
+  if (req.headers.get('x-sync-key') !== secret) return json({ error: '인증 실패(암구호 불일치)' }, 401);
+
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return json({ error: '본문 JSON 파싱 실패' }, 400);
+  }
+  const parsed = parseSyncBody(raw);
+  if (!parsed.ok) return json({ error: parsed.error }, 400);
+
+  const gh = await fetch(
+    `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'content-type': 'application/json',
+        'User-Agent': 'kra-analyzer-sync',
+      },
+      body: JSON.stringify({ ref: 'main', inputs: parsed.inputs }),
+    }
+  );
+
+  if (gh.status === 204) {
+    return json(
+      { ok: true, target: parsed.inputs.target, date: parsed.inputs.date ?? '(자동)' },
+      200
+    );
+  }
+  const detail = (await gh.text()).slice(0, 300);
+  return json({ error: `GitHub 응답 ${gh.status}`, detail }, 502);
+}
