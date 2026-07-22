@@ -98,14 +98,13 @@ npm run test:run     # vitest 단위 테스트
 
 | 요일 | 이벤트 | 명령 |
 |---|---|---|
-| 수 오후 | 금경 출마표 발표 | `sync:cards --date YYYYMMDD` |
-| 목 오후 | 토경 출마표 발표 | 〃 |
-| 금 오후 | 일경 출마표 발표 | 〃 |
+| 수 오후 | **금·토·일 출마표 일괄 발표** (서울+부경 동시) | `sync:cards` (인자 생략 시 주말 3일치) |
 | 금 밤 | 금경 결과 도착 | `sync --date YYYYMMDD` |
 | 토 밤 | 토경 결과 도착 | 〃 |
 | 일 밤 | 일경 결과 도착 | 〃 |
 | 주중 | 가중치 학습 (선택) | `apply_learned_weights.ts` |
 
+> 출마표는 수요일 오후에 금·토·일 3일치가 한 번에 발표된다(docs/data_lifecycle.md). 무인 cron은 수·목·금 15시 실행되며 각 회차가 **남은 주말 전체**를 받는다(수=금토일, 목=토일, 금=일 — 수요일 조기 노출 + 목·금 재실행으로 제외마 등 임박 변경 갱신).
 > 위 sync 명령은 2026-07-12부터 GitHub Actions로 무인 실행 (수동 실행도 가능) — .github/workflows/sync.yml
 
 상세 → [docs/data_lifecycle.md](docs/data_lifecycle.md)
