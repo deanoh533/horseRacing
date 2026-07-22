@@ -11,6 +11,14 @@ export function addDaysToYmd(ymd: number, days: number): number {
   return dt.getUTCFullYear() * 10000 + (dt.getUTCMonth() + 1) * 100 + dt.getUTCDate();
 }
 
+/** YYYYMMDD 정수 → "YYYY-MM-DD" 표시용. null/undefined/0/비8자리 → "—". */
+export function ymdToDisplay(ymd: number | null | undefined): string {
+  if (!ymd || ymd <= 0) return '—';
+  const s = String(ymd);
+  if (s.length !== 8) return '—';
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+}
+
 /**
  * 주간 경계 (주간 강추): YYYYMMDD 숫자가 속한 주의 월요일(from)~일요일(to).
  * 입력이 이미 KST 기준 날짜 숫자이므로 UTC 산술로 계산 — 실행 머신 TZ 무관.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { weekRange, addDaysToYmd } from './week';
+import { weekRange, addDaysToYmd, ymdToDisplay } from './week';
 
 describe('weekRange — YYYYMMDD가 속한 월~일 주간', () => {
   it('평일(금 20260717) → 그 주 월 20260713 ~ 일 20260719', () => {
@@ -28,5 +28,22 @@ describe('addDaysToYmd — YYYYMMDD에 일수 더하기', () => {
   });
   it('음수 이동(이전 주): 20260717 - 7 = 20260710', () => {
     expect(addDaysToYmd(20260717, -7)).toBe(20260710);
+  });
+});
+
+describe('ymdToDisplay — YYYYMMDD를 대시 날짜로', () => {
+  it('YYYYMMDD 정수를 "YYYY-MM-DD"로', () => {
+    expect(ymdToDisplay(20260712)).toBe('2026-07-12');
+  });
+  it('한 자리 월·일 zero-pad 유지', () => {
+    expect(ymdToDisplay(20260101)).toBe('2026-01-01');
+  });
+  it('null/undefined/0 → 대시', () => {
+    expect(ymdToDisplay(null)).toBe('—');
+    expect(ymdToDisplay(undefined)).toBe('—');
+    expect(ymdToDisplay(0)).toBe('—');
+  });
+  it('8자리 아님 → 대시', () => {
+    expect(ymdToDisplay(202607)).toBe('—');
   });
 });

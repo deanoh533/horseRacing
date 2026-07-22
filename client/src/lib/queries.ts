@@ -1246,3 +1246,67 @@ export function useHorseGradeDistStatsBatch(
     staleTime: 24 * 60 * 60 * 1000,
   });
 }
+
+export interface SyncStatus {
+  latestCardDate: number | null; // races 최신 race_date (출마표가 어디까지 로드됐나)
+  raceCount: number; // races 총 행 수
+  latestResultDate: number | null; // predictions에서 actual_ord 채워진 최신 race_date
+  lastCreatedAt: string | null; // race_entries 최신 created_at (마지막 출마표 수집 시각)
+}
+
+/**
+ * 설정탭 동기화 현황 — 최신 출마표 경주일 / 누적 경주 수 / 결과 기록 경주일 / 마지막 수집 시각.
+ * 각 조회를 개별 try/catch→fallback으로 감싸 하나가 실패해도 패널 전체가 깨지지 않게 한다.
+ */
+export function useSyncStatus() {
+  return useQuery({
+    queryKey: ['sync-status'],
+    queryFn: async (): Promise<SyncStatus> => {
+      const safe = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await fn();
+        } catch {
+          return fallback;
+        }
+      };
+      const [latestCardDate, raceCount, latestResultDate, lastCreatedAt] = await Promise.all([
+        safe(async () => {
+          const { data } = await supabase
+            .from('races')
+            .select('race_date')
+            .order('race_date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          return (data?.race_date as number | undefined) ?? null;
+        }, null as number | null),
+        safe(async () => {
+          const { count } = await supabase
+            .from('races')
+            .select('*', { count: 'exact', head: true });
+          return count ?? 0;
+        }, 0),
+        safe(async () => {
+          const { data } = await supabase
+            .from('predictions')
+            .select('race_date')
+            .not('actual_ord', 'is', null)
+            .order('race_date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          return (data?.race_date as number | undefined) ?? null;
+        }, null as number | null),
+        safe(async () => {
+          const { data } = await supabase
+            .from('race_entries')
+            .select('created_at')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          return (data?.created_at as string | undefined) ?? null;
+        }, null as string | null),
+      ]);
+      return { latestCardDate, raceCount, latestResultDate, lastCreatedAt };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
