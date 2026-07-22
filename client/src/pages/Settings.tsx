@@ -1,14 +1,57 @@
+import { useEffect, useState } from 'react';
 import { RefreshCw, Brain, Cpu, KeyRound, ExternalLink, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useActiveModelVersion, useSyncStatus } from '../lib/queries';
 import { ymdToDisplay } from '../lib/week';
 
-// 수동 동기화 딥링크 — GitHub Actions Run workflow 페이지 (workflow_dispatch: target·date)
+// 수동 실행 보조 링크 — GitHub Actions Run workflow 페이지 (실행은 /api/sync 함수가 대리)
 const ACTIONS_URL = 'https://github.com/deanoh533/horseRacing/actions/workflows/sync.yml';
 
 export function Settings() {
   const { data: model, isLoading: modelLoading } = useActiveModelVersion();
   const { data: sync } = useSyncStatus();
+
+  const [syncKey, setSyncKey] = useState('');
+  const [syncMsg, setSyncMsg] = useState<{ tone: 'ok' | 'err' | 'run'; text: string } | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSyncKey(localStorage.getItem('kra_sync_key') ?? '');
+  }, []);
+
+  const saveKey = (v: string) => {
+    setSyncKey(v);
+    localStorage.setItem('kra_sync_key', v);
+  };
+
+  const runSync = async (target: 'racecard' | 'results') => {
+    if (!syncKey.trim()) {
+      setSyncMsg({ tone: 'err', text: '먼저 암구호를 입력하세요.' });
+      return;
+    }
+    setRunning(target);
+    setSyncMsg({ tone: 'run', text: '실행 요청 중…' });
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-sync-key': syncKey.trim() },
+        body: JSON.stringify({ target }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (res.ok) {
+        setSyncMsg({
+          tone: 'ok',
+          text: `✅ ${target === 'racecard' ? '출마표' : '결과'} 실행 시작됨 — 1~2분 뒤 반영.`,
+        });
+      } else {
+        setSyncMsg({ tone: 'err', text: `❌ 실패: ${data.error ?? res.status}` });
+      }
+    } catch (e) {
+      setSyncMsg({ tone: 'err', text: `❌ 네트워크 오류: ${(e as Error).message}` });
+    } finally {
+      setRunning(null);
+    }
+  };
 
   const itemCount = model?.weights ? Object.keys(model.weights).length : null;
 
@@ -76,32 +119,58 @@ export function Settings() {
         </div>
 
         <div className="mt-4 pt-4 border-t border-[var(--color-bg-elevated)]">
-          <h3 className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2">
-            수동 실행 (GitHub Actions)
-          </h3>
+          <h3 className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2">수동 실행</h3>
+          <div className="mb-2">
+            <input
+              type="password"
+              value={syncKey}
+              onChange={(e) => saveKey(e.target.value)}
+              placeholder="암구호 (SYNC_SECRET)"
+              className="w-full bg-[var(--color-bg-elevated)] px-3 py-2 rounded text-sm"
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => runSync('racecard')}
+              disabled={running !== null}
+              className="px-3 py-2 text-sm bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black rounded transition-colors disabled:opacity-50"
+            >
+              출마표 실행
+            </button>
+            <button
+              onClick={() => runSync('results')}
+              disabled={running !== null}
+              className="px-3 py-2 text-sm bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black rounded transition-colors disabled:opacity-50"
+            >
+              결과 실행
+            </button>
             <a
               href={ACTIONS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black rounded transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)] rounded transition-colors"
             >
-              출마표 수동 실행 <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-            <a
-              href={ACTIONS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black rounded transition-colors"
-            >
-              결과 수동 실행 <ExternalLink className="w-3.5 h-3.5" />
+              Actions에서 보기 <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
+          {syncMsg && (
+            <div
+              className={`mt-2 text-xs ${
+                syncMsg.tone === 'ok'
+                  ? 'text-[var(--color-success)]'
+                  : syncMsg.tone === 'err'
+                    ? 'text-[var(--color-danger)]'
+                    : 'text-[var(--color-text-secondary)]'
+              }`}
+            >
+              {syncMsg.text}
+            </div>
+          )}
           <div className="mt-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded flex items-start gap-2 text-xs text-[var(--color-text-secondary)]">
             <Info className="w-4 h-4 text-[var(--color-warning)] flex-shrink-0 mt-0.5" />
             <span>
-              <strong>Run workflow</strong>에서 target(<code>racecard</code>=출마표 /{' '}
-              <code>results</code>=결과)·date 선택 후 실행. 결과는 수 분 내 Supabase 반영.
+              암구호는 이 브라우저에만 저장됩니다. 실행은 GitHub Actions에서 진행되며 결과는 수 분 내
+              반영. <strong>로컬 dev 서버에선 동작하지 않고 배포본에서만</strong> 작동합니다.
             </span>
           </div>
         </div>
