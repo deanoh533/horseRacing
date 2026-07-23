@@ -4,6 +4,9 @@
 
 ---
 
+## 2026-07-22~23 — 무인 cron 주말 일괄 + 설정탭 재작성 + 수동 동기화 실제 실행 (main 머지 2b992d4)
+운영 편의 3연작(각각 브레인스토밍→스펙→플랜→구현, 전부 main 머지·푸시). ① **출마표 cron 주말 3일치 일괄** — 출마표는 수요일에 금·토·일 동시 발표되는데 `sync:cards` 기본값이 오늘+2 단일 날짜라 cron이 수목금 하루씩만 긁던 문제 → `upcomingCardDates()`(src/utils/syncCli.ts, 테스트)로 각 실행이 "발표일+2 ~ 이번 주 일요일" 남은 경주 전체를 받게(수=금토일·목=토일·금=일). cron 스케줄 불변, 재실행은 upsert 멱등+L-001 가드가 사후 스냅샷 보호. ② **설정탭 정직한 재작성** — 거의 전부 죽은 목업(v5.1·2026-05-22)이던 Settings.tsx를 실현황으로 교체: 활성 모델(useActiveModelVersion)·동기화 현황(신규 `useSyncStatus`: 최신 출마표 경주일·누적 경주수·결과 경주일·마지막 수집시각)·학습 동결 정책·자격증명 안내. API키편집·인사이트4선택·알림·내보내기·초기화·테마 목업 전부 제거. ③ **수동 동기화 = 실제 실행** — 딥링크(Actions 페이지 열기)에서 업그레이드: **Vercel Edge 함수 `api/sync.ts`**가 GitHub workflow_dispatch 대리 호출(정적 클라는 토큰 못 들어서). 게이트=헤더 `x-sync-key`==env `SYNC_SECRET`, 토큰=env `GH_DISPATCH_TOKEN`(번들 밖). 설정탭 버튼(출마표/결과 실행)+암구호(localStorage). 순수파서 parseSyncBody 테스트·`typecheck:api`·vercel.json rewrite `/api` 제외. **사용자 셋업(PAT Actions:R/W·Vercel env 2개·암구호 입력) 후 라이브 검증 완료.** 로컬 dev엔 /api 없어 배포본 전용. 테스트 528 통과. 상세 → [05-data-infra](status/05-data-infra.md) · [06-ui](status/06-ui.md) · [[project_launch_gating_ops]]
+
 ## 2026-07-18~20 — F-004 /insights H7 교차표 (main 머지 f5829be)
 전개 트랙 이월 항목 1단계. probe H9 SQL을 문자 단위 전사한 `export:h7`로 12칸 실측표(2022.2~2026.6, 56,645출주)를 정적 JSON으로 굳혀 새 페이지 `/insights`에 노출 — 격차 0.5초 미만×달성확률 높음 승률 18.9% vs 1.5초+×낮음 3.3%(5.7배), 양축 완전 단조 재현. 리뷰가 DuckDB 병렬 동률 비결정성을 발견 → `SET threads TO 1`로 JSON 재현성 확보. 말별 매핑(서버 저장 필요)은 범위 밖으로 이월. 상세 → [06-ui](status/06-ui.md)
 
