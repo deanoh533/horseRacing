@@ -859,6 +859,40 @@ export function useJockeyRecentForm(
 }
 
 /**
+ * 기수 최근 N일 성적 배치 (PredictionSheet 등 다건 조회 화면용) — useJockeyRecentForm 참고
+ */
+export function useJockeyRecentFormBatch(jckyNos: string[], meet: number, daysBack = 90) {
+  return useQuery({
+    queryKey: ['jockey-recent-form-batch', meet, jckyNos.slice().sort().join(','), daysBack],
+    queryFn: async (): Promise<Map<string, { total: number; wins: number; places: number; shows: number }>> => {
+      const map = new Map<string, { total: number; wins: number; places: number; shows: number }>();
+      if (jckyNos.length === 0) return map;
+      const cutoff = getDateNDaysAgo(daysBack);
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('jcky_no, ord')
+        .in('jcky_no', jckyNos)
+        .eq('meet', meet)
+        .gte('race_date', cutoff)
+        .not('ord', 'is', null);
+      if (error) throw error;
+      (data ?? []).forEach((r) => {
+        if (!r.jcky_no) return;
+        const cur = map.get(r.jcky_no) ?? { total: 0, wins: 0, places: 0, shows: 0 };
+        cur.total += 1;
+        if (r.ord === 1) cur.wins += 1;
+        if (r.ord != null && r.ord <= 2) cur.places += 1;
+        if (r.ord != null && r.ord <= 3) cur.shows += 1;
+        map.set(r.jcky_no, cur);
+      });
+      return map;
+    },
+    enabled: jckyNos.length > 0 && !!meet,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
  * 해당 등급/거리 우승마 평균·최고 기록
  * race_entries JOIN races (Supabase 관계 필터) — migration 불필요
  * 3경주 미만이면 null 반환

@@ -35,6 +35,7 @@ import {
   useHistoryRacesPrizeCond,
   useHorseGradeDistStatsBatch,
   useRaceSectionalStats,
+  useJockeyRecentFormBatch,
   type JockeyHorseComboStat,
 } from '../lib/queries';
 import {
@@ -550,12 +551,14 @@ function ColJockeyInfo({
   horse,
   history,
   jockeyStat,
+  jockeyRecentForm,
   jockeyHorseCombo,
   latestTraining,
 }: {
   horse: RaceEntry;
   history: RaceEntry[];
   jockeyStat: JockeyStat | undefined;
+  jockeyRecentForm: { total: number; wins: number; places: number; shows: number } | undefined;
   jockeyHorseCombo: JockeyHorseComboStat | undefined;
   latestTraining: TrainingLog | undefined;
 }) {
@@ -608,6 +611,16 @@ function ColJockeyInfo({
                 {jockeyStat.win_rate_t}%
               </span>
             )}
+          </div>
+        )}
+
+        {/* 최근 3개월(90일) 성적 */}
+        {jockeyRecentForm && (
+          <div className="font-mono-num text-[11px] mt-0.5" style={{ color: 'var(--color-text-disabled)' }}>
+            최근 3개월 {jockeyRecentForm.total}전 {jockeyRecentForm.wins}승
+            <span className="ml-1">
+              (연{jockeyRecentForm.places} 복{jockeyRecentForm.shows})
+            </span>
           </div>
         )}
       </div>
@@ -1076,6 +1089,7 @@ function HorseCard({
   bloodline,
   trainerStat,
   jockeyStat,
+  jockeyRecentForm,
   latestTraining,
   jockeyHorseCombo,
   gateStats,
@@ -1093,6 +1107,7 @@ function HorseCard({
   bloodline: BloodlineInfo | undefined;
   trainerStat: { total: number; wins: number } | undefined;
   jockeyStat: JockeyStat | undefined;
+  jockeyRecentForm: { total: number; wins: number; places: number; shows: number } | undefined;
   latestTraining: TrainingLog | undefined;
   jockeyHorseCombo: JockeyHorseComboStat | undefined;
   gateStats: Map<number, { total: number; wins: number }> | undefined;
@@ -1144,6 +1159,7 @@ function HorseCard({
             horse={horse}
             history={history}
             jockeyStat={jockeyStat}
+            jockeyRecentForm={jockeyRecentForm}
             jockeyHorseCombo={jockeyHorseCombo}
             latestTraining={latestTraining}
           />
@@ -1197,6 +1213,7 @@ export function PredictionSheet() {
     [horses]
   );
   const { data: jockeyStatsMap } = useJockeyStatsBatch(jckyNos, meet);
+  const { data: jockeyRecentFormMap } = useJockeyRecentFormBatch(jckyNos, meet);
 
   // 해당 등급/거리 우승마 평균기록
   const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
@@ -1376,6 +1393,7 @@ export function PredictionSheet() {
               bloodline={bloodlineByName.get(horse.hr_name)}
               trainerStat={trainerStatsMap?.get(horse.trar_nm ?? '')}
               jockeyStat={jockeyStatsMap?.get(horse.jcky_no ?? '')}
+              jockeyRecentForm={jockeyRecentFormMap?.get(horse.jcky_no ?? '')}
               latestTraining={trainingMap?.get(horse.hr_name)?.[0]}
               jockeyHorseCombo={jockeyHorseComboMap?.get(`${horse.hr_name}:${horse.jcky_nm ?? ''}`)}
               gateStats={gateStatsMap?.get(horse.hr_name)}
