@@ -34,6 +34,7 @@ import {
   useHorseGateStatsBatch,
   useHistoryRacesPrizeCond,
   useHorseGradeDistStatsBatch,
+  useRaceSectionalStats,
   type JockeyHorseComboStat,
 } from '../lib/queries';
 import {
@@ -49,6 +50,7 @@ import {
 import { classifyRunningStyle, STYLE_INFO, type RunningStyle } from '../lib/runningStyle';
 import { getSectionalInfo, fmtSec, computeSameDistStats, fmtPct, fmtScore } from '../lib/sectional';
 import { PickBadge } from '../components/PickBadge';
+import { RacePaceBadge } from '../components/RacePaceBadge';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -1199,6 +1201,9 @@ export function PredictionSheet() {
   // 해당 등급/거리 우승마 평균기록
   const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
 
+  // F-001 실측: 경기 후 이 경주 초반 페이스(avg_s1f). 사전(결과 전)이면 null → 실측 줄 자동 생략.
+  const { data: sectional } = useRaceSectionalStats(rcDate, meet, rcNo);
+
   // 조교 기록 (최근 30일, 말 이름 기준 배치 조회)
   const { data: trainingMap } = useTrainingBatchByNames(hrNames, meet, 30);
 
@@ -1283,6 +1288,12 @@ export function PredictionSheet() {
 
   const isPostRace = (horses ?? []).some((h) => h.ord != null);
 
+  // F-001: 경주 페이스 예상 — 출전마 전원의 성향 배열 (데이터 없는 말은 unknown)
+  const paceStyles = useMemo(
+    () => hrNames.map((n) => styleByName.get(n) ?? ('unknown' as RunningStyle)),
+    [hrNames, styleByName]
+  );
+
   return (
     <div className="space-y-4 pb-8">
       {/* 내비게이션 */}
@@ -1317,6 +1328,16 @@ export function PredictionSheet() {
         horses={horses}
         gradeStats={gradeStats}
       />
+
+      {/* F-001: 경주 페이스 예상 */}
+      {hrNames.length > 0 && (
+        <div className="bg-[var(--color-bg-surface)] rounded-xl p-3 border border-[var(--color-bg-elevated)]">
+          <RacePaceBadge
+            styles={paceStyles}
+            actual={{ avgS1f: sectional?.avg_s1f ?? null, meet, dist: sectional?.rc_dist ?? race?.rc_dist ?? null }}
+          />
+        </div>
+      )}
 
       {/* Top 3 포디엄 */}
       {top3.length > 0 && <PodiumCards top3={top3} pthrNoByName={pthrNoByName} />}
