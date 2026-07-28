@@ -1,12 +1,13 @@
 # 데이터인프라 — 진행 상황
-> 마지막 업데이트: 2026-07-22 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
+> 마지막 업데이트: 2026-07-29 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
 
 ## 현재 상태
 - **DuckDB 로컬 미러** 배포 — Supabase egress 영구 탈출, 오프라인 분석 전용(benchmark·backtest·probe 전부). `npm run db:pull`로 동기화.
 - **Supabase egress** — REST/웹앱만 영향. `DATABASE_URL` Postgres 직결(db:pull·SQL·upsert)은 egress 무관.
 - **조교 로그 376k** — `npm run training:upload`(JSONL→Supabase 멱등 upsert)로 6,540→376,372행.
-- **sync 자동화 + 백업 (L-002~005, 2026-07-12)** — Actions cron(출마표 수목금 15시·결과 토일월 새벽 1시 KST, 실패·0건 이메일) + `db:snapshot`. 절차: [pipeline_guide.md](../pipeline_guide.md).
-- **✅ 무인 운영 진입 (2026-07-15)** — secrets 5종 등록 후 수요일 15:00 첫 스케줄 실행 성공, 사이트에서 신규 출마표 확인. 남은 관찰: 주말 결과 sync(토일월 01:00) 첫 실행 + v7 라이브 적중률 누적.
+- **sync 자동화 + 백업 (L-002~005, 2026-07-12)** — Actions cron(출마표 수목금 15시·결과 금토일 19시 KST, 실패·0건 이메일) + `db:snapshot`. 절차: [pipeline_guide.md](../pipeline_guide.md).
+- **KRA 클라이언트 재시도 + 결과 sync 시각 변경 (2026-07-29)** — 무인 결과 sync가 KRA 결과 API 응답 지연으로 `timeout of 30000ms` 한 번에 배치 전체 실패(로컬은 정상 = 러너 간헐 지연 + 재시도 부재). ① `KRAClient`에 지수 백오프 재시도(4회·1s→2s→4s) + 타임아웃 30→60초(모든 엔드포인트 `getWithRetry` 경유), ② 결과 cron **토일월 01:00 → 금토일 19:00 KST**(당일 저녁, `--date $(date +%Y%m%d)`로 "오늘" 수집). ⚠️ 리스크: 19:00에 막판 경주 결과가 KRA에 아직 없을 수 있음(과거 01:00은 전 경주 확정 보장) → 다음 주말 실측 관찰. `if:` cron 매칭 문자열도 `0 10 * * 5,6,0`로 동시 변경.
+- **✅ 무인 운영 진입 (2026-07-15)** — secrets 5종 등록 후 수요일 15:00 첫 스케줄 실행 성공, 사이트에서 신규 출마표 확인. 남은 관찰: 주말 결과 sync(금토일 19:00, 재시도 탑재) 실측 성공 + 막판 경주 결과 누락 여부 + v7 라이브 적중률 누적.
 - **출마표 cron 주말 3일치 일괄 (2026-07-22)** — 출마표는 수요일에 금·토·일 동시 발표 → `upcomingCardDates()`로 각 실행이 "발표일+2~일요일" 남은 경주 전체 수집(수=금토일·목=토일·금=일). 수요일 조기 노출+목금 재실행 임박 갱신. cron 스케줄 불변, `--date` 명시 시 단일. [[project_launch_gating_ops]].
 - **수동 동기화 = 실제 실행 (2026-07-22, 라이브 검증)** — Vercel Edge 함수 `api/sync.ts`가 GitHub workflow_dispatch 대리 호출(설정탭 버튼). 게이트=`x-sync-key`==env `SYNC_SECRET`, 토큰=env `GH_DISPATCH_TOKEN`(둘 다 Vercel env, 번들 밖). 로컬 dev엔 /api 없어 배포본 전용. `typecheck:api`·vercel.json rewrite `/api` 제외 필수.
 
