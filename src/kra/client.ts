@@ -33,6 +33,30 @@ const BASE_URL = 'https://apis.data.go.kr/B551015';
 // 동시 요청 제한 (KRA API 부하 방지)
 const limit = pLimit(5);
 
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * 재시도해도 되는 오류인지 판정.
+ * - 응답 없음(타임아웃·네트워크 끊김): data.go.kr가 일시적으로 느리거나 끊긴 것 → 재시도
+ * - 5xx: 서버 일시 장애 → 재시도
+ * - 4xx: 요청 자체가 잘못됨(키·파라미터) → 재시도해도 소용없음 → 즉시 던짐
+ * - axios 오류가 아닌 것(파싱 등): 재시도 안 함
+ */
+function isRetryableError(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  if (err.response) return err.response.status >= 500;
+  return true; // 응답 없음 = 타임아웃/네트워크 → 재시도
+}
+
+export interface KRAClientOptions {
+  /** axios 요청 타임아웃(ms). 기본 60초 — 러너에서 결과 API가 느릴 때 대비 */
+  timeoutMs?: number;
+  /** 첫 시도 포함 최대 시도 횟수. 기본 4 */
+  maxAttempts?: number;
+  /** 지수 백오프 기준 지연(ms). 기본 1000 (1s→2s→4s) */
+  baseDelayMs?: number;
+}
+
 interface KRAResponse<T> {
   response: {
     header: { resultCode: string; resultMsg: string };
@@ -48,14 +72,46 @@ interface KRAResponse<T> {
 export class KRAClient {
   private client: AxiosInstance;
   private apiKey: string;
+  private maxAttempts: number;
+  private baseDelayMs: number;
 
-  constructor() {
+  constructor(opts: KRAClientOptions = {}) {
     const env = getEnv();
     this.apiKey = env.KRA_API_KEY;
+    this.maxAttempts = opts.maxAttempts ?? 4;
+    this.baseDelayMs = opts.baseDelayMs ?? 1000;
     this.client = axios.create({
       baseURL: BASE_URL,
-      timeout: 30_000,
+      timeout: opts.timeoutMs ?? 60_000,
     });
+  }
+
+  /**
+   * GET + 지수 백오프 재시도.
+   * 무인 배치(GitHub Actions)에서 KRA API 일시 지연 한 번이 배치 전체를 죽이지
+   * 않도록, 타임아웃·네트워크·5xx는 재시도한다. 모든 엔드포인트가 이 경로를 탄다.
+   */
+  private async getWithRetry<T>(
+    url: string,
+    params: Record<string, string | number | undefined>
+  ): Promise<KRAResponse<T>> {
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= this.maxAttempts; attempt++) {
+      try {
+        const { data } = await this.client.get<KRAResponse<T>>(url, { params });
+        return data;
+      } catch (err) {
+        lastErr = err;
+        if (attempt >= this.maxAttempts || !isRetryableError(err)) throw err;
+        const delay = this.baseDelayMs * 2 ** (attempt - 1);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `  ⚠️ KRA ${url} 실패(시도 ${attempt}/${this.maxAttempts}): ${msg} — ${delay}ms 후 재시도`
+        );
+        await sleep(delay);
+      }
+    }
+    throw lastErr;
   }
 
   /**
@@ -86,17 +142,15 @@ export class KRAClient {
     numOfRows?: number;
   }): Promise<KRARaceResult[]> {
     return limit(async () => {
-      const { data } = await this.client.get<KRAResponse<KRARaceResult>>(
+      const data = await this.getWithRetry<KRARaceResult>(
         '/API214_1/RaceDetailResult_1',
         {
-          params: {
-            serviceKey: this.apiKey,
-            meet: params.meet,
-            rc_date: params.rcDate,
-            pageNo: params.pageNo ?? 1,
-            numOfRows: params.numOfRows ?? 100,
-            _type: 'json',
-          },
+          serviceKey: this.apiKey,
+          meet: params.meet,
+          rc_date: params.rcDate,
+          pageNo: params.pageNo ?? 1,
+          numOfRows: params.numOfRows ?? 100,
+          _type: 'json',
         }
       );
       return this.parseResponse(data);
@@ -141,18 +195,16 @@ export class KRAClient {
     rcNo: number;
   }): Promise<KRARaceDetail[]> {
     return limit(async () => {
-      const { data } = await this.client.get<KRAResponse<KRARaceDetail>>(
+      const data = await this.getWithRetry<KRARaceDetail>(
         '/racedetailresult/getracedetailresult',
         {
-          params: {
-            serviceKey: this.apiKey,
-            meet: params.meet,
-            rc_date: params.rcDate,
-            rc_no: params.rcNo,
-            pageNo: 1,
-            numOfRows: 50,
-            _type: 'json',
-          },
+          serviceKey: this.apiKey,
+          meet: params.meet,
+          rc_date: params.rcDate,
+          rc_no: params.rcNo,
+          pageNo: 1,
+          numOfRows: 50,
+          _type: 'json',
         }
       );
       return this.parseResponse(data);
@@ -164,16 +216,14 @@ export class KRAClient {
    */
   async getBloodInfo(hrNo: string): Promise<KRABloodInfo | null> {
     return limit(async () => {
-      const { data } = await this.client.get<KRAResponse<KRABloodInfo>>(
+      const data = await this.getWithRetry<KRABloodInfo>(
         '/API284/HorseBloodBasicInfo',
         {
-          params: {
-            serviceKey: this.apiKey,
-            hr_no: hrNo,
-            pageNo: 1,
-            numOfRows: 1,
-            _type: 'json',
-          },
+          serviceKey: this.apiKey,
+          hr_no: hrNo,
+          pageNo: 1,
+          numOfRows: 1,
+          _type: 'json',
         }
       );
       const items = this.parseResponse(data);
@@ -198,9 +248,9 @@ export class KRAClient {
       if (params.hrNo) queryParams.hrno = params.hrNo;
       if (params.hrName) queryParams.hr_name = params.hrName;
 
-      const { data } = await this.client.get<KRAResponse<KRAHorseInfo>>(
+      const data = await this.getWithRetry<KRAHorseInfo>(
         '/horseinfohi/gethorseinfohi',
-        { params: queryParams }
+        queryParams
       );
       const items = this.parseResponse(data);
       return items[0] ?? null;
@@ -226,17 +276,15 @@ export class KRAClient {
     numOfRows?: number;
   }): Promise<KRAEntrySheetItem[]> {
     return limit(async () => {
-      const { data } = await this.client.get<KRAResponse<KRAEntrySheetItem>>(
+      const data = await this.getWithRetry<KRAEntrySheetItem>(
         '/API26_2/entrySheet_2',
         {
-          params: {
-            serviceKey: this.apiKey,
-            meet: params.meet,
-            rc_date: params.rcDate,
-            pageNo: params.pageNo ?? 1,
-            numOfRows: params.numOfRows ?? 100,
-            _type: 'json',
-          },
+          serviceKey: this.apiKey,
+          meet: params.meet,
+          rc_date: params.rcDate,
+          pageNo: params.pageNo ?? 1,
+          numOfRows: params.numOfRows ?? 100,
+          _type: 'json',
         }
       );
       return this.parseResponse(data);
@@ -277,15 +325,13 @@ export class KRAClient {
         params.meet === 1
           ? '/API314/textDataHoldSePtinInfo'
           : '/API316/textDataHoldBuPtinInfo';
-      const { data } = await this.client.get<KRAResponse<KRARaceCard>>(path, {
-        params: {
-          serviceKey: this.apiKey,
-          race_dt: params.rcDate,
-          race_no: params.rcNo,
-          pageNo: 1,
-          numOfRows: 30,
-          _type: 'json',
-        },
+      const data = await this.getWithRetry<KRARaceCard>(path, {
+        serviceKey: this.apiKey,
+        race_dt: params.rcDate,
+        race_no: params.rcNo,
+        pageNo: 1,
+        numOfRows: 30,
+        _type: 'json',
       });
       return this.parseResponse(data);
     });
@@ -307,18 +353,16 @@ export class KRAClient {
     rcNo: number;
   }): Promise<KRASectionalRecord[]> {
     return limit(async () => {
-      const { data } = await this.client.get<KRAResponse<KRASectionalRecord>>(
+      const data = await this.getWithRetry<KRASectionalRecord>(
         '/API37_1/sectionRecord_1',
         {
-          params: {
-            serviceKey: this.apiKey,
-            meet: params.meet,
-            rc_date: params.rcDate,
-            rc_no: params.rcNo,
-            pageNo: 1,
-            numOfRows: 20,
-            _type: 'json',
-          },
+          serviceKey: this.apiKey,
+          meet: params.meet,
+          rc_date: params.rcDate,
+          rc_no: params.rcNo,
+          pageNo: 1,
+          numOfRows: 20,
+          _type: 'json',
         }
       );
       return this.parseResponse(data);
@@ -349,9 +393,9 @@ export class KRAClient {
       };
       if (params.hrNo) queryParams.hr_no = params.hrNo;
 
-      const { data } = await this.client.get<KRAResponse<KRATrainingRecord>>(
+      const data = await this.getWithRetry<KRATrainingRecord>(
         '/API18_1/dailyTraining_1',
-        { params: queryParams }
+        queryParams
       );
       return this.parseResponse(data);
     });
@@ -380,9 +424,9 @@ export class KRAClient {
       };
       if (params.hrNo) queryParams.hr_no = params.hrNo;
 
-      const { data } = await this.client.get<KRAResponse<KRATrainingRecord>>(
+      const data = await this.getWithRetry<KRATrainingRecord>(
         '/API18_1/dailyTraining_1',
-        { params: queryParams }
+        queryParams
       );
       const page = this.parseResponse(data);
       if (page.length === 0) break;
@@ -416,9 +460,9 @@ export class KRAClient {
       };
       if (params.jkNo) queryParams.jk_no = params.jkNo;
 
-      const { data } = await this.client.get<KRAResponse<KRAJockeyStat>>(
+      const data = await this.getWithRetry<KRAJockeyStat>(
         '/jkpresult/getjkpresult',
-        { params: queryParams }
+        queryParams
       );
       return this.parseResponse(data);
     });
