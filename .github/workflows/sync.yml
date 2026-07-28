@@ -6,8 +6,10 @@ on:
     # 3일치(금·토·일)는 수요일에 동시 발표 → 각 실행이 "남은 주말 전체"를 받는다
     # (수=금토일, 목=토일, 금=일). 수요일 조기 노출 + 목·금 재실행으로 임박 변경(제외마) 갱신.
     - cron: '0 6 * * 3,4,5'
-    # 결과: 토·일·월 01:00 KST (금·토·일 경주 다음날 새벽) = 전날 16:00 UTC
-    - cron: '0 16 * * 5,6,0'
+    # 결과: 금·토·일 19:00 KST (경주 당일 저녁) = 같은 날 10:00 UTC
+    #   당일 저녁이라 "오늘" 날짜를 받는다(아래 results 스텝에서 date +%Y%m%d).
+    #   주의: 막판 경주 결과가 아직 KRA에 안 올라왔을 수 있음(과거 01:00은 확정 보장).
+    - cron: '0 10 * * 5,6,0'
   workflow_dispatch:
     inputs:
       target:
@@ -16,7 +18,7 @@ on:
         type: choice
         options: [racecard, results]
       date:
-        description: '대상 날짜 YYYYMMDD (생략 시 자동: 출마표=오늘+2, 결과=어제)'
+        description: '대상 날짜 YYYYMMDD (생략 시 자동: 출마표=오늘+2, 결과=오늘)'
         required: false
         type: string
 
@@ -48,8 +50,8 @@ jobs:
         run: npm run sync:cards -- --fail-on-empty ${DATE_ARG:+--date $DATE_ARG}
 
   results:
-    name: 결과 sync (어제)
-    if: github.event.schedule == '0 16 * * 5,6,0' || (github.event_name == 'workflow_dispatch' && inputs.target == 'results')
+    name: 결과 sync (당일)
+    if: github.event.schedule == '0 10 * * 5,6,0' || (github.event_name == 'workflow_dispatch' && inputs.target == 'results')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,4 +61,6 @@ jobs:
           cache: npm
       - run: npm ci
       - name: dailySync
-        run: npm run sync -- --fail-on-empty ${DATE_ARG:+--date $DATE_ARG}
+        # 당일 저녁 실행 → 스케줄 시 "오늘"(KST, TZ=Asia/Seoul) 날짜를 받는다.
+        # 수동 dispatch에서 date 입력 시 그 값 우선.
+        run: npm run sync -- --fail-on-empty --date "${DATE_ARG:-$(date +%Y%m%d)}"
