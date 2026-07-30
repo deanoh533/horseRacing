@@ -2,7 +2,7 @@
  * KRA API 응답 → Supabase DB 행 변환
  */
 import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@app-types/index.js';
-import type { KRARaceCard, KRAEntrySheetItem, KRATrainingRecord, KRAJockeyStat } from '@kra/client.js';
+import type { KRARaceCard, KRAEntrySheetItem, KRATrainingRecord, KRAJockeyStat, KRAComboDividend } from '@kra/client.js';
 import { parseWgHr, extractTrackType } from '@utils/parsers.js';
 
 /**
@@ -539,4 +539,47 @@ export function toHorseInfoRow(
     dsa_coi_rt: blood?.dsaCoiRt ?? null,
     dsidx_vl: blood?.dsidxVl ?? null,
   };
+}
+
+// ============================================
+// 조합 확정배당 (combo_dividends)
+// ============================================
+
+/** 결과 sync가 저장할 조합식(pool) 집합. API가 주는 다른 pool(단승/연승 등)은 제외. */
+export const COMBO_POOLS = ['복승식', '쌍승식', '복연승식', '삼복승식', '삼쌍승식'] as const;
+
+/** combo_dividends 테이블 행 */
+export interface ComboDividendRow {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  pool: string;
+  leg1: number;
+  leg2: number;
+  leg3: number;
+  odds: number;
+}
+
+/**
+ * API160_1 조합배당 아이템 → combo_dividends 행.
+ * 대상 pool(COMBO_POOLS)만 통과, leg 순서는 raw 유지(쌍승/삼쌍승 착순 순서),
+ * 3마리 조합이 아니면 leg3=0.
+ */
+export function toComboDividendRows(
+  items: KRAComboDividend[],
+  keys: { race_date: number; meet: number; rc_no: number }
+): ComboDividendRow[] {
+  const pools = new Set<string>(COMBO_POOLS);
+  return items
+    .filter((it) => pools.has(it.pool))
+    .map((it) => ({
+      race_date: keys.race_date,
+      meet: keys.meet,
+      rc_no: keys.rc_no,
+      pool: it.pool,
+      leg1: it.chulNo,
+      leg2: it.chulNo2,
+      leg3: it.chulNo3 || 0,
+      odds: it.odds,
+    }));
 }
