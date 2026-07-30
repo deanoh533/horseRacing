@@ -363,7 +363,7 @@ npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판�
 ## 9. sync 자동화·백업 (2026-07-12, L-002~005)
 
 ### 무인 sync (GitHub Actions)
-- `.github/workflows/sync.yml` — 출마표 수·목·금 15:00 KST(`sync:cards`, 기본 날짜 오늘+2), 결과 금·토·일 19:00 KST(`sync`, 경주 당일 저녁, `--date $(date +%Y%m%d)`로 오늘 수집). KRA 클라이언트에 지수 백오프 재시도(4회)+타임아웃 60초 탑재(무인 러너 결과 API 지연 대비).
+- `.github/workflows/sync.yml` — 출마표 수·목·금 15:00 KST(`sync:cards`, 기본 날짜 오늘+2), 결과 금·토·일 19:00 KST(`sync`, 경주 당일 저녁, `--date $(date +%Y%m%d)`로 오늘 수집). KRA 클라이언트에 지수 백오프 재시도(4회)+타임아웃 60초 탑재(무인 러너 결과 API 지연 대비). 결과 sync는 조합배당(combo_dividends)도 함께 수집(API160_1, 2026-07-29).
 - 실패·0건(`--fail-on-empty`) 시 GitHub이 계정 이메일로 통지. 휴장일엔 0건 오탐 가능 — 확인 후 무시.
 - 수동 재실행: GitHub → Actions → Sync → Run workflow — **target은 `racecard`(출마표) 또는 `results`(결과)**, date는 YYYYMMDD(생략 시 자동). ⚠️ npm 스크립트명(`sync:cards`)과 잡/입력값(`racecard`)이 다름 — 혼동 주의.
 - 필요 secrets: `KRA_API_KEY`·`SUPABASE_URL`·`SUPABASE_ANON_KEY`·`SUPABASE_SERVICE_ROLE_KEY`·`ANTHROPIC_API_KEY`(env 검증 스키마가 요구, sync는 호출 안 함).

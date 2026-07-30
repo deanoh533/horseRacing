@@ -117,9 +117,13 @@ function makeHorseFixture(overrides: Record<string, unknown> = {}) {
 let fakeSb: FakeSupabase;
 let mockGetAllRaceResults: ReturnType<typeof vi.fn>;
 let mockPredictRace: ReturnType<typeof vi.fn>;
+let mockGetComboDividends: ReturnType<typeof vi.fn>;
 
 vi.mock('@kra/client.js', () => ({
-  getKRAClient: () => ({ getAllRaceResults: mockGetAllRaceResults }),
+  getKRAClient: () => ({
+    getAllRaceResults: mockGetAllRaceResults,
+    getComboDividends: mockGetComboDividends,
+  }),
 }));
 vi.mock('@db/supabase.js', () => ({
   getSupabaseAdmin: () => fakeSb,
@@ -133,6 +137,10 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
     fakeSb = new FakeSupabase();
     mockGetAllRaceResults = vi.fn().mockResolvedValue([makeHorseFixture()]);
     mockPredictRace = vi.fn().mockResolvedValue([]);
+    mockGetComboDividends = vi.fn().mockResolvedValue([
+      { rcNo: RC_NO, pool: '복승식', chulNo: 1, chulNo2: 2, chulNo3: 0, odds: 12.4 },
+      { rcNo: RC_NO, pool: '단승식', chulNo: 1, chulNo2: 0, chulNo3: 0, odds: 3.2 }, // 비대상 → 저장 안 됨
+    ]);
   });
 
   it('기존 predictions이 있으면 재계산하지 않고 그대로 보존하되 actual_ord만 채운다', async () => {
@@ -249,5 +257,61 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
     // 백필 경로에서는 actual_ord도 건드리지 않음 (predictions 관련 쿼리 자체를 스킵 — egress 보호)
     expect(fakeSb.tables['predictions']!.rows).toHaveLength(1);
     expect(fakeSb.tables['predictions']!.rows[0]!.actual_ord).toBeNull();
+  });
+
+  it('결과 sync 시 대상 pool 조합배당을 combo_dividends에 저장한다', async () => {
+    fakeSb.tables['race_entries'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null }],
+    };
+    fakeSb.tables['predictions'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', predicted_rank: 1, actual_ord: null }],
+    };
+
+    const { syncDay } = await import('../../src/sync/dailySync.js');
+    await syncDay({ rcDate: RC_DATE, meets: [MEET] });
+
+    expect(mockGetComboDividends).toHaveBeenCalledTimes(1);
+    const combo = fakeSb.tables['combo_dividends']?.rows ?? [];
+    expect(combo).toHaveLength(1); // 복승식만, 단승식 제외
+    expect(combo[0]).toMatchObject({
+      race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pool: '복승식', leg1: 1, leg2: 2, leg3: 0, odds: 12.4,
+    });
+  });
+
+  it('수신은 있으나 대상 pool 매칭이 0건이면 combo_dividends에 아무것도 저장하지 않는다', async () => {
+    // 대상이 아닌 pool(단승식)만 수신 → COMBO_POOLS 필터가 전부 걸러냄
+    mockGetComboDividends.mockResolvedValue([
+      { rcNo: RC_NO, pool: '단승식', chulNo: 1, chulNo2: 0, chulNo3: 0, odds: 3.2 },
+    ]);
+
+    fakeSb.tables['race_entries'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null }],
+    };
+    fakeSb.tables['predictions'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', predicted_rank: 1, actual_ord: null }],
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { syncDay } = await import('../../src/sync/dailySync.js');
+    await syncDay({ rcDate: RC_DATE, meets: [MEET] });
+
+    expect(mockGetComboDividends).toHaveBeenCalledTimes(1);
+    expect(fakeSb.tables['combo_dividends']?.rows ?? []).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('대상 pool 매칭 0건'));
+
+    warnSpy.mockRestore();
+  });
+
+  it('skipPredictions=true(백필)면 조합배당을 수집하지 않는다', async () => {
+    fakeSb.tables['race_entries'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null }],
+    };
+
+    const { syncDay } = await import('../../src/sync/dailySync.js');
+    await syncDay({ rcDate: RC_DATE, meets: [MEET], skipPredictions: true });
+
+    expect(mockGetComboDividends).not.toHaveBeenCalled();
+    expect(fakeSb.tables['combo_dividends']?.rows ?? []).toHaveLength(0);
   });
 });

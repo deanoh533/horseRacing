@@ -91,3 +91,54 @@ describe('KRAClient 재시도', () => {
     expect(mockGet).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('KRAClient.getComboDividends', () => {
+  beforeEach(() => {
+    mockGet.mockReset();
+  });
+
+  /** integratedInfo 성공 응답 (조합 아이템 배열) */
+  function comboResponse(items: unknown[], totalCount: number) {
+    return {
+      data: {
+        response: {
+          header: { resultCode: '00', resultMsg: 'NORMAL' },
+          body: { items: { item: items }, numOfRows: 1000, pageNo: 1, totalCount },
+        },
+      },
+    };
+  }
+
+  it('단일 페이지 조합배당을 파싱해 반환한다', async () => {
+    mockGet.mockResolvedValueOnce(
+      comboResponse(
+        [
+          { rcNo: 1, pool: '복승식', chulNo: 3, chulNo2: 7, chulNo3: 0, odds: 12.4 },
+          { rcNo: 1, pool: '삼복승식', chulNo: 3, chulNo2: 7, chulNo3: 1, odds: 88.1 },
+        ],
+        2
+      )
+    );
+
+    const client = new KRAClient({ baseDelayMs: 0, maxAttempts: 4 });
+    const rows = await client.getComboDividends({ meet: 1, rcDate: 20260726, rcNo: 1 });
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ pool: '복승식', chulNo: 3, chulNo2: 7, odds: 12.4 });
+    expect(mockGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('totalCount가 페이지 크기를 넘으면 다음 페이지도 이어 받는다', async () => {
+    mockGet
+      .mockResolvedValueOnce(
+        comboResponse([{ rcNo: 1, pool: '복승식', chulNo: 1, chulNo2: 2, chulNo3: 0, odds: 5 }], 3000)
+      )
+      .mockResolvedValueOnce(comboResponse([], 3000)); // 2페이지 빈 응답 → 종료
+
+    const client = new KRAClient({ baseDelayMs: 0, maxAttempts: 4 });
+    const rows = await client.getComboDividends({ meet: 1, rcDate: 20260726, rcNo: 1 });
+
+    expect(rows).toHaveLength(1);
+    expect(mockGet).toHaveBeenCalledTimes(2);
+  });
+});

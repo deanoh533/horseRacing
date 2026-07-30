@@ -384,6 +384,22 @@
 
 ---
 
+### 1.10 API160_1 — 경주 단위 통합배당 정보 (조합 확정배당)
+
+| 항목 | 값 |
+|------|---|
+| 엔드포인트 | `GET /API160_1/integratedInfo_1` |
+| 용도 | 조합 확정배당 조회 (복승식·복연승식·쌍승식·삼복승식·삼쌍승식 등 모든 pool) |
+| 파라미터 | `meet, rc_date, rc_no, pageNo, numOfRows, _type` |
+| 반환 필드 | `pool`(조합 종류), `chulNo`(leg1), `chulNo2`(leg2), `chulNo3`(leg3, 3마리 조합 아니면 0/부재), `odds`(확정배당) |
+| 클라이언트 메서드 | `getComboDividends()` |
+| 호출 파일 | `src/kra/client.ts:477` |
+| 상태 | ✅ 사용 중 — 결과 sync(`dailySync`)가 경주 결과 저장 직후 호출, 대상 pool만 `combo_dividends`에 upsert (2026-07-29) |
+
+> ⚠️ **Quirk:** `pool` 입력 필터가 API에 전달돼도 무시됨 — 전체 pool을 받아 호출부에서 필터. 단승/연승은 이미 `race_entries`에 있어 여기서는 저장하지 않음.
+
+---
+
 ## 2. Supabase API (데이터베이스)
 
 ### 기본 정보
@@ -565,6 +581,22 @@ PK: `hr_no`
 | `weights` | JSON | 항목별 가중치 (`Record<string, number>`) |
 | `correlations` | JSON | 항목별 Spearman ρ (`Record<string, number>`) |
 | `applied_at` | string | 적용 시각 |
+
+#### `combo_dividends` — 조합 확정배당 (migration 015, 2026-07-29)
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `race_date` | number | 경주 날짜 (PK) |
+| `meet` | number | 경마장 코드 (PK) |
+| `rc_no` | number | 경주 번호 (PK) |
+| `pool` | string | 조합 종류: `'복승식'\|'복연승식'\|'쌍승식'\|'삼복승식'\|'삼쌍승식'` (PK) |
+| `leg1` | number | 첫째 말 출주번호 (PK) |
+| `leg2` | number | 둘째 말 출주번호 (PK) |
+| `leg3` | number | 셋째 말 출주번호 (3마리 조합 아니면 0) (PK) |
+| `odds` | number | 확정배당 |
+| `collected_at` | string | 수집 시각 |
+
+> 결과 sync(dailySync)가 경주 결과 저장 직후 `API160_1/integratedInfo_1`에서 채워 넣는다(멱등 upsert, forward만). 단승/연승은 `race_entries`에 이미 존재하므로 여기 저장 안 함.
 
 ---
 

@@ -467,6 +467,43 @@ export class KRAClient {
       return this.parseResponse(data);
     });
   }
+
+  /**
+   * API160_1/integratedInfo_1: 경주 단위 통합배당 정보.
+   * 조합 확정배당(복승·복연승·쌍승·삼복승·삼쌍승 등 모든 pool)을 반환한다.
+   * pool 입력필터는 API가 무시 → 전체를 받아 호출부(transformer)에서 필터한다.
+   * getWithRetry 경유(타임아웃/네트워크/5xx 재시도).
+   */
+  async getComboDividends(params: {
+    meet: MeetCode;
+    rcDate: number;
+    rcNo: number;
+  }): Promise<KRAComboDividend[]> {
+    return limit(async () => {
+      const all: KRAComboDividend[] = [];
+      const numOfRows = 1000;
+      for (let pageNo = 1; pageNo <= 5; pageNo++) {
+        const data = await this.getWithRetry<KRAComboDividend>(
+          '/API160_1/integratedInfo_1',
+          {
+            serviceKey: this.apiKey,
+            meet: params.meet,
+            rc_date: params.rcDate,
+            rc_no: params.rcNo,
+            pageNo,
+            numOfRows,
+            _type: 'json',
+          }
+        );
+        const page = this.parseResponse(data);
+        if (page.length === 0) break;
+        all.push(...page);
+        const total = data.response?.body?.totalCount ?? 0;
+        if (pageNo * numOfRows >= total) break;
+      }
+      return all;
+    });
+  }
 }
 
 /** @deprecated API314/316 구 카드 API — API26_2로 교체됨 */
@@ -631,6 +668,19 @@ export interface KRAJockeyStat {
   thirdCnt: number;       // 통산 3위 횟수
   winRateTsum: number;    // 통산 단승률 (%)
   quRateTsum: number;     // 통산 입상률 (%)
+}
+
+/**
+ * API160_1/integratedInfo_1: 조합 확정배당 아이템.
+ * chulNo(=leg1)·chulNo2(=leg2)는 항상, chulNo3(=leg3)은 3마리 조합만(그 외 0/부재).
+ */
+export interface KRAComboDividend {
+  rcNo: number;
+  pool: string;       // '복승식'|'복연승식'|'쌍승식'|'삼복승식'|'삼쌍승식' 등
+  chulNo: number;
+  chulNo2: number;
+  chulNo3: number;
+  odds: number;
 }
 
 // ============================================
