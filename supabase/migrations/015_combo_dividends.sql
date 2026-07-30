@@ -19,3 +19,16 @@ CREATE TABLE IF NOT EXISTS combo_dividends (
   collected_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (race_date, meet, rc_no, pool, leg1, leg2, leg3)
 );
+
+-- ============================================
+-- RLS (002_enable_anon_read.sql 관례)
+-- 개인용 1인 앱: anon = 본인 → 읽기 허용, 쓰기는 service_role만(RLS 우회).
+-- anon 쓰기 정책을 만들지 않으므로 anon 키로는 쓰기 불가.
+-- ============================================
+ALTER TABLE combo_dividends ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "anon_read" ON combo_dividends;
+CREATE POLICY "anon_read" ON combo_dividends FOR SELECT TO anon USING (true);
+
+-- PostgREST가 새 정책 인식하도록 캐시 리로드
+NOTIFY pgrst, 'reload schema';
