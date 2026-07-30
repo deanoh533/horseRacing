@@ -10,6 +10,7 @@
 - **✅ 무인 운영 진입 (2026-07-15)** — secrets 5종 등록 후 수요일 15:00 첫 스케줄 실행 성공, 사이트에서 신규 출마표 확인. 남은 관찰: 주말 결과 sync(금토일 19:00, 재시도 탑재) 실측 성공 + 막판 경주 결과 누락 여부 + v7 라이브 적중률 누적.
 - **출마표 cron 주말 3일치 일괄 (2026-07-22)** — 출마표는 수요일에 금·토·일 동시 발표 → `upcomingCardDates()`로 각 실행이 "발표일+2~일요일" 남은 경주 전체 수집(수=금토일·목=토일·금=일). 수요일 조기 노출+목금 재실행 임박 갱신. cron 스케줄 불변, `--date` 명시 시 단일. [[project_launch_gating_ops]].
 - **수동 동기화 = 실제 실행 (2026-07-22, 라이브 검증)** — Vercel Edge 함수 `api/sync.ts`가 GitHub workflow_dispatch 대리 호출(설정탭 버튼). 게이트=`x-sync-key`==env `SYNC_SECRET`, 토큰=env `GH_DISPATCH_TOKEN`(둘 다 Vercel env, 번들 밖). 로컬 dev엔 /api 없어 배포본 전용. `typecheck:api`·vercel.json rewrite `/api` 제외 필수.
+- **조합 확정배당 수집 (2026-07-29)** — 결과 sync(dailySync)가 경주 결과 저장 직후 `API160_1/integratedInfo_1`에서 조합배당(복승·복연승·쌍승·삼복승·삼쌍승)을 받아 `combo_dividends`(migration 015)에 멱등 upsert. forward만(skipPredictions=false), 실패 격리. 단승/연승은 race_entries에 이미 존재. 과거 백필·DuckDB 미러 반영은 별도. 스펙/플랜 docs/superpowers/*/2026-07-29-combo-dividends-sync*.
 
 ### DB 현황
 | 테이블/뷰 | rows | 기준 |
@@ -20,6 +21,7 @@
 | training_logs | 376,372 | 2026-06-20 |
 | jockey_stats | 59 (서울 34·부경 25) | 2026-05-30 |
 | horses | 2,864 (모두 혈통 있음) | 2026-05-30 |
+| combo_dividends | (신규) | 2026-07-29~ |
 
 서울 구간기록 backfill: 2024 100% / 2025 97.3% / 2026 97.9% (부경 99.9%) — 에러 ~3%는 KRA 원천 없음.
 
