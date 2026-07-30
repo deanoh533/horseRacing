@@ -342,7 +342,11 @@ async function syncMeet(
                   onConflict: 'race_date,meet,rc_no,pool,leg1,leg2,leg3',
                 });
               if (comboErr) throw comboErr;
-              console.log(`    [meet=${meet}, rcNo=${rcNo}] 조합배당 ${comboRows.length}건`);
+              console.log(`    [meet=${meet}, rcNo=${rcNo}] 조합배당 ${comboRows.length}건 (수신 ${comboItems.length})`);
+            } else if (comboItems.length > 0) {
+              console.warn(
+                `    [meet=${meet}, rcNo=${rcNo}] ⚠️ 조합배당 ${comboItems.length}건 수신했으나 대상 pool 매칭 0건 — COMBO_POOLS 문자열 확인 필요`
+              );
             }
           } catch (err) {
             console.warn(

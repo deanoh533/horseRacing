@@ -19,7 +19,3 @@ CREATE TABLE IF NOT EXISTS combo_dividends (
   collected_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (race_date, meet, rc_no, pool, leg1, leg2, leg3)
 );
-
--- 경주 단위 조회용
-CREATE INDEX IF NOT EXISTS idx_combo_dividends_race
-  ON combo_dividends (race_date, meet, rc_no);

@@ -278,6 +278,31 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
     });
   });
 
+  it('수신은 있으나 대상 pool 매칭이 0건이면 combo_dividends에 아무것도 저장하지 않는다', async () => {
+    // 대상이 아닌 pool(단승식)만 수신 → COMBO_POOLS 필터가 전부 걸러냄
+    mockGetComboDividends.mockResolvedValue([
+      { rcNo: RC_NO, pool: '단승식', chulNo: 1, chulNo2: 0, chulNo3: 0, odds: 3.2 },
+    ]);
+
+    fakeSb.tables['race_entries'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null }],
+    };
+    fakeSb.tables['predictions'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', predicted_rank: 1, actual_ord: null }],
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { syncDay } = await import('../../src/sync/dailySync.js');
+    await syncDay({ rcDate: RC_DATE, meets: [MEET] });
+
+    expect(mockGetComboDividends).toHaveBeenCalledTimes(1);
+    expect(fakeSb.tables['combo_dividends']?.rows ?? []).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('대상 pool 매칭 0건'));
+
+    warnSpy.mockRestore();
+  });
+
   it('skipPredictions=true(백필)면 조합배당을 수집하지 않는다', async () => {
     fakeSb.tables['race_entries'] = {
       rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null }],
