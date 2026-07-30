@@ -28,6 +28,7 @@ import {
   toRaceRow,
   toRaceEntryResultRow,
   calculatePopularities,
+  toComboDividendRows,
 } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
 import { yyyymmddOffset, isEmptySync } from '../utils/syncCli.js';
@@ -322,6 +323,31 @@ async function syncMeet(
                 `    [meet=${meet}, rcNo=${rcNo}, hr=${hrName}] actual_ord UPDATE 실패 (계속): ${actualOrdErr.message}`
               );
             }
+          }
+
+          // 7. 조합 확정배당 수집 (복승·복연승·쌍승·삼복승·삼쌍승) → combo_dividends
+          //    결과 도착 경주에 한해 API160_1 호출. forward 결과 sync(skipPredictions=false)
+          //    에서만 실행됨(이 블록 자체가 !skipPredictions 가드 안). 실패는 격리(계속).
+          try {
+            const comboItems = await kra.getComboDividends({ meet, rcDate, rcNo });
+            const comboRows = toComboDividendRows(comboItems, {
+              race_date: rcDate,
+              meet,
+              rc_no: rcNo,
+            });
+            if (comboRows.length > 0) {
+              const { error: comboErr } = await supabase
+                .from('combo_dividends')
+                .upsert(comboRows, {
+                  onConflict: 'race_date,meet,rc_no,pool,leg1,leg2,leg3',
+                });
+              if (comboErr) throw comboErr;
+              console.log(`    [meet=${meet}, rcNo=${rcNo}] 조합배당 ${comboRows.length}건`);
+            }
+          } catch (err) {
+            console.warn(
+              `    [meet=${meet}, rcNo=${rcNo}] 조합배당 수집 실패 (계속): ${(err as Error).message}`
+            );
           }
         }
 
