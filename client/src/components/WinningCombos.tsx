@@ -34,15 +34,34 @@ export function WinningCombos({
 
   const { data: combos } = useComboDividends(rcDate, meet, rcNo, gates);
 
-  const rows = useMemo(
+  // 1착 말의 실제 단승 배당 (race_entries.win_odds — combo_dividends와 별개 출처)
+  const winHorse = useMemo(() => (horses ?? []).find((h) => h.ord === 1), [horses]);
+
+  const comboRows = useMemo(
     () => (combos && combos.length > 0 && gates.length >= 2 ? winningComboPayouts(combos, gates) : []),
     [combos, gates]
   );
 
-  if (rows.length === 0) return null;
-
   const fmtLegs = (pool: string, legs: number[]) =>
     legs.join(ORDERED_POOLS.has(pool) ? '→' : '-');
+
+  const rows = useMemo(() => {
+    const out: Array<{ key: string; label: string; legs: string; odds: number }> = [];
+    if (winHorse?.win_odds != null) {
+      out.push({ key: 'win', label: '단승', legs: String(winHorse.pthr_no), odds: winHorse.win_odds });
+    }
+    comboRows.forEach((r, i) => {
+      out.push({
+        key: `${r.pool}-${r.legs.join('-')}-${i}`,
+        label: POOL_LABELS[r.pool] ?? r.pool,
+        legs: fmtLegs(r.pool, r.legs),
+        odds: r.odds,
+      });
+    });
+    return out;
+  }, [winHorse, comboRows]);
+
+  if (rows.length === 0) return null;
 
   return (
     <div
@@ -51,19 +70,14 @@ export function WinningCombos({
       }`}
     >
       <div className="text-[10px] uppercase tracking-wider text-[var(--color-accent-cyan)] mb-2 font-semibold">
-        [적중 조합 배당]
+        [적중 배당]
       </div>
-      <ul className="space-y-1">
-        {rows.map((r, i) => (
-          <li
-            key={`${r.pool}-${r.legs.join('-')}-${i}`}
-            className="flex items-center justify-between gap-3 text-sm"
-          >
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {rows.map((r) => (
+          <li key={r.key} className="flex items-center justify-between gap-2 text-sm">
             <span className="text-[var(--color-text-secondary)] flex-shrink-0">
-              {POOL_LABELS[r.pool] ?? r.pool}{' '}
-              <span className="font-mono-num text-[var(--color-text-disabled)]">
-                {fmtLegs(r.pool, r.legs)}
-              </span>
+              {r.label}{' '}
+              <span className="font-mono-num text-[var(--color-text-disabled)]">{r.legs}</span>
             </span>
             <span className="font-mono-num text-[var(--color-text-primary)] text-right">
               {r.odds}배
