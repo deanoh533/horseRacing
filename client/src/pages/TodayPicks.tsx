@@ -6,6 +6,7 @@ import { useWeeklyPicks, useRaceEntryNamesByRange, useHorseSectionalAbilityByNam
 import { classifyPick } from '../lib/selectivePicks';
 import { PickBadge } from '../components/PickBadge';
 import { RacePaceBadge } from '../components/RacePaceBadge';
+import { WinningCombos } from '../components/WinningCombos';
 import { classifyRunningStyle, type RunningStyle } from '../lib/runningStyle';
 import { fmtPct } from '../lib/sectional';
 import { getTodayRaceDate } from '../lib/supabase';
@@ -73,6 +74,9 @@ function RaceCard({
           </li>
         ))}
       </ul>
+      {showResult && (
+        <WinningCombos rcDate={h0.race_date} meet={h0.meet} rcNo={h0.rc_no} compact />
+      )}
     </div>
   );
 }
