@@ -52,6 +52,7 @@ import { classifyRunningStyle, STYLE_INFO, type RunningStyle } from '../lib/runn
 import { getSectionalInfo, fmtSec, computeSameDistStats, fmtPct, fmtScore } from '../lib/sectional';
 import { PickBadge } from '../components/PickBadge';
 import { RacePaceBadge } from '../components/RacePaceBadge';
+import { WinningCombos } from '../components/WinningCombos';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -1407,6 +1408,8 @@ export function PredictionSheet() {
           ))}
         </div>
       )}
+
+      <WinningCombos rcDate={rcDate} meet={meet} rcNo={rcNo} />
 
       {!isLoading && sortedHorses.length === 0 && !error && (
         <div
