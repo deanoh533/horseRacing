@@ -911,11 +911,12 @@ export function useGradeWinnerStats(prizeCond: string | null, rcDist: number | n
         .filter('races.prize_cond', 'eq', prizeCond)
         .filter('races.rc_dist', 'eq', rcDist);
       if (error) throw error;
-      const items = (data ?? []).filter((r: any) => (r.rc_time as number) > 0);
+      type Row = { rc_time: number | null; burd_wgt: number | null };
+      const items = (data ?? []).filter((r: Row) => (r.rc_time ?? 0) > 0);
       if (items.length < 3) return null;
-      const times = items.map((r: any) => r.rc_time as number);
+      const times = items.map((r: Row) => r.rc_time as number);
       const wgts = items
-        .map((r: any) => r.burd_wgt as number | null)
+        .map((r: Row) => r.burd_wgt)
         .filter((w): w is number => w != null && w > 0);
       return {
         avg: times.reduce((a, b) => a + b, 0) / times.length,

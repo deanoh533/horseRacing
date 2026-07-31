@@ -220,38 +220,6 @@ function ordColor(ord: number | null): string {
   return 'var(--color-text-disabled)';
 }
 
-interface TimeStats {
-  bestTime: number;
-  bestDate: number;
-  bestBurdWgt: number | null;
-  bestPthrNo: number;
-  avgTime: number;
-  count: number;
-  formStr: string; // "1-2-5-3-1" 구→신
-}
-
-export function computeTimeStats(history: RaceEntry[]): TimeStats | null {
-  const valid = history.filter((h) => h.rc_time != null && h.rc_time > 0);
-  if (valid.length === 0) return null;
-  const sorted = [...valid].sort((a, b) => a.rc_time! - b.rc_time!);
-  const best = sorted[0]!;
-  const avg = valid.reduce((s, h) => s + h.rc_time!, 0) / valid.length;
-  const form = history
-    .slice(0, 5)
-    .reverse()
-    .map((h) => (h.ord != null ? String(h.ord) : 'X'))
-    .join('-');
-  return {
-    bestTime: best.rc_time!,
-    bestDate: best.race_date,
-    bestBurdWgt: best.burd_wgt,
-    bestPthrNo: best.pthr_no,
-    avgTime: avg,
-    count: valid.length,
-    formStr: form,
-  };
-}
-
 // ─── 공통 서브 컴포넌트 ──────────────────────────────────────────────
 
 /** 막대 채움 = 연승확률 p_top3(0~1). null이면 빈 막대. logit 종합점수는 0 중심 상대값이라 채움량 의미가 없어 확률로 그린다. */
@@ -328,8 +296,6 @@ function PodiumCards({
 
 function ColHorseInfo({
   horse,
-  runningStyle: _runningStyle,
-  accentColor: _accentColor,
   bloodline,
   history,
   trainerStat,
@@ -339,8 +305,6 @@ function ColHorseInfo({
   racePrizeCond,
 }: {
   horse: RaceEntry;
-  runningStyle: RunningStyle;
-  accentColor: string;
   bloodline: BloodlineInfo | undefined;
   history: RaceEntry[];
   trainerStat: { total: number; wins: number } | undefined;
@@ -1144,8 +1108,6 @@ function HorseCard({
         <div className="border-b border-r border-[var(--color-bg-elevated)] md:border-b-0">
           <ColHorseInfo
             horse={horse}
-            runningStyle={runningStyle}
-            accentColor={accent}
             bloodline={bloodline}
             history={history}
             trainerStat={trainerStat}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { RefreshCw, Brain, Cpu, KeyRound, ExternalLink, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useActiveModelVersion, useSyncStatus } from '../lib/queries';
@@ -11,13 +11,9 @@ export function Settings() {
   const { data: model, isLoading: modelLoading } = useActiveModelVersion();
   const { data: sync } = useSyncStatus();
 
-  const [syncKey, setSyncKey] = useState('');
+  const [syncKey, setSyncKey] = useState(() => localStorage.getItem('kra_sync_key') ?? '');
   const [syncMsg, setSyncMsg] = useState<{ tone: 'ok' | 'err' | 'run'; text: string } | null>(null);
   const [running, setRunning] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSyncKey(localStorage.getItem('kra_sync_key') ?? '');
-  }, []);
 
   const saveKey = (v: string) => {
     setSyncKey(v);

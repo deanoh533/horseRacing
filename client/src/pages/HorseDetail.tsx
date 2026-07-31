@@ -12,6 +12,7 @@ export function HorseDetail() {
   const rcNo = Number(rcNoStr);
   const chulNo = Number(chulNoStr);
 
+  const navigate = useNavigate();
   const { data: horses, isLoading } = useHorsesByRace(rcDate, meet, rcNo);
   const horse = useMemo(
     () => horses?.find((h) => h.pthr_no === chulNo),
@@ -34,8 +35,6 @@ export function HorseDetail() {
       </div>
     );
   }
-
-  const navigate = useNavigate();
 
   if (!horse) {
     return (
