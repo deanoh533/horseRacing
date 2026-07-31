@@ -71,9 +71,9 @@ function RaceCard({
                 {p.actual_ord}착 {p.actual_ord <= 3 ? '✅' : '❌'}
               </span>
             )}
-            <span className="text-xs text-[var(--color-text-secondary)] ml-auto">
-              연승 {p.p_top3 != null ? fmtPct(p.p_top3) : '-'}
-              {p.p_win != null && <> · 우승 {fmtPct(p.p_win)}</>}
+            <span className="ml-auto grid grid-cols-2 gap-x-3 text-xs text-[var(--color-text-secondary)] text-right">
+              <span>연승 {p.p_top3 != null ? fmtPct(p.p_top3) : '-'}</span>
+              <span>단승 {p.p_win != null ? fmtPct(p.p_win) : '-'}</span>
             </span>
           </li>
         ))}
