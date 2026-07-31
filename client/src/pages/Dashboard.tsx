@@ -16,6 +16,7 @@ import {
   useActiveModelVersion,
   useRecentArchives,
   useWeeklyPicks,
+  useRaceEntryPthrByDate,
   type PredictionPreview,
 } from '../lib/queries';
 import { classifyPick } from '../lib/selectivePicks';
@@ -54,6 +55,7 @@ export function Dashboard() {
 
   const { data: races, isLoading, error } = useRacesByDate(dateNum);
   const { data: predictions } = usePredictionsByDate(dateNum);
+  const { data: pthrMap } = useRaceEntryPthrByDate(dateNum);
 
   // race별 예측 top3 그룹핑
   const predictionsByRace = useMemo(() => {
@@ -216,6 +218,7 @@ export function Dashboard() {
                       key={`${race.meet}-${race.rc_no}`}
                       race={race}
                       predictions={predictionsByRace.get(`${race.meet}-${race.rc_no}`) ?? []}
+                      pthrMap={pthrMap}
                     />
                   ))}
                 </div>
@@ -240,9 +243,10 @@ interface RaceCardProps {
     prize_cond: string | null;
   };
   predictions: PredictionPreview[];
+  pthrMap: Map<string, number> | undefined;
 }
 
-function RaceCard({ race, predictions }: RaceCardProps) {
+function RaceCard({ race, predictions, pthrMap }: RaceCardProps) {
   const dateStr = race.race_date.toString();
   const top3 = predictions.slice(0, 3);
   const hasResult = predictions.some((p) => p.actual_ord !== null);
@@ -297,6 +301,7 @@ function RaceCard({ race, predictions }: RaceCardProps) {
                   key={rank}
                   rank={rank as 1 | 2 | 3}
                   hrName={p.hr_name}
+                  pthrNo={pthrMap?.get(`${race.meet}-${race.rc_no}-${p.hr_name}`)}
                   totalScore={p.total_score}
                   actualOrd={p.actual_ord}
                   hasResult={hasResult}
@@ -342,12 +347,13 @@ function RaceCard({ race, predictions }: RaceCardProps) {
 interface PredictionTileProps {
   rank: 1 | 2 | 3;
   hrName: string;
+  pthrNo: number | undefined;
   totalScore: number;
   actualOrd: number | null;
   hasResult: boolean;
 }
 
-function PredictionTile({ rank, hrName, totalScore, actualOrd, hasResult }: PredictionTileProps) {
+function PredictionTile({ rank, hrName, pthrNo, totalScore, actualOrd, hasResult }: PredictionTileProps) {
   const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
   const colors = {
     1: 'text-[var(--color-accent-gold)] border-[var(--color-accent-gold)]',
@@ -370,7 +376,12 @@ function PredictionTile({ rank, hrName, totalScore, actualOrd, hasResult }: Pred
       className={`flex flex-col items-center justify-center p-2 rounded border ${colors[rank]} bg-[var(--color-bg-primary)]/50`}
     >
       <div className="text-lg leading-none">{medals[rank]}</div>
-      <div className="font-semibold truncate w-full text-center mt-1">{hrName}</div>
+      <div className="font-semibold truncate w-full text-center mt-1">
+        {pthrNo != null && (
+          <span className="text-[var(--color-text-disabled)] font-mono-num mr-0.5">{pthrNo}번</span>
+        )}
+        {hrName}
+      </div>
       <div className="text-xs text-[var(--color-accent-cyan)] mt-0.5">
         {fmtScore(totalScore)}점
       </div>

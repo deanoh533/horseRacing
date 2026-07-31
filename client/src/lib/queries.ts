@@ -1204,6 +1204,28 @@ export function useHistoryRacesPrizeCond(
 }
 
 /**
+ * 특정 날짜 출전마들의 출마번호(pthr_no) — 대시보드 예측 TOP3 타일에 "N번 마명" 표시용.
+ * key: `${meet}-${rc_no}-${hr_name}` → pthr_no
+ */
+export function useRaceEntryPthrByDate(rcDate: number) {
+  return useQuery({
+    queryKey: ['race-entry-pthr-by-date', rcDate],
+    queryFn: async (): Promise<Map<string, number>> => {
+      const { data, error } = await supabase
+        .from('race_entries')
+        .select('meet, rc_no, hr_name, pthr_no')
+        .eq('race_date', rcDate);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      (data ?? []).forEach((r) => map.set(`${r.meet}-${r.rc_no}-${r.hr_name}`, r.pthr_no));
+      return map;
+    },
+    enabled: !!rcDate,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
  * DB에 데이터 있는 날짜 목록 (대시보드 날짜 선택용)
  */
 export function useAvailableDates() {
