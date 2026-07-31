@@ -376,7 +376,7 @@ function PredictionTile({ rank, hrName, pthrNo, totalScore, actualOrd, hasResult
       className={`flex flex-col items-center justify-center p-2 rounded border ${colors[rank]} bg-[var(--color-bg-primary)]/50`}
     >
       <div className="text-lg leading-none">{medals[rank]}</div>
-      <div className="font-semibold truncate w-full text-center mt-1">
+      <div className="font-semibold w-full text-center mt-1 text-[13px] leading-tight break-keep">
         {pthrNo != null && (
           <span className="text-[var(--color-text-disabled)] font-mono-num">{pthrNo}.</span>
         )}
