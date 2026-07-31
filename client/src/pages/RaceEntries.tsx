@@ -150,6 +150,12 @@ export function RaceEntries() {
     return [...(predictions ?? [])].sort((a, b) => a.predicted_rank - b.predicted_rank).slice(0, 3);
   }, [predictions]);
 
+  const pthrByName = useMemo(() => {
+    const map = new Map<string, number>();
+    (horses ?? []).forEach((h) => map.set(h.hr_name, h.pthr_no));
+    return map;
+  }, [horses]);
+
   // 결과 도착 여부 (dailySync 후 ord 채워짐)
   const isPostRace = useMemo(() => (horses ?? []).some((h) => h.ord != null), [horses]);
 
@@ -197,7 +203,9 @@ export function RaceEntries() {
               return (
                 <div key={p.hr_name} className="flex items-center gap-1.5 font-mono-num">
                   <span>{medals[i]}</span>
-                  <span className="font-semibold">{p.hr_name}</span>
+                  <span className="font-semibold">
+                    {pthrByName.get(p.hr_name)}번 {p.hr_name}
+                  </span>
                   <PickBadge pTop3={p.p_top3} />
                   <span className="text-xs text-[var(--color-text-disabled)]">{fmtScore(p.total_score)}점</span>
                   {p.p_win != null && <span className="text-xs text-[var(--color-text-disabled)] ml-1">{fmtPct(p.p_win)}</span>}
