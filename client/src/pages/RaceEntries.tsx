@@ -397,7 +397,7 @@ export function RaceEntries() {
                               </span>
                               {h.ord != null && h.win_odds != null && (
                                 <span className="ml-1 text-[11px] font-mono-num text-[var(--color-text-disabled)]">
-                                  ({h.win_odds}배)
+                                  ({h.win_odds})
                                 </span>
                               )}
                             </td>
