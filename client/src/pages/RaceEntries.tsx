@@ -35,6 +35,7 @@ import { classifyRunningStyle, STYLE_INFO, describeFrontRunSuccess, type Running
 import { getSectionalInfo, fmtSec, computeSameDistStats, fmtPct, fmtScore } from '../lib/sectional';
 import { PickBadge } from '../components/PickBadge';
 import { RacePaceBadge } from '../components/RacePaceBadge';
+import { WinningCombos } from '../components/WinningCombos';
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
@@ -430,6 +431,8 @@ export function RaceEntries() {
           </div>
         </div>
       )}
+
+      <WinningCombos rcDate={rcDate} meet={meet} rcNo={rcNo} />
 
       {!isLoading && rows.length === 0 && (
         <div className="bg-[var(--color-bg-surface)] rounded-xl p-6 text-center text-[var(--color-text-secondary)]">

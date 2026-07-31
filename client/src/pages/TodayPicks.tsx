@@ -1,11 +1,12 @@
 // client/src/pages/TodayPicks.tsx — 주간 강추 (월~일, 다가오는/지난 섹션 + 지난 주 탐색)
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useWeeklyPicks, useRaceEntryNamesByRange, useHorseSectionalAbilityByNames, useRaceSectionalStatsByRange } from '../lib/queries';
 import { classifyPick } from '../lib/selectivePicks';
 import { PickBadge } from '../components/PickBadge';
 import { RacePaceBadge } from '../components/RacePaceBadge';
+import { WinningCombos } from '../components/WinningCombos';
 import { classifyRunningStyle, type RunningStyle } from '../lib/runningStyle';
 import { fmtPct } from '../lib/sectional';
 import { getTodayRaceDate } from '../lib/supabase';
@@ -43,6 +44,7 @@ function RaceCard({
   actual?: { avgS1f: number | null; meet: number; dist: number | null };
 }) {
   const h0 = horses[0]!;
+  const [showCombo, setShowCombo] = useState(false);
   return (
     <div key={raceKey} className="rounded-lg border border-[var(--color-bg-elevated)] p-3">
       <Link
@@ -73,6 +75,20 @@ function RaceCard({
           </li>
         ))}
       </ul>
+      {showResult && (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => setShowCombo((v) => !v)}
+            className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-accent-cyan)]"
+          >
+            {showCombo ? '조합 배당 숨기기' : '조합 배당 보기'}
+          </button>
+          {showCombo && (
+            <WinningCombos rcDate={h0.race_date} meet={h0.meet} rcNo={h0.rc_no} compact />
+          )}
+        </div>
+      )}
     </div>
   );
 }

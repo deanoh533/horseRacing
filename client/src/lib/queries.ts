@@ -15,6 +15,7 @@ import {
   type RaceSectionalStats,
   type Horse,
   type GradeDistStat,
+  type ComboDividend,
 } from './supabase';
 import { pickConfig } from './selectivePicks';
 import { weekRange } from './week';
@@ -1342,5 +1343,27 @@ export function useSyncStatus() {
       return { latestCardDate, raceCount, latestResultDate, lastCreatedAt };
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * 특정 경주의 조합 확정배당 전체 (combo_dividends).
+ * 적중 조합 추출은 WinningCombos 컴포넌트에서 winningComboPayouts로 수행.
+ */
+export function useComboDividends(rcDate: number, meet: number, rcNo: number) {
+  return useQuery({
+    queryKey: ['combo-dividends', rcDate, meet, rcNo],
+    queryFn: async (): Promise<ComboDividend[]> => {
+      const { data, error } = await supabase
+        .from('combo_dividends')
+        .select('*')
+        .eq('race_date', rcDate)
+        .eq('meet', meet)
+        .eq('rc_no', rcNo);
+      if (error) throw error;
+      return (data ?? []) as ComboDividend[];
+    },
+    enabled: !!rcDate && !!meet && !!rcNo,
+    staleTime: 10 * 60 * 1000,
   });
 }

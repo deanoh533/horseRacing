@@ -6,6 +6,7 @@ import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import { fmtScore } from '../lib/sectional';
 import { supabase, type RaceEntry, type Race, type Prediction, formatActualOrd, isCancelled } from '../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
+import { WinningCombos } from '../components/WinningCombos';
 
 function useRaceMeta(rcDate: number, meet: number, rcNo: number) {
   return useQuery({
@@ -160,6 +161,8 @@ export function RaceDetail() {
           출전마 데이터 없음
         </div>
       )}
+
+      <WinningCombos rcDate={rcDate} meet={meet} rcNo={rcNo} />
 
       <div className="text-center text-xs text-[var(--color-text-disabled)] pt-2">
         ℹ️ 실제 KRA 동기화 데이터. Score Engine 예측은 별도 페이지에서 제공 예정.
