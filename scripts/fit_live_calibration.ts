@@ -109,4 +109,5 @@ async function main(): Promise<void> {
   console.log('✅ Supabase 기록 완료 — 로컬 검증 전 `npm run db:pull` 실행하세요.');
 }
 
-main().catch((e) => { console.error('💥', e); process.exit(1); });
+const isMain = process.argv[1] && process.argv[1].includes('fit_live_calibration');
+if (isMain) main().catch((e) => { console.error('💥', e); process.exit(1); });
