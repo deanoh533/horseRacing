@@ -315,3 +315,14 @@ export interface JockeyStat {
   qu_rate_t: number | null;   // 통산 입상률 (%)
   updated_at: string | null;
 }
+
+export interface ComboDividend {
+  race_date: number;
+  meet: number;
+  rc_no: number;
+  pool: string;
+  leg1: number;
+  leg2: number;
+  leg3: number;
+  odds: number;
+}
