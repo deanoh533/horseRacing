@@ -389,12 +389,17 @@ export function RaceEntries() {
                             </span>
                           </td>
 
-                          {/* 실제 결과 순위 */}
+                          {/* 실제 결과 순위 (+ 단승 배당) */}
                           {isPostRace && (
                             <td className="px-2 py-2 text-center">
                               <span className={ordBadgeClass(h.ord)}>
                                 {h.ord != null ? `${h.ord}위` : '-'}
                               </span>
+                              {h.ord != null && h.win_odds != null && (
+                                <span className="ml-1 text-[11px] font-mono-num text-[var(--color-text-disabled)]">
+                                  ({h.win_odds}배)
+                                </span>
+                              )}
                             </td>
                           )}
                         </tr>
