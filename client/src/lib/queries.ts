@@ -1348,23 +1348,28 @@ export function useSyncStatus() {
 }
 
 /**
- * 특정 경주의 조합 확정배당 전체 (combo_dividends).
- * 적중 조합 추출은 WinningCombos 컴포넌트에서 winningComboPayouts로 수행.
+ * 특정 경주의 조합 확정배당 — 착순 게이트(top1~3 pthr_no)로 서버 필터.
+ * 경주당 조합은 1000행(Supabase 상한)을 넘어 select(*)는 잘려 적중 조합이 누락되므로,
+ * leg가 모두 착순 게이트 안에 드는 조합(=적중 후보, 소량)만 조회한다.
+ * 적중 조합 추출은 WinningCombos에서 winningComboPayouts로 수행.
  */
-export function useComboDividends(rcDate: number, meet: number, rcNo: number) {
+export function useComboDividends(rcDate: number, meet: number, rcNo: number, gates: number[]) {
   return useQuery({
-    queryKey: ['combo-dividends', rcDate, meet, rcNo],
+    queryKey: ['combo-dividends', rcDate, meet, rcNo, gates.slice().sort((a, b) => a - b).join(',')],
     queryFn: async (): Promise<ComboDividend[]> => {
       const { data, error } = await supabase
         .from('combo_dividends')
         .select('*')
         .eq('race_date', rcDate)
         .eq('meet', meet)
-        .eq('rc_no', rcNo);
+        .eq('rc_no', rcNo)
+        .in('leg1', gates)
+        .in('leg2', gates)
+        .or(`leg3.eq.0,leg3.in.(${gates.join(',')})`);
       if (error) throw error;
       return (data ?? []) as ComboDividend[];
     },
-    enabled: !!rcDate && !!meet && !!rcNo,
+    enabled: !!rcDate && !!meet && !!rcNo && gates.length >= 2,
     staleTime: 10 * 60 * 1000,
   });
 }

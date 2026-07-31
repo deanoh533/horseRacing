@@ -20,15 +20,19 @@ export function WinningCombos({
   rcNo: number;
   compact?: boolean;
 }) {
-  const { data: combos } = useComboDividends(rcDate, meet, rcNo);
   const { data: horses } = useHorsesByRace(rcDate, meet, rcNo);
 
+  // 착순 1~3위 게이트(pthr_no)를 먼저 구해서, combo 조회를 이 게이트들로 서버 필터한다.
+  // (경주당 조합은 1000행을 넘어서 select(*)는 상한에 잘림 → 적중 조합 누락. 게이트 필터로
+  //  적중 후보만 소량 조회하면 캡·egress 둘 다 해소.)
   const gates = useMemo(() => {
     return (horses ?? [])
       .filter((h) => h.ord != null && h.ord >= 1 && h.ord <= 3)
       .sort((a, b) => (a.ord as number) - (b.ord as number))
       .map((h) => h.pthr_no);
   }, [horses]);
+
+  const { data: combos } = useComboDividends(rcDate, meet, rcNo, gates);
 
   const rows = useMemo(
     () => (combos && combos.length > 0 && gates.length >= 2 ? winningComboPayouts(combos, gates) : []),
