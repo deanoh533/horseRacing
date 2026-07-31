@@ -204,7 +204,7 @@ export function RaceEntries() {
                 <div key={p.hr_name} className="flex items-center gap-1.5 font-mono-num">
                   <span>{medals[i]}</span>
                   <span className="font-semibold">
-                    {pthrByName.get(p.hr_name)}번 {p.hr_name}
+                    {pthrByName.get(p.hr_name)}.{p.hr_name}
                   </span>
                   <PickBadge pTop3={p.p_top3} />
                   <span className="text-xs text-[var(--color-text-disabled)]">{fmtScore(p.total_score)}점</span>

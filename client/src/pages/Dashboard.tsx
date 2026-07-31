@@ -378,7 +378,7 @@ function PredictionTile({ rank, hrName, pthrNo, totalScore, actualOrd, hasResult
       <div className="text-lg leading-none">{medals[rank]}</div>
       <div className="font-semibold truncate w-full text-center mt-1">
         {pthrNo != null && (
-          <span className="text-[var(--color-text-disabled)] font-mono-num mr-0.5">{pthrNo}번</span>
+          <span className="text-[var(--color-text-disabled)] font-mono-num">{pthrNo}.</span>
         )}
         {hrName}
       </div>
