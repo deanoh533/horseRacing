@@ -616,13 +616,13 @@ export function useHorseSectionalAbilityByNames(hrNames: string[]) {
 export function useRaceEntryNamesByRange(from: number | null, to: number | null) {
   return useQuery({
     queryKey: ['race-entry-names-range', from, to],
-    queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }>> => {
-      const rows: Array<{ race_date: number; meet: number; rc_no: number; hr_name: string }> = [];
+    queryFn: async (): Promise<Array<{ race_date: number; meet: number; rc_no: number; hr_name: string; pthr_no: number }>> => {
+      const rows: Array<{ race_date: number; meet: number; rc_no: number; hr_name: string; pthr_no: number }> = [];
       const PAGE = 1000;
       for (let off = 0; ; off += PAGE) {
         const { data, error } = await supabase
           .from('race_entries')
-          .select('race_date, meet, rc_no, hr_name')
+          .select('race_date, meet, rc_no, hr_name, pthr_no')
           .gte('race_date', from!)
           .lte('race_date', to!)
           .order('race_date')

@@ -35,13 +35,14 @@ function isValidYmd(n: number): boolean {
 
 /** 경주 카드 (다가오는/지난 공용). showResult=true면 픽마다 실착순 ✅/❌ 표기(지난 경주는 날짜 그룹이 없어 Link에 날짜도 표기). */
 function RaceCard({
-  raceKey, horses, styles, showResult, actual,
+  raceKey, horses, styles, showResult, actual, pthrByKey,
 }: {
   raceKey: string;
   horses: Prediction[];
   styles: RunningStyle[] | undefined;
   showResult: boolean;
   actual?: { avgS1f: number | null; meet: number; dist: number | null };
+  pthrByKey: Map<string, number>;
 }) {
   const h0 = horses[0]!;
   const [showCombo, setShowCombo] = useState(false);
@@ -62,7 +63,9 @@ function RaceCard({
         {horses.map((p) => (
           <li key={`${p.race_date}-${p.meet}-${p.rc_no}-${p.hr_name}`} className="flex items-center gap-2 text-sm">
             <PickBadge pTop3={p.p_top3} />
-            <span className="font-semibold">{p.hr_name}</span>
+            <span className="font-semibold">
+              {pthrByKey.get(`${p.race_date}-${p.meet}-${p.rc_no}-${p.hr_name}`)}.{p.hr_name}
+            </span>
             {showResult && p.actual_ord != null && (
               <span className={`text-xs font-semibold ${p.actual_ord <= 3 ? 'text-emerald-300' : 'text-red-400'}`}>
                 {p.actual_ord}착 {p.actual_ord <= 3 ? '✅' : '❌'}
@@ -126,6 +129,11 @@ export function TodayPicks() {
   const hasPicks = picks.length > 0;
   const { data: entryNames } = useRaceEntryNamesByRange(hasPicks ? from : null, hasPicks ? to : null);
   const allNames = useMemo(() => [...new Set((entryNames ?? []).map((e) => e.hr_name))], [entryNames]);
+  const pthrByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    (entryNames ?? []).forEach((e) => map.set(`${e.race_date}-${e.meet}-${e.rc_no}-${e.hr_name}`, e.pthr_no));
+    return map;
+  }, [entryNames]);
   const { data: abilities } = useHorseSectionalAbilityByNames(allNames);
   const stylesByRace = useMemo(() => {
     const styleByName = new Map<string, RunningStyle>();
@@ -247,7 +255,7 @@ export function TodayPicks() {
             <div key={date} className="space-y-2">
               <h3 className="text-xs font-semibold text-[var(--color-accent-cyan)]">{fmtDate(date)}</h3>
               {races.map(([key, horses]) => (
-                <RaceCard key={key} raceKey={key} horses={horses} styles={stylesByRace.get(key)} showResult={false} />
+                <RaceCard key={key} raceKey={key} horses={horses} styles={stylesByRace.get(key)} showResult={false} pthrByKey={pthrByKey} />
               ))}
             </div>
           ))}
@@ -258,7 +266,7 @@ export function TodayPicks() {
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-[var(--color-text-secondary)]">지난 경주{isCurrentWeek ? ' (이번 주 결과)' : ''}</h2>
           {pastRaces.map(([key, horses]) => (
-            <RaceCard key={key} raceKey={key} horses={horses} styles={stylesByRace.get(key)} showResult={true} actual={sectionalByKey.get(key)} />
+            <RaceCard key={key} raceKey={key} horses={horses} styles={stylesByRace.get(key)} showResult={true} actual={sectionalByKey.get(key)} pthrByKey={pthrByKey} />
           ))}
         </section>
       )}
