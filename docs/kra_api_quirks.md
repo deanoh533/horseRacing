@@ -183,9 +183,44 @@ GET /API314/textDataHoldSePtinInfo?race_dt=20260524    → 정상 (11건)
 
 ---
 
+### ⚠️ Quirk 9 (Critical): `hrName`에 지역 이적 태그가 비일관적으로 붙음
+
+**증상:** 서울↔부산경남을 이적한 말의 이름 앞에 KRA가 지역 태그를 붙이는데,
+표기가 시점마다 다르다 — 같은 말(`hr_no`)인데 경주별로 `hr_name`이 3가지로 갈림:
+```
+"벌교의꿈"            (태그 없음)
+"[부산경남]벌교의꿈"  (전체 지역명)
+"[부]벌교의꿈"        (축약형)
+```
+
+**왜 치명적인가:** `hr_name`은 이 프로젝트 전체에서 말을 매칭하는 키다 — 과거전적
+(`useHorseHistory`), 기수-말 궁합(`useJockeyHorseComboBatch`), 게이트별 성적
+(`useHorseGateStatsBatch`), 조교 기록(`useTrainingBatchByNames`), 예측 매칭
+(`predictions.hr_name`) 등. 표기가 갈리면 그 말만 **에러 없이 조용히** 매칭이
+끊긴다(과거 기록이 있는데 "기록 없음"으로 보임).
+
+**발견:** 2026-08-01, `race_entries.hr_name ILIKE '%부산경남%'` 조회 중 사용자가
+화면에서 "[부산경남]" 표기를 목격 → 조사 결과 118마리에서 hr_name 불일치 확인
+(219행 `[부산경남]`, 129행 `[부]`, 나머지는 태그 없음).
+
+**조치:**
+- **재발 방지(코드):** `src/kra/client.ts`의 `getRaceResults`·`getEntrySheet`·
+  `getTrainingHistory`(+`getAllTrainingHistory`)가 API 응답을 받는 즉시
+  `stripHrNameTag()`(`src/utils/parsers.ts`)로 선행 `[...]` 태그 제거 후 반환.
+  이 세 지점이 `hr_name`이 시스템에 들어오는 유일한 입구라 여기서 한 번만
+  정규화하면 이후 전 파이프라인이 항상 깨끗한 값을 본다.
+- **기존 데이터 백필:** `supabase/migrations/016_normalize_hr_name_tags.sql` —
+  `race_entries`·`predictions`·`training_logs` 세 테이블(hr_name PK 아님,
+  충돌 위험 없음)의 기존 태그 제거. 사용자가 Supabase SQL Editor에서 직접 실행.
+- **범위 밖:** `horses` 테이블도 `hr_name` 컬럼이 있으나 모든 쿼리가 `hr_no`로만
+  매칭해 이 버그의 영향을 안 받음 — 백필 대상에서 제외.
+
+---
+
 ## 변경 이력
 
 | 일자 | 변경 |
 |---|---|
 | 2026-05-25 | 신규 작성. Quirk 1-5 정리 |
 | 2026-05-30 | Quirk 6(API6_1 페이스 데이터), Quirk 7(ratg=0 구조적 공백), Quirk 8(API4_3 비교) 추가 |
+| 2026-08-01 | Quirk 9(hrName 지역 이적 태그 비일관 — hr_name 매칭 끊김 버그) 추가 |

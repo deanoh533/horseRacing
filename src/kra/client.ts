@@ -20,6 +20,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import pLimit from 'p-limit';
 import { getEnv } from '@utils/env.js';
+import { stripHrNameTag } from '@utils/parsers.js';
 import type {
   KRARaceResult,
   KRARaceDetail,
@@ -153,7 +154,9 @@ export class KRAClient {
           _type: 'json',
         }
       );
-      return this.parseResponse(data);
+      // KRA가 이적마 이름 앞에 지역 태그를 붙이는데 표기가 일정하지 않아
+      // (전체명/축약형/태그없음) 동일 말인데 hr_name이 갈리는 문제 방지
+      return this.parseResponse(data).map((r) => ({ ...r, hrName: stripHrNameTag(r.hrName) }));
     });
   }
 
@@ -287,7 +290,7 @@ export class KRAClient {
           _type: 'json',
         }
       );
-      return this.parseResponse(data);
+      return this.parseResponse(data).map((r) => ({ ...r, hrName: stripHrNameTag(r.hrName) }));
     });
   }
 
@@ -397,7 +400,7 @@ export class KRAClient {
         '/API18_1/dailyTraining_1',
         queryParams
       );
-      return this.parseResponse(data);
+      return this.parseResponse(data).map((r) => ({ ...r, hrName: stripHrNameTag(r.hrName) }));
     });
   }
 
@@ -428,7 +431,7 @@ export class KRAClient {
         '/API18_1/dailyTraining_1',
         queryParams
       );
-      const page = this.parseResponse(data);
+      const page = this.parseResponse(data).map((r) => ({ ...r, hrName: stripHrNameTag(r.hrName) }));
       if (page.length === 0) break;
       all.push(...page);
       if (page.length < numOfRows) break;

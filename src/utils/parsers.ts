@@ -40,6 +40,18 @@ export function extractTrackType(track: string | null | undefined): string {
 }
 
 /**
+ * KRA 마명 앞 지역 이적 태그 제거
+ * "[부산경남]벌교의꿈" / "[부]벌교의꿈" / "벌교의꿈" → "벌교의꿈"
+ *
+ * 같은 말이 이적 시점 전후로 KRA 응답에서 다른 태그(전체명/축약형/태그없음)로
+ * 표기돼 hr_name이 갈린다. hr_name은 과거전적·기수궁합·조교기록 등 매칭 키로
+ * 쓰이므로 항상 태그 제거 후 저장해야 동일 말이 계속 매칭된다.
+ */
+export function stripHrNameTag(name: string): string {
+  return name.replace(/^\[[^\]]*\]/, '').trim();
+}
+
+/**
  * 시즌 분류
  * 4-9월: 여름 / 10-3월: 겨울
  */
