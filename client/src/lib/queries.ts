@@ -1309,7 +1309,7 @@ export interface SyncStatus {
   latestCardDate: number | null; // races 최신 race_date (출마표가 어디까지 로드됐나)
   raceCount: number; // races 총 행 수
   latestResultDate: number | null; // predictions에서 actual_ord 채워진 최신 race_date
-  lastCreatedAt: string | null; // race_entries 최신 created_at (마지막 출마표 수집 시각)
+  lastFetchedAt: string | null; // race_entries 최신 fetched_at (마지막 출마표 수집 시각)
 }
 
 /**
@@ -1320,50 +1320,59 @@ export function useSyncStatus() {
   return useQuery({
     queryKey: ['sync-status'],
     queryFn: async (): Promise<SyncStatus> => {
-      const safe = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+      // 실패해도 패널 전체가 깨지지 않게 개별 fallback. 단 조용히 삼키면
+      // 컬럼명 오타 같은 버그가 영원히 '—'로만 보이므로(2026-08-05 fetched_at 사건)
+      // 반드시 콘솔에 남긴다.
+      const safe = async <T>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> => {
         try {
           return await fn();
-        } catch {
+        } catch (e) {
+          console.warn(`[useSyncStatus] ${label} 조회 실패:`, (e as Error).message);
           return fallback;
         }
       };
-      const [latestCardDate, raceCount, latestResultDate, lastCreatedAt] = await Promise.all([
-        safe(async () => {
-          const { data } = await supabase
+      const [latestCardDate, raceCount, latestResultDate, lastFetchedAt] = await Promise.all([
+        safe('최신 출마표 경주일', async () => {
+          const { data, error } = await supabase
             .from('races')
             .select('race_date')
             .order('race_date', { ascending: false })
             .limit(1)
             .maybeSingle();
+          if (error) throw error;
           return (data?.race_date as number | undefined) ?? null;
         }, null as number | null),
-        safe(async () => {
-          const { count } = await supabase
+        safe('누적 경주 수', async () => {
+          const { count, error } = await supabase
             .from('races')
             .select('*', { count: 'exact', head: true });
+          if (error) throw error;
           return count ?? 0;
         }, 0),
-        safe(async () => {
-          const { data } = await supabase
+        safe('결과 기록 경주일', async () => {
+          const { data, error } = await supabase
             .from('predictions')
             .select('race_date')
             .not('actual_ord', 'is', null)
             .order('race_date', { ascending: false })
             .limit(1)
             .maybeSingle();
+          if (error) throw error;
           return (data?.race_date as number | undefined) ?? null;
         }, null as number | null),
-        safe(async () => {
-          const { data } = await supabase
+        // 컬럼명은 fetched_at (created_at 아님 — race_entries 스키마 004 참고)
+        safe('마지막 출마표 수집', async () => {
+          const { data, error } = await supabase
             .from('race_entries')
-            .select('created_at')
-            .order('created_at', { ascending: false })
+            .select('fetched_at')
+            .order('fetched_at', { ascending: false, nullsFirst: false })
             .limit(1)
             .maybeSingle();
-          return (data?.created_at as string | undefined) ?? null;
+          if (error) throw error;
+          return (data?.fetched_at as string | undefined) ?? null;
         }, null as string | null),
       ]);
-      return { latestCardDate, raceCount, latestResultDate, lastCreatedAt };
+      return { latestCardDate, raceCount, latestResultDate, lastFetchedAt };
     },
     staleTime: 5 * 60 * 1000,
   });

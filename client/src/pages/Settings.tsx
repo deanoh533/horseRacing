@@ -100,7 +100,7 @@ export function Settings() {
           <Row label="결과 기록된 최신 경주일" value={ymdToDisplay(sync?.latestResultDate)} />
           <Row
             label="마지막 출마표 수집"
-            value={sync?.lastCreatedAt ? new Date(sync.lastCreatedAt).toLocaleString('ko-KR') : '—'}
+            value={sync?.lastFetchedAt ? new Date(sync.lastFetchedAt).toLocaleString('ko-KR') : '—'}
           />
         </div>
 
