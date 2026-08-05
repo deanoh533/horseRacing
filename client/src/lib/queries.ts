@@ -1203,22 +1203,34 @@ export function useHistoryRacesPrizeCond(
   });
 }
 
+/** 대시보드용 경량 출전마 행 (번호 표시 + 우승마 배당) */
+export interface RaceEntryLite {
+  meet: number;
+  rc_no: number;
+  hr_name: string;
+  pthr_no: number;
+  ord: number | null;
+  win_odds: number | null; // 단승 배당
+  plc_odds: number | null; // 연승 배당
+}
+
 /**
- * 특정 날짜 출전마들의 출마번호(pthr_no) — 대시보드 예측 TOP3 타일에 "N번 마명" 표시용.
- * key: `${meet}-${rc_no}-${hr_name}` → pthr_no
+ * 특정 날짜 출전마 경량 조회 — 대시보드에서 두 용도로 함께 씀:
+ *   (1) 예측 TOP3 타일의 "N.마명" 번호
+ *   (2) 결과 줄의 1착 말 + 단승·연승 배당
+ * 하루치라 소량(최대 ~180행)이라 1000행 캡 무관. 조합배당(combo_dividends)은
+ * 경주당 1000행을 넘어 대시보드에서 다루지 않는다(상세 화면 전용).
  */
-export function useRaceEntryPthrByDate(rcDate: number) {
+export function useRaceEntriesByDate(rcDate: number) {
   return useQuery({
-    queryKey: ['race-entry-pthr-by-date', rcDate],
-    queryFn: async (): Promise<Map<string, number>> => {
+    queryKey: ['race-entries-lite-by-date', rcDate],
+    queryFn: async (): Promise<RaceEntryLite[]> => {
       const { data, error } = await supabase
         .from('race_entries')
-        .select('meet, rc_no, hr_name, pthr_no')
+        .select('meet, rc_no, hr_name, pthr_no, ord, win_odds, plc_odds')
         .eq('race_date', rcDate);
       if (error) throw error;
-      const map = new Map<string, number>();
-      (data ?? []).forEach((r) => map.set(`${r.meet}-${r.rc_no}-${r.hr_name}`, r.pthr_no));
-      return map;
+      return (data ?? []) as RaceEntryLite[];
     },
     enabled: !!rcDate,
     staleTime: 10 * 60 * 1000,

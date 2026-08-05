@@ -16,8 +16,9 @@ import {
   useActiveModelVersion,
   useRecentArchives,
   useWeeklyPicks,
-  useRaceEntryPthrByDate,
+  useRaceEntriesByDate,
   type PredictionPreview,
+  type RaceEntryLite,
 } from '../lib/queries';
 import { classifyPick } from '../lib/selectivePicks';
 import { fmtScore } from '../lib/sectional';
@@ -55,7 +56,23 @@ export function Dashboard() {
 
   const { data: races, isLoading, error } = useRacesByDate(dateNum);
   const { data: predictions } = usePredictionsByDate(dateNum);
-  const { data: pthrMap } = useRaceEntryPthrByDate(dateNum);
+  const { data: entries } = useRaceEntriesByDate(dateNum);
+
+  // 예측 타일 번호용: `${meet}-${rc_no}-${hr_name}` → pthr_no
+  const pthrMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (entries ?? []).forEach((e) => map.set(`${e.meet}-${e.rc_no}-${e.hr_name}`, e.pthr_no));
+    return map;
+  }, [entries]);
+
+  // 결과 줄용: 경주별 1착 말 (`${meet}-${rc_no}` → 우승마)
+  const winnerByRace = useMemo(() => {
+    const map = new Map<string, RaceEntryLite>();
+    (entries ?? []).forEach((e) => {
+      if (e.ord === 1) map.set(`${e.meet}-${e.rc_no}`, e);
+    });
+    return map;
+  }, [entries]);
 
   // race별 예측 top3 그룹핑
   const predictionsByRace = useMemo(() => {
@@ -219,6 +236,7 @@ export function Dashboard() {
                       race={race}
                       predictions={predictionsByRace.get(`${race.meet}-${race.rc_no}`) ?? []}
                       pthrMap={pthrMap}
+                      winner={winnerByRace.get(`${race.meet}-${race.rc_no}`)}
                     />
                   ))}
                 </div>
@@ -244,9 +262,10 @@ interface RaceCardProps {
   };
   predictions: PredictionPreview[];
   pthrMap: Map<string, number> | undefined;
+  winner: RaceEntryLite | undefined;
 }
 
-function RaceCard({ race, predictions, pthrMap }: RaceCardProps) {
+function RaceCard({ race, predictions, pthrMap, winner }: RaceCardProps) {
   const dateStr = race.race_date.toString();
   const top3 = predictions.slice(0, 3);
   const hasResult = predictions.some((p) => p.actual_ord !== null);
@@ -313,6 +332,26 @@ function RaceCard({ race, predictions, pthrMap }: RaceCardProps) {
       ) : (
         <div className="text-xs text-[var(--color-text-disabled)] py-2">
           {hasResult ? '예측 데이터 없음' : '예측 점수 준비 중'}
+        </div>
+      )}
+
+      {/* 결과 줄 — 실제 1착 말 + 단승·연승 배당. 예측이 빗나가도 우승마는 항상 보인다.
+          (조합 배당은 경주당 1000행 넘어 대시보드에선 다루지 않음 — 상세 화면 전용) */}
+      {winner && (
+        <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-2 text-xs flex-wrap">
+          <span className="text-[var(--color-accent-gold)] font-semibold">🏆 1착</span>
+          <span className="font-semibold">
+            <span className="text-[var(--color-text-disabled)] font-mono-num">{winner.pthr_no}.</span>
+            {winner.hr_name}
+          </span>
+          <span className="ml-auto flex items-center gap-3 font-mono-num text-[var(--color-text-secondary)]">
+            {winner.win_odds != null && (
+              <span>단승 <span className="text-[var(--color-text-primary)]">{winner.win_odds.toFixed(1)}</span></span>
+            )}
+            {winner.plc_odds != null && (
+              <span>연승 <span className="text-[var(--color-text-primary)]">{winner.plc_odds.toFixed(1)}</span></span>
+            )}
+          </span>
         </div>
       )}
 
