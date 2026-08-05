@@ -17,9 +17,11 @@ import {
   useRecentArchives,
   useWeeklyPicks,
   useRaceEntriesByDate,
+  useComboDividends,
   type PredictionPreview,
   type RaceEntryLite,
 } from '../lib/queries';
+import { winningComboPayouts } from '../lib/combos';
 import { classifyPick } from '../lib/selectivePicks';
 import { fmtScore } from '../lib/sectional';
 import { isCancelled } from '../lib/supabase';
@@ -277,6 +279,17 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
   const entriesUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}/entries`;
   const sheetUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}/sheet`;
 
+  // 결과 줄: 1착 말(단승) + 적중 복승·삼복승 배당
+  const winner = podium?.find((p) => p.ord === 1);
+  const gates = useMemo(() => (podium ?? []).map((p) => p.pthr_no), [podium]);
+  const { data: combos } = useComboDividends(race.race_date, race.meet, race.rc_no, gates);
+  const payouts = useMemo(
+    () => (combos && combos.length > 0 && gates.length >= 2 ? winningComboPayouts(combos, gates) : []),
+    [combos, gates]
+  );
+  const quinella = payouts.find((p) => p.pool === '복승식');
+  const trio = payouts.find((p) => p.pool === '삼복승식');
+
   return (
     <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors">
       {/* 경주 헤더 */}
@@ -339,42 +352,27 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
         </div>
       )}
 
-      {/* 실제 결과 — 1·2·3착을 위 예측 TOP3와 같은 3열로 배치해 위아래 비교가 되게.
-          배당은 각 말의 연승(3착 이내 지급) + 1착만 단승 추가.
-          (조합 배당은 경주당 1000행 넘어 대시보드에선 다루지 않음 — 상세 화면 전용) */}
-      {podium && podium.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-[var(--color-bg-elevated)]">
-          <div className="text-[12px] uppercase tracking-wider text-[var(--color-success)] mb-1.5 font-semibold">
-            🏆 실제 결과
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            {[1, 2, 3].map((rank) => {
-              const h = podium.find((p) => p.ord === rank);
-              if (!h) return <div key={rank} />;
-              return (
-                <div
-                  key={rank}
-                  className="flex flex-col items-center justify-start p-2 rounded border border-[var(--color-bg-elevated)] bg-[var(--color-bg-primary)]/50"
-                >
-                  <div className="text-[var(--color-text-secondary)] font-mono-num leading-none">
-                    {rank}착
-                  </div>
-                  <div className="font-semibold w-full text-center mt-1 leading-tight break-keep">
-                    <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
-                    {h.hr_name}
-                  </div>
-                  <div className="mt-1 font-mono-num text-[11px] text-[var(--color-text-secondary)] text-center">
-                    {rank === 1 && h.win_odds != null && (
-                      <div>단승 <span className="text-[var(--color-text-primary)]">{h.win_odds.toFixed(1)}</span></div>
-                    )}
-                    {h.plc_odds != null && (
-                      <div>연승 <span className="text-[var(--color-text-primary)]">{h.plc_odds.toFixed(1)}</span></div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* 결과 줄 — 1착 말 + 단승·복승·삼복승 배당 한 줄.
+          복승·삼복승은 combo_dividends지만 착순 게이트로 서버 필터해 경주당 ~19행만 온다
+          (1000행 캡 수정 때 도입한 필터 — 대시보드에 올려도 부담 없음). */}
+      {winner && (
+        <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-2 text-xs flex-wrap">
+          <span className="text-[var(--color-accent-gold)] font-semibold">🏆 1착</span>
+          <span className="font-semibold">
+            <span className="text-[var(--color-text-disabled)] font-mono-num">{winner.pthr_no}.</span>
+            {winner.hr_name}
+          </span>
+          <span className="ml-auto flex items-center gap-3 font-mono-num text-[var(--color-text-secondary)]">
+            {winner.win_odds != null && (
+              <span>단승 <span className="text-[var(--color-text-primary)]">{winner.win_odds.toFixed(1)}</span></span>
+            )}
+            {quinella && (
+              <span>복승 <span className="text-[var(--color-text-primary)]">{quinella.odds.toFixed(1)}</span></span>
+            )}
+            {trio && (
+              <span>삼복승 <span className="text-[var(--color-text-primary)]">{trio.odds.toFixed(1)}</span></span>
+            )}
+          </span>
         </div>
       )}
 
