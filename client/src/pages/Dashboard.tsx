@@ -33,6 +33,9 @@ const MEET_NAMES: Record<number, string> = {
 
 const RECENT_WINDOW = 50; // 최근 N경주 복승권 적중률 표본
 
+/** 순위 메달 — 예측 TOP3 타일(예측 순위)과 결과 줄(실제 착순)이 공유 */
+const MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
 export function Dashboard() {
   const { data: availableDates } = useAvailableDates();
   const { data: activeVersion } = useActiveModelVersion();
@@ -358,9 +361,9 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
           (1000행 캡 수정 때 도입한 필터 — 대시보드에 올려도 부담 없음). */}
       {podium && podium.length > 0 && (
         <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-x-3 gap-y-1 text-xs flex-wrap">
-          <span className="text-[var(--color-accent-gold)]">🏆</span>
           {podium.map((h) => (
             <span key={h.ord} className="whitespace-nowrap">
+              <span className="mr-0.5">{MEDALS[h.ord as number]}</span>
               <span className="text-[var(--color-text-secondary)] font-mono-num">{h.ord}착 </span>
               <span className="font-semibold">
                 <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
@@ -420,7 +423,6 @@ interface PredictionTileProps {
 }
 
 function PredictionTile({ rank, hrName, pthrNo, totalScore, actualOrd, hasResult }: PredictionTileProps) {
-  const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
   const colors = {
     1: 'text-[var(--color-accent-gold)] border-[var(--color-accent-gold)]',
     2: 'text-[var(--color-text-primary)] border-[var(--color-text-disabled)]',
@@ -441,7 +443,7 @@ function PredictionTile({ rank, hrName, pthrNo, totalScore, actualOrd, hasResult
     <div
       className={`flex flex-col items-center justify-center p-2 rounded border ${colors[rank]} bg-[var(--color-bg-primary)]/50`}
     >
-      <div className="text-lg leading-none">{medals[rank]}</div>
+      <div className="text-lg leading-none">{MEDALS[rank]}</div>
       <div className="font-semibold w-full text-center mt-1 text-[13px] leading-tight break-keep">
         {pthrNo != null && (
           <span className="text-[var(--color-text-disabled)] font-mono-num">{pthrNo}.</span>
