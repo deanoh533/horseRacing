@@ -352,18 +352,24 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
         </div>
       )}
 
-      {/* 결과 줄 — 1착 말 + 단승·복승·삼복승 배당 한 줄.
+      {/* 결과 줄 — 실제 1·2·3착 + 단승·복승·삼복승 배당 한 줄.
+          말 이름은 whitespace-nowrap으로 중간에 안 끊기고, 줄이 넘치면 flex-wrap으로 접힌다.
           복승·삼복승은 combo_dividends지만 착순 게이트로 서버 필터해 경주당 ~19행만 온다
           (1000행 캡 수정 때 도입한 필터 — 대시보드에 올려도 부담 없음). */}
-      {winner && (
-        <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-2 text-xs flex-wrap">
-          <span className="text-[var(--color-accent-gold)] font-semibold">🏆 1착</span>
-          <span className="font-semibold">
-            <span className="text-[var(--color-text-disabled)] font-mono-num">{winner.pthr_no}.</span>
-            {winner.hr_name}
-          </span>
-          <span className="ml-auto flex items-center gap-3 font-mono-num text-[var(--color-text-secondary)]">
-            {winner.win_odds != null && (
+      {podium && podium.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-x-3 gap-y-1 text-xs flex-wrap">
+          <span className="text-[var(--color-accent-gold)]">🏆</span>
+          {podium.map((h) => (
+            <span key={h.ord} className="whitespace-nowrap">
+              <span className="text-[var(--color-text-secondary)] font-mono-num">{h.ord}착 </span>
+              <span className="font-semibold">
+                <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
+                {h.hr_name}
+              </span>
+            </span>
+          ))}
+          <span className="ml-auto flex items-center gap-3 font-mono-num text-[var(--color-text-secondary)] whitespace-nowrap">
+            {winner?.win_odds != null && (
               <span>단승 <span className="text-[var(--color-text-primary)]">{winner.win_odds.toFixed(1)}</span></span>
             )}
             {quinella && (
