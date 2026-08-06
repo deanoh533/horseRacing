@@ -363,8 +363,7 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
         <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-x-3 gap-y-1 text-xs flex-wrap">
           {podium.map((h) => (
             <span key={h.ord} className="whitespace-nowrap">
-              <span className="mr-0.5">{MEDALS[h.ord as number]}</span>
-              <span className="text-[var(--color-text-secondary)] font-mono-num">{h.ord}착 </span>
+              <span className="mr-1">{MEDALS[h.ord as number]}</span>
               <span className="font-semibold">
                 <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
                 {h.hr_name}
