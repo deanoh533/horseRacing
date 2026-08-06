@@ -245,12 +245,12 @@ export function RaceEntries() {
                     <SortHeader label="번" k="pthr_no" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                     <SortHeader label="마명" k="hr_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" />
                     <th className="hidden md:table-cell px-2 py-2 text-left whitespace-nowrap text-xs">산지·성·연령</th>
-                    <SortHeader label="레이팅" k="ratg" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
-                    <SortHeader label="중량/증감" k="burd_wgt" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                    <SortHeader label="레이팅" k="ratg" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" className="hidden md:table-cell" />
+                    <SortHeader label="중량/증감" k="burd_wgt" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" className="hidden md:table-cell" />
                     <SortHeader label="기수" k="jcky_nm" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" />
                     <SortHeader label="조교사" k="trar_nm" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="left" className="hidden md:table-cell" />
                     <th className="hidden md:table-cell px-2 py-2 text-left whitespace-nowrap">최근 폼</th>
-                    <SortHeader label="AI" k="predicted_rank" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" className="hidden md:table-cell" />
+                    <SortHeader label="AI" k="predicted_rank" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
                     {isPostRace && (
                       <SortHeader label="결과" k="ord" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
                     )}
@@ -320,12 +320,12 @@ export function RaceEntries() {
                           </td>
 
                           {/* 레이팅 */}
-                          <td className="px-2 py-2 text-right">
+                          <td className="hidden md:table-cell px-2 py-2 text-right">
                             {h.ratg && h.ratg > 0 ? h.ratg : '-'}
                           </td>
 
                           {/* 중량 / 증감 */}
-                          <td className="px-2 py-2 text-right whitespace-nowrap">
+                          <td className="hidden md:table-cell px-2 py-2 text-right whitespace-nowrap">
                             {h.burd_wgt ?? '-'}
                             {h.wg_hr_diff != null && h.wg_hr_diff !== 0 && (
                               <span
@@ -391,7 +391,7 @@ export function RaceEntries() {
                           </td>
 
                           {/* AI 예측 순위 */}
-                          <td className="hidden md:table-cell px-2 py-2 text-center">
+                          <td className="px-2 py-2 text-center">
                             <span className={rankBadgeClass(h.predicted_rank)}>
                               {formatPredRank(h.predicted_rank)}
                             </span>
