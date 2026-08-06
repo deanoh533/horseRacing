@@ -70,11 +70,12 @@ export function Dashboard() {
     return map;
   }, [entries]);
 
-  // 결과 줄용: 경주별 실제 1·2·3착 (`${meet}-${rc_no}` → 착순 순서 배열)
+  // 결과 줄용: 경주별 실제 1~5착 (`${meet}-${rc_no}` → 착순 순서 배열).
+  // 4·5착은 배당이 없어(연승은 3착까지 지급) 이름만 쓰이고, 좁은 화면에선 숨긴다.
   const podiumByRace = useMemo(() => {
     const map = new Map<string, RaceEntryLite[]>();
     (entries ?? []).forEach((e) => {
-      if (e.ord == null || e.ord < 1 || e.ord > 3) return;
+      if (e.ord == null || e.ord < 1 || e.ord > 5) return;
       const k = `${e.meet}-${e.rc_no}`;
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(e);
@@ -361,15 +362,26 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
           (1000행 캡 수정 때 도입한 필터 — 대시보드에 올려도 부담 없음). */}
       {podium && podium.length > 0 && (
         <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-x-3 gap-y-1 text-xs flex-wrap">
-          {podium.map((h) => (
-            <span key={h.ord} className="whitespace-nowrap">
-              <span className="mr-1">{MEDALS[h.ord as number]}</span>
-              <span className="font-semibold">
-                <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
-                {h.hr_name}
+          {podium.map((h) => {
+            const rank = h.ord as number;
+            return (
+              <span
+                key={rank}
+                // 4·5착은 좁은 화면에서 숨김 (모바일 한 줄 유지)
+                className={`whitespace-nowrap ${rank > 3 ? 'hidden md:inline-block' : ''}`}
+              >
+                {rank <= 3 ? (
+                  <span className="mr-1">{MEDALS[rank]}</span>
+                ) : (
+                  <span className="text-[var(--color-text-disabled)] font-mono-num mr-1">{rank}착</span>
+                )}
+                <span className="font-semibold">
+                  <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
+                  {h.hr_name}
+                </span>
               </span>
-            </span>
-          ))}
+            );
+          })}
           <span className="ml-auto flex items-center gap-3 font-mono-num text-[var(--color-text-secondary)] whitespace-nowrap">
             {winner?.win_odds != null && (
               <span>단승 <span className="text-[var(--color-text-primary)]">{winner.win_odds.toFixed(1)}</span></span>
