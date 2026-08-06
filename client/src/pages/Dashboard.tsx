@@ -70,12 +70,11 @@ export function Dashboard() {
     return map;
   }, [entries]);
 
-  // 결과 줄용: 경주별 실제 1~5착 (`${meet}-${rc_no}` → 착순 순서 배열).
-  // 4·5착은 배당이 없어(연승은 3착까지 지급) 이름만 쓰이고, 좁은 화면에선 숨긴다.
+  // 결과 줄용: 경주별 실제 1·2·3착 (`${meet}-${rc_no}` → 착순 순서 배열)
   const podiumByRace = useMemo(() => {
     const map = new Map<string, RaceEntryLite[]>();
     (entries ?? []).forEach((e) => {
-      if (e.ord == null || e.ord < 1 || e.ord > 5) return;
+      if (e.ord == null || e.ord < 1 || e.ord > 3) return;
       const k = `${e.meet}-${e.rc_no}`;
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(e);
@@ -84,7 +83,7 @@ export function Dashboard() {
     return map;
   }, [entries]);
 
-  // race별 예측 top3 그룹핑
+  // race별 예측 상위 그룹핑 (TOP5까지)
   const predictionsByRace = useMemo(() => {
     const map = new Map<string, PredictionPreview[]>();
     (predictions ?? []).forEach((p) => {
@@ -277,7 +276,7 @@ interface RaceCardProps {
 
 function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
   const dateStr = race.race_date.toString();
-  const top3 = predictions.slice(0, 3);
+  const top5 = predictions.slice(0, 5);
   const hasResult = predictions.some((p) => p.actual_ord !== null);
   const predictionUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}`;
   const entriesUrl = `/race/${race.meet}/${dateStr}/${race.rc_no}/entries`;
@@ -326,20 +325,23 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
         </div>
       </div>
 
-      {/* 예측 1-3위 (Score Engine 결과) */}
-      {top3.length > 0 ? (
+      {/* 예측 상위 (Score Engine 결과) — 모바일 3열/TOP3, 넓은 화면 5열/TOP5 */}
+      {top5.length > 0 ? (
         <>
           <div className="text-[12px] uppercase tracking-wider text-[var(--color-accent-gold)] mb-1.5 font-semibold">
-            ⭐ 예측 TOP 3
+            ⭐ 예측 TOP <span className="md:hidden">3</span><span className="hidden md:inline">5</span>
           </div>
-          <div className="grid grid-cols-3 gap-2 font-mono-num text-sm">
-            {[1, 2, 3].map((rank) => {
-              const p = top3[rank - 1];
-              if (!p) return <div key={rank} />;
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-2 font-mono-num text-sm">
+            {[1, 2, 3, 4, 5].map((rank) => {
+              const p = top5[rank - 1];
+              // 4·5위는 좁은 화면에서 숨김 (모바일은 3열 한 줄 유지)
+              const hideOnMobile = rank > 3;
+              if (!p) return <div key={rank} className={hideOnMobile ? 'hidden md:block' : ''} />;
               return (
                 <PredictionTile
                   key={rank}
-                  rank={rank as 1 | 2 | 3}
+                  rank={rank}
+                  hideOnMobile={hideOnMobile}
                   hrName={p.hr_name}
                   pthrNo={pthrMap?.get(`${race.meet}-${race.rc_no}-${p.hr_name}`)}
                   totalScore={p.total_score}
@@ -362,26 +364,15 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
           (1000행 캡 수정 때 도입한 필터 — 대시보드에 올려도 부담 없음). */}
       {podium && podium.length > 0 && (
         <div className="mt-2 pt-2 border-t border-[var(--color-bg-elevated)] flex items-center gap-x-3 gap-y-1 text-xs flex-wrap">
-          {podium.map((h) => {
-            const rank = h.ord as number;
-            return (
-              <span
-                key={rank}
-                // 4·5착은 좁은 화면에서 숨김 (모바일 한 줄 유지)
-                className={`whitespace-nowrap ${rank > 3 ? 'hidden md:inline-block' : ''}`}
-              >
-                {rank <= 3 ? (
-                  <span className="mr-1">{MEDALS[rank]}</span>
-                ) : (
-                  <span className="text-[var(--color-text-disabled)] font-mono-num mr-1">{rank}착</span>
-                )}
-                <span className="font-semibold">
-                  <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
-                  {h.hr_name}
-                </span>
+          {podium.map((h) => (
+            <span key={h.ord} className="whitespace-nowrap">
+              <span className="mr-1">{MEDALS[h.ord as number]}</span>
+              <span className="font-semibold">
+                <span className="text-[var(--color-text-disabled)] font-mono-num">{h.pthr_no}.</span>
+                {h.hr_name}
               </span>
-            );
-          })}
+            </span>
+          ))}
           <span className="ml-auto flex items-center gap-3 font-mono-num text-[var(--color-text-secondary)] whitespace-nowrap">
             {winner?.win_odds != null && (
               <span>단승 <span className="text-[var(--color-text-primary)]">{winner.win_odds.toFixed(1)}</span></span>
@@ -425,7 +416,8 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
 }
 
 interface PredictionTileProps {
-  rank: 1 | 2 | 3;
+  rank: number; // 1~5 (4·5위는 메달 없이 순위 숫자)
+  hideOnMobile?: boolean;
   hrName: string;
   pthrNo: number | undefined;
   totalScore: number;
@@ -433,12 +425,17 @@ interface PredictionTileProps {
   hasResult: boolean;
 }
 
-function PredictionTile({ rank, hrName, pthrNo, totalScore, actualOrd, hasResult }: PredictionTileProps) {
-  const colors = {
-    1: 'text-[var(--color-accent-gold)] border-[var(--color-accent-gold)]',
-    2: 'text-[var(--color-text-primary)] border-[var(--color-text-disabled)]',
-    3: 'text-[var(--color-text-secondary)] border-[var(--color-text-disabled)]',
-  };
+/** 예측 순위별 테두리·글자색. 4위 이하는 fallback(흐리게). */
+const TILE_COLORS: Record<number, string> = {
+  1: 'text-[var(--color-accent-gold)] border-[var(--color-accent-gold)]',
+  2: 'text-[var(--color-text-primary)] border-[var(--color-text-disabled)]',
+  3: 'text-[var(--color-text-secondary)] border-[var(--color-text-disabled)]',
+};
+const TILE_COLOR_FALLBACK = 'text-[var(--color-text-disabled)] border-[var(--color-bg-elevated)]';
+
+function PredictionTile({
+  rank, hideOnMobile = false, hrName, pthrNo, totalScore, actualOrd, hasResult,
+}: PredictionTileProps) {
   const isHit = actualOrd === rank;
 
   // 경주 전(hasResult=false): 착순 표시 없음
@@ -452,9 +449,15 @@ function PredictionTile({ rank, hrName, pthrNo, totalScore, actualOrd, hasResult
 
   return (
     <div
-      className={`flex flex-col items-center justify-center p-2 rounded border ${colors[rank]} bg-[var(--color-bg-primary)]/50`}
+      className={`flex flex-col items-center justify-center p-2 rounded border ${
+        TILE_COLORS[rank] ?? TILE_COLOR_FALLBACK
+      } bg-[var(--color-bg-primary)]/50 ${hideOnMobile ? 'hidden md:flex' : ''}`}
     >
-      <div className="text-lg leading-none">{MEDALS[rank]}</div>
+      <div className="text-lg leading-none">
+        {MEDALS[rank] ?? (
+          <span className="text-xs font-mono-num text-[var(--color-text-disabled)]">{rank}위</span>
+        )}
+      </div>
       <div className="font-semibold w-full text-center mt-1 text-[13px] leading-tight break-keep">
         {pthrNo != null && (
           <span className="text-[var(--color-text-disabled)] font-mono-num">{pthrNo}.</span>

@@ -205,7 +205,8 @@ export function usePredictionsByRace(rcDate: number, meet: number, rcNo: number)
 }
 
 /**
- * 특정 날짜의 모든 경주 예측 (대시보드 미리보기용 - 부분 컬럼)
+ * 특정 날짜의 모든 경주 예측 (대시보드 미리보기용 - 부분 컬럼).
+ * 예측 상위 5위까지 — 대시보드가 PC에서 TOP5, 모바일에서 TOP3를 보여준다.
  */
 export type PredictionPreview = Pick<
   Prediction,
@@ -220,7 +221,7 @@ export function usePredictionsByDate(rcDate: number) {
         .from('predictions')
         .select('race_date, meet, rc_no, hr_name, total_score, predicted_rank, actual_ord')
         .eq('race_date', rcDate)
-        .lte('predicted_rank', 3)
+        .lte('predicted_rank', 5)
         .order('meet')
         .order('rc_no')
         .order('predicted_rank');
