@@ -335,6 +335,29 @@ npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판�
 `src/engine/eval/v7Accuracy.ts`(테스트: 동일 디렉터리 `.test.ts`), DB 조회·CLI 출력은
 `scripts/probe_v7_accuracy.ts`.
 
+### sync 건전성 점검
+
+```bash
+npm run probe:sync-health                    # 최근 6주 경주일별 결과·조합배당·발주시각 대조
+npm run probe:sync-health -- --from 20260801 # 범위 지정
+```
+
+**왜 필요한가:** GitHub Actions 이력의 성패만으로는 데이터 구멍이 안 보인다. 휴장일 실패가
+섞여 빨간불이 무뎌지고, KRA 타임아웃으로 결과가 통째로 빠진 날은 이력만 봐선 티가 안 난다
+(2026-08 실측: 0808·0814·0821이 이 방식으로 발견됐다). 판정 기준은 `race_entries.ord` 채움 여부.
+
+경주일별로 `ok / 결과 대기(오늘·미래) / 조합배당 누락 / 결과 구멍`을 찍고, 구멍이 있으면
+백필 명령(`npm run sync -- --date …`)을 그대로 출력한다. 발주시각(`races.st_time`)이 결과 도착
+후에도 남아 있는지도 함께 감시한다(2026-08-23 보존 수정의 회귀 감시).
+
+**오탐을 판정에 반영해 둔 것 2가지** — 안 그러면 경고가 무뎌진다:
+조합배당은 2026-07-29 forward-only 도입이라 그 이전 경주의 0건은 정상이고,
+발주시각은 2026-08-23 이전 데이터가 이미 지워져 복구 불가이므로 회귀 감시에서 제외한다.
+
+⚠️ **항상 Supabase 라이브를 읽는다**(DuckDB 미러 아님) — 미러는 마지막 `db:pull` 시점이라
+"지금 채워졌나"에 답할 수 없다. 또 PostgREST 1000행 캡을 피해 전부 서버 `count`로 센다
+(행을 받아 세면 조용히 틀린 수가 나온다). 순수 판정 로직은 `src/utils/syncHealth.ts`.
+
 ---
 
 ## 8. 신호 발굴 표준 절차
