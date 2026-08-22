@@ -41,7 +41,7 @@ export interface Race {
   weather: string | null;
   age_cond: string | null;
   prize_cond: string | null;
-  st_time: string | null;   // 출발시각 (예: "출발 :10:45") — races.st_time 컬럼 추가 후 활성화
+  st_time: string | null;   // 발주 예정시각 (예: "출발 :10:45") — 출마표 sync가 채움
   chaksun1: number | null;
   chaksun2: number | null;
   chaksun3: number | null;
