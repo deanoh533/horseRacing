@@ -110,7 +110,7 @@ export function Settings() {
           </h3>
           <ul className="text-xs text-[var(--color-text-secondary)] space-y-1 list-disc pl-4">
             <li>출마표 — 수·목·금 15:00 KST (주말 금·토·일 3일치)</li>
-            <li>결과 — 금·토·일 19:00 KST (경주 당일 저녁)</li>
+            <li>결과 — 금·토·일 19:00 KST + 23:00 KST 재시도 (경주 당일 저녁)</li>
           </ul>
         </div>
 

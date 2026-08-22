@@ -31,7 +31,7 @@ import {
   toComboDividendRows,
 } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
-import { yyyymmddOffset, isEmptySync } from '../utils/syncCli.js';
+import { yyyymmddOffset, emptySyncVerdict } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
 
@@ -435,9 +435,15 @@ async function main() {
     console.log(`  meet=${r.meet}: ${r.racesSynced} 경주 / ${r.horsesSynced} 두 / 에러 ${r.errors.length}`);
   }
 
-  if (failOnEmpty && isEmptySync(results)) {
-    console.error('❌ --fail-on-empty: 동기화된 경주 0건 (휴장일이거나 KRA 빈 응답)');
-    process.exit(1);
+  if (failOnEmpty) {
+    const verdict = emptySyncVerdict(results);
+    if (verdict === 'failed') {
+      console.error('❌ --fail-on-empty: 동기화 0건 + 에러 발생 (KRA 장애 — 데이터 구멍)');
+      process.exit(1);
+    }
+    if (verdict === 'holiday') {
+      console.log('✅ 경마 없는 날 (KRA 빈 응답 · 에러 없음) — 정상 종료');
+    }
   }
 }
 

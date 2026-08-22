@@ -47,3 +47,23 @@ export function upcomingCardDates(now: Date = new Date()): number[] {
 export function isEmptySync(results: Array<{ racesSynced: number }>): boolean {
   return results.reduce((sum, r) => sum + r.racesSynced, 0) === 0;
 }
+
+/** 0건 sync의 성격 — 휴장일(정상)과 진짜 장애를 구분한다 */
+export type SyncVerdict = 'synced' | 'holiday' | 'failed';
+
+/**
+ * `--fail-on-empty` 판정: 0건이라고 다 실패가 아니다.
+ *
+ * KRA는 경마 없는 날에도 200 + 빈 items를 정상 반환한다(혹서기 휴장 등).
+ * 그 경우 에러 목록이 비어 있으므로 `holiday`로 보고 성공 종료해야
+ * 빨간불이 "진짜 장애"만 뜻하게 된다. 반대로 0건이면서 에러가 있으면
+ * (타임아웃·5xx) 데이터 구멍이 생긴 것이므로 `failed`.
+ */
+export function emptySyncVerdict(
+  results: Array<{ racesSynced: number; errors: string[] }>
+): SyncVerdict {
+  if (results.length === 0) return 'failed'; // 아무 meet도 시도 못함
+  if (!isEmptySync(results)) return 'synced';
+  const hasError = results.some((r) => r.errors.length > 0);
+  return hasError ? 'failed' : 'holiday';
+}

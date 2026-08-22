@@ -50,11 +50,11 @@ function isRetryableError(err: unknown): boolean {
 }
 
 export interface KRAClientOptions {
-  /** axios 요청 타임아웃(ms). 기본 60초 — 러너에서 결과 API가 느릴 때 대비 */
+  /** axios 요청 타임아웃(ms). 기본 120초 — 60초일 때 무인 배치가 4회 전부 만료돼 결과 3일치를 통째로 놓쳤다(2026-08-08·14·21) */
   timeoutMs?: number;
-  /** 첫 시도 포함 최대 시도 횟수. 기본 4 */
+  /** 첫 시도 포함 최대 시도 횟수. 기본 5 */
   maxAttempts?: number;
-  /** 지수 백오프 기준 지연(ms). 기본 1000 (1s→2s→4s) */
+  /** 지수 백오프 기준 지연(ms). 기본 1000 (1s→2s→4s→8s) */
   baseDelayMs?: number;
 }
 
@@ -79,11 +79,11 @@ export class KRAClient {
   constructor(opts: KRAClientOptions = {}) {
     const env = getEnv();
     this.apiKey = env.KRA_API_KEY;
-    this.maxAttempts = opts.maxAttempts ?? 4;
+    this.maxAttempts = opts.maxAttempts ?? 5;
     this.baseDelayMs = opts.baseDelayMs ?? 1000;
     this.client = axios.create({
       baseURL: BASE_URL,
-      timeout: opts.timeoutMs ?? 60_000,
+      timeout: opts.timeoutMs ?? 120_000,
     });
   }
 

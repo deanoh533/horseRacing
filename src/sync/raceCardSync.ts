@@ -16,7 +16,7 @@ import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
-import { upcomingCardDates, isEmptySync } from '../utils/syncCli.js';
+import { upcomingCardDates, emptySyncVerdict } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
 
@@ -254,9 +254,15 @@ async function main() {
     console.log(`  ${r.rcDate} meet=${r.meet}: ${r.racesSynced} races / ${r.horsesSynced} horses / ${r.errors.length} errors`);
   }
 
-  if (failOnEmpty && isEmptySync(results)) {
-    console.error('❌ --fail-on-empty: 동기화된 경주 0건 (휴장일이거나 KRA 빈 응답)');
-    process.exit(1);
+  if (failOnEmpty) {
+    const verdict = emptySyncVerdict(results);
+    if (verdict === 'failed') {
+      console.error('❌ --fail-on-empty: 동기화 0건 + 에러 발생 (KRA 장애 — 데이터 구멍)');
+      process.exit(1);
+    }
+    if (verdict === 'holiday') {
+      console.log('✅ 경마 없는 날 (KRA 빈 응답 · 에러 없음) — 정상 종료');
+    }
   }
 }
 

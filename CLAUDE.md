@@ -105,6 +105,7 @@ npm run test:run     # vitest 단위 테스트
 | 주중 | 가중치 학습 (선택) | `apply_learned_weights.ts` |
 
 > 출마표는 수요일 오후에 금·토·일 3일치가 한 번에 발표된다(docs/data_lifecycle.md). 무인 cron은 수·목·금 15시 실행되며 각 회차가 **남은 주말 전체**를 받는다(수=금토일, 목=토일, 금=일 — 수요일 조기 노출 + 목·금 재실행으로 제외마 등 임박 변경 갱신).
+> 결과 cron은 금·토·일 **19시 + 23시 2회**(2026-08-22 추가) — 결과는 출마표와 달리 재시도 여지가 없어 1차 KRA 타임아웃이 곧 영구 구멍이 된다. `--fail-on-empty`는 휴장일(0건+에러0)을 정상 종료로 통과시킨다.
 > 위 sync 명령은 2026-07-12부터 GitHub Actions로 무인 실행 (수동 실행도 가능) — .github/workflows/sync.yml
 
 상세 → [docs/data_lifecycle.md](docs/data_lifecycle.md)
