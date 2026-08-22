@@ -1,5 +1,5 @@
 # 데이터인프라 — 진행 상황
-> 마지막 업데이트: 2026-08-22 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
+> 마지막 업데이트: 2026-08-23 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
 
 ## 현재 상태
 - **DuckDB 로컬 미러** 배포 — Supabase egress 영구 탈출, 오프라인 분석 전용(benchmark·backtest·probe 전부). `npm run db:pull`로 동기화.
@@ -10,6 +10,8 @@
 - **✅ 무인 운영 진입 (2026-07-15)** — secrets 5종 등록 후 수요일 15:00 첫 스케줄 실행 성공, 사이트에서 신규 출마표 확인. 남은 관찰: 주말 결과 sync(금토일 19:00, 재시도 탑재) 실측 성공 + 막판 경주 결과 누락 여부 + v7 라이브 적중률 누적.
 - **출마표 cron 주말 3일치 일괄 (2026-07-22)** — 출마표는 수요일에 금·토·일 동시 발표 → `upcomingCardDates()`로 각 실행이 "발표일+2~일요일" 남은 경주 전체 수집(수=금토일·목=토일·금=일). 수요일 조기 노출+목금 재실행 임박 갱신. cron 스케줄 불변, `--date` 명시 시 단일. [[project_launch_gating_ops]].
 - **수동 동기화 = 실제 실행 (2026-07-22, 라이브 검증)** — Vercel Edge 함수 `api/sync.ts`가 GitHub workflow_dispatch 대리 호출(설정탭 버튼). 게이트=`x-sync-key`==env `SYNC_SECRET`, 토큰=env `GH_DISPATCH_TOKEN`(둘 다 Vercel env, 번들 밖). 로컬 dev엔 /api 없어 배포본 전용. `typecheck:api`·vercel.json rewrite `/api` 제외 필수.
+- **races 출마표 컬럼 보존 + 스키마 드리프트 해소 (2026-08-23)** — 경주별 결과 sync 검토 중 발견: 결과 sync의 `toRaceRow()`가 `st_time: null, chaksun4: null, chaksun5: null`을 명시해 **출마표 sync가 채운 발주시각·4·5착 상금을 결과 도착과 동시에 전멸**시키고 있었다(8월 105경주 중 결과 전인 당일 17건만 생존). 결과 API(API214_1)엔 이 세 컬럼이 없으므로 **반환 객체에서 키를 빼서** PostgREST upsert의 SET 절에 안 들어가게 수정 → 기존 값 보존(임시 행으로 실 DB 검증 완료). 컬럼 3종이 실 DB에만 있고 마이그레이션엔 없던 드리프트도 `017_races_entrysheet_columns.sql`로 편입. **발주시각 실측(2026-08-23 17경주)**: 형식 `"출발 :HH:MM"` 단일·파싱 실패 0건이나 **경주 간격 25~80분 불규칙**. 실제 발주시각(지연 반영분)은 KRA 미제공.
+- **⚠️ Actions schedule cron 지연 실측 (2026-08-23)** — 스케줄 실행 35건 기준 **중앙값 +62분, 범위 +19~+144분, 정시 실행 0건**. 60분 초과가 19/35건. → **경주별(경주 종료 직후) sync는 Actions `schedule`로 불가능**. 정밀 타이밍이 필요하면 1회 실행 후 job 내부 sleep 루프(러너 시계) 방식이어야 한다(저장소 public이라 러너 시간 무료, 단 job 6시간 상한 < 경마 7시간+).
 - **결과 sync 2차 슬롯 + 휴장일 오탐 제거 + 타임아웃 강화 (2026-08-22)** — 3주 Actions 이력 점검 결과 **결과 3일치 구멍**(20260808·0814·0821: 출전표·예측은 있고 `ord`·조합배당 0). 원인은 전부 KRA API 타임아웃 60s×4회 전멸 — 출마표는 수·목·금 3회라 자가복구됐지만 결과는 하루 1회뿐이라 실패가 곧 영구 구멍. ① 결과 cron에 **23:00 KST 2차 슬롯**(`0 14 * * 5,6,0`) 추가 — 19시 막판 경주 미확정 리스크(2026-07-29 기재)도 같이 해소, upsert 멱등이라 1차 성공 시 무해. ② `emptySyncVerdict()`로 `--fail-on-empty`가 **휴장일(0건+에러0 → 정상 종료)과 장애(0건+에러 → exit 1)를 구분** — 혹서기 휴장 7/31~8/2 빨간불 오탐 제거. ③ KRA 클라이언트 타임아웃 60→120초·재시도 4→5회, job `timeout-minutes` 90/45 명시. ✅ 구멍 3일치는 자동 복구 대상이 아니라 **사용자 수동 백필로 복구 완료(2026-08-23** — `npm run sync -- --date 20260808`·`0814`·`0821`**)**. 구멍 확인법: 해당 날짜 `race_entries.ord` NOT NULL 건수 대조.
 - **조합 확정배당 수집 (2026-07-29)** — 결과 sync(dailySync)가 경주 결과 저장 직후 `API160_1/integratedInfo_1`에서 조합배당(복승·복연승·쌍승·삼복승·삼쌍승)을 받아 `combo_dividends`(migration 015)에 멱등 upsert. forward만(skipPredictions=false), 실패 격리. 단승/연승은 race_entries에 이미 존재. 과거 백필·DuckDB 미러 반영은 별도. 스펙/플랜 docs/superpowers/*/2026-07-29-combo-dividends-sync*.
 

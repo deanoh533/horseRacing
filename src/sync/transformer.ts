@@ -20,12 +20,18 @@ export interface RaceRow {
   weather: string | null;
   age_cond: string | null;
   prize_cond: string | null;
-  st_time: string | null;
   chaksun1: number | null;
   chaksun2: number | null;
   chaksun3: number | null;
-  chaksun4: number | null;
-  chaksun5: number | null;
+  /**
+   * 출마표(API26_2)에만 있는 컬럼 — 결과(API214_1)는 주지 않는다.
+   * 결과 경로가 `null`로 채우면 upsert의 SET 절에 들어가 출마표가 저장해 둔 값을
+   * 덮어쓰므로(2026-08 실측: 발주시각·4·5착 상금이 결과 도착과 동시에 전멸),
+   * 모르는 쪽은 키 자체를 넣지 않는다.
+   */
+  st_time?: string | null;
+  chaksun4?: number | null;
+  chaksun5?: number | null;
 }
 
 /**
@@ -41,7 +47,9 @@ function meetNameToCode(meetName: string): number {
 /**
  * KRARaceResult → races 행 (경주 정보)
  *
- * 같은 경주의 첫 번째 말 데이터를 사용 (모든 말이 동일 경주 정보)
+ * 같은 경주의 첫 번째 말 데이터를 사용 (모든 말이 동일 경주 정보).
+ * 결과 API가 모르는 컬럼(발주시각·4·5착 상금)은 반환 객체에서 빼서
+ * 출마표 sync가 채운 값이 살아남게 한다 — RaceRow 주석 참고.
  */
 export function toRaceRow(horse: KRARaceResult): RaceRow {
   return {
@@ -56,12 +64,10 @@ export function toRaceRow(horse: KRARaceResult): RaceRow {
     weather: horse.weather ?? null,
     age_cond: horse.ageCond ?? null,
     prize_cond: horse.prizeCond ?? null,
-    st_time: null,
     chaksun1: horse.chaksun1 ?? null,
     chaksun2: horse.chaksun2 ?? null,
     chaksun3: horse.chaksun3 ?? null,
-    chaksun4: null,
-    chaksun5: null,
+    // st_time·chaksun4·chaksun5는 결과 API에 없다 → 키를 넣지 않아 기존 값 보존
   };
 }
 

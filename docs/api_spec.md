@@ -433,6 +433,10 @@
 | `age_cond` | string\|null | 연령 조건 |
 | `prize_cond` | string\|null | 조건 (등급) |
 | `chaksun1`~`3` | number\|null | 1·2·3착 상금 |
+| `chaksun4`~`5` | number\|null | 4·5착 상금 — **출마표 sync만 채움** |
+| `st_time` | string\|null | 발주 예정시각, KRA 원문 `"출발 :10:35"` — **출마표 sync만 채움** |
+
+> ⚠️ `st_time`·`chaksun4`·`chaksun5`는 출마표 API(API26_2)에만 있고 결과 API(API214_1)엔 없다. 결과 sync의 `toRaceRow()`는 이 세 컬럼을 **반환 객체에서 빼서** upsert가 기존 값을 보존하게 한다(넣으면 NULL로 덮인다 — 2026-08-23 수정). 실제 발주시각(지연 반영)은 KRA가 제공하지 않는다. 경주 간격은 25~80분으로 불규칙.
 
 #### `race_entries` — 출전마 (사전+사후 통합, PK)
 
