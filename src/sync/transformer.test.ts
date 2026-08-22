@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toTrainingRow, toRaceRow, toRaceRowFromEntrySheet } from './transformer.js';
+import { toTrainingRow, toRaceRow, toRaceRowFromEntrySheet, toRaceEntryResultRow } from './transformer.js';
 
 // KRATrainingRecord 픽스처 (hrNo만 가변 — KRA가 문자열/숫자 혼재 반환)
 const rec = (hrNo: unknown) =>
@@ -69,5 +69,37 @@ describe('toRaceRowFromEntrySheet 발주시각', () => {
     expect(row.st_time).toBe('출발 :10:35');
     expect(row.chaksun4).toBe(200);
     expect(row.chaksun5).toBe(100);
+  });
+});
+
+// ============================================
+// toRaceEntryResultRow.ord — 미시행 경주(ord=0) 가드
+// 회귀: 2026-08-15·08-22 서울 R9·R10(야간 막판 경주)이 19시 결과 sync 시점에
+// 아직 시행 전이라 KRA가 ord=0으로 내려줬는데, 하한 가드가 없어 그대로 저장됨.
+// → UI에 "0위" 표시 + `actual_ord <= 3` 적중률 필터에 0이 걸려 통계 오염.
+// ============================================
+const entryHorse = (ord: unknown) =>
+  ({
+    rcDate: 20260822, meet: '서울', rcNo: 9, hrName: '스톰가이',
+    hrNo: '0050860', jkNo: '080476', trNo: '070090',
+    ord, rcTime: 0, diffUnit: '-', wgHr: '480(+2)', wgJk: 55,
+    winOdds: 4.3, plcOdds: 1.8, rating: 0,
+  }) as any;
+
+describe('toRaceEntryResultRow ord 가드 (회귀: 미시행 경주 0위 저장)', () => {
+  it('ord=0(미시행·미확정)은 null — 저장하면 "0위" 표시 + 적중률 오염', () => {
+    expect(toRaceEntryResultRow(entryHorse(0)).ord).toBeNull();
+  });
+  it('ord=90+(실격·기권 코드)는 기존대로 null', () => {
+    expect(toRaceEntryResultRow(entryHorse(99)).ord).toBeNull();
+  });
+  it('ord=null은 null', () => {
+    expect(toRaceEntryResultRow(entryHorse(null)).ord).toBeNull();
+  });
+  it('정상 착순 1은 보존 (경계값 — 하한 가드가 1을 잡아먹으면 안 됨)', () => {
+    expect(toRaceEntryResultRow(entryHorse(1)).ord).toBe(1);
+  });
+  it('정상 착순 12는 보존', () => {
+    expect(toRaceEntryResultRow(entryHorse(12)).ord).toBe(12);
   });
 });

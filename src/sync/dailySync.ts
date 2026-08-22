@@ -46,6 +46,8 @@ interface SyncResult {
   meet: MeetCode;
   racesSynced: number;
   horsesSynced: number;
+  /** 미시행·결과 미확정으로 스킵한 경주 수 (다음 슬롯이 채움) */
+  racesSkipped: number;
   errors: string[];
 }
 
@@ -72,6 +74,7 @@ async function syncMeet(
     meet,
     racesSynced: 0,
     horsesSynced: 0,
+    racesSkipped: 0,
     errors: [],
   };
 
@@ -97,6 +100,21 @@ async function syncMeet(
 
     for (const [rcNo, horses] of racesByRcNo) {
       try {
+        // 0. 미시행 경주 가드 — KRA는 아직 치르지 않은 경주도 ord=0·rcTime=0 행으로 내려준다
+        //    (19시 결과 sync가 야간경마 막판 경주를 만나는 경우: 2026-08-15·08-22 서울 R9·R10).
+        //    이걸 저장하면 ① races 메타가 빈값(weather null·track '')으로 덮이고
+        //    ② combo_dividends에 확정배당이 아닌 발매 중 예상배당이 들어가며
+        //    ③ 동기화 완료로 집계돼 구멍이 모니터링에서 안 보인다.
+        //    → 통째로 스킵하고, 23시 2차 슬롯이 채우게 둔다.
+        const anyFinished = horses.some((h) => h.ord != null && h.ord > 0 && h.ord < 90);
+        if (!anyFinished) {
+          result.racesSkipped++;
+          console.warn(
+            `    [meet=${meet}, rcNo=${rcNo}] ⏭ 미시행·결과 미확정 → 스킵 (다음 슬롯이 채움)`
+          );
+          continue;
+        }
+
         // 1. races upsert (거리/주로/날씨 채움)
         const raceRow = toRaceRow(horses[0]!);
         const { error: raceError } = await supabase
@@ -382,7 +400,7 @@ async function syncMeet(
     });
 
     console.log(
-      `\n  [meet=${meet}] 완료: ${result.racesSynced} 경주 / ${result.horsesSynced} 두 / 에러 ${result.errors.length}`
+      `\n  [meet=${meet}] 완료: ${result.racesSynced} 경주 / ${result.horsesSynced} 두 / 스킵 ${result.racesSkipped} / 에러 ${result.errors.length}`
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -432,7 +450,7 @@ async function main() {
   console.log('📊 동기화 결과 요약');
   console.log('='.repeat(50));
   for (const r of results) {
-    console.log(`  meet=${r.meet}: ${r.racesSynced} 경주 / ${r.horsesSynced} 두 / 에러 ${r.errors.length}`);
+    console.log(`  meet=${r.meet}: ${r.racesSynced} 경주 / ${r.horsesSynced} 두 / 스킵 ${r.racesSkipped} / 에러 ${r.errors.length}`);
   }
 
   if (failOnEmpty) {
@@ -443,6 +461,9 @@ async function main() {
     }
     if (verdict === 'holiday') {
       console.log('✅ 경마 없는 날 (KRA 빈 응답 · 에러 없음) — 정상 종료');
+    }
+    if (verdict === 'pending') {
+      console.log('⏳ 개최는 했으나 전 경주 결과 미확정 (야간경마 등) — 다음 슬롯이 채움');
     }
   }
 }

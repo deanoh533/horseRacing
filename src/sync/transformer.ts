@@ -360,7 +360,11 @@ export function toRaceEntryResultRow(horse: KRARaceResult): RaceEntryResultRow {
     hr_no: horse.hrNo ?? null,
     jcky_no: horse.jkNo ?? null,
     trar_no: horse.trNo ?? null,
-    ord: horse.ord != null && horse.ord < 90 ? horse.ord : null,
+    // ord 하한·상한 가드: 0=미시행/미확정(19시 결과 sync가 야간 막판 경주를 잡을 때),
+    // 90+=실격·기권 코드. 둘 다 착순이 아니므로 null.
+    // 0을 저장하면 UI에 "0위"로 뜨고 `actual_ord <= 3` 적중률 필터에 걸려 통계가 부풀려진다
+    // (2026-08-15·08-22 서울 R9·R10 실사례).
+    ord: horse.ord != null && horse.ord > 0 && horse.ord < 90 ? horse.ord : null,
     rc_time: horse.rcTime && horse.rcTime > 0 ? horse.rcTime : null,
     diff_unit: typeof horse.diffUnit === 'number' ? String(horse.diffUnit) : horse.diffUnit ?? null,
     wg_hr: wgHrParsed?.weight ?? null,

@@ -115,4 +115,26 @@ describe('emptySyncVerdict', () => {
   it('빈 배열 = 아무 것도 시도 못함 = 실패', () => {
     expect(emptySyncVerdict([])).toBe('failed');
   });
+
+  // 회귀: 2026-08-15·08-22 서울 R9·R10 — 19시 슬롯이 야간 막판 경주를 만나면
+  // KRA가 ord=0 행을 주고, dailySync가 이를 스킵한다. 전 경주가 스킵된 경우
+  // "0건 + 에러 0"이라 휴장일로 오판하면 "경마 없는 날"이라 거짓 보고하게 된다.
+  it('0건 + 에러 없음 + 스킵 있음 = 휴장일이 아니라 pending (다음 슬롯 대기)', () => {
+    expect(
+      emptySyncVerdict([
+        { racesSynced: 0, racesSkipped: 2, errors: [] },
+        { racesSynced: 0, racesSkipped: 0, errors: [] },
+      ])
+    ).toBe('pending');
+  });
+
+  it('스킵이 있어도 동기화된 경주가 있으면 synced', () => {
+    expect(emptySyncVerdict([{ racesSynced: 8, racesSkipped: 2, errors: [] }])).toBe('synced');
+  });
+
+  it('스킵 + 에러가 함께면 실패가 우선 (구멍 가능성)', () => {
+    expect(
+      emptySyncVerdict([{ racesSynced: 0, racesSkipped: 2, errors: ['rcNo=3: boom'] }])
+    ).toBe('failed');
+  });
 });
