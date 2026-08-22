@@ -97,6 +97,11 @@ export function Dashboard() {
 
   const date = useMemo(() => dateFromRcDate(dateNum), [dateNum]);
 
+  // "오늘" 빠른 이동 — 기본 날짜는 availableDates 최근(= 발표된 미래 출마표일 수 있음)이라
+  // ◀▶로 이동하다 오늘로 한 번에 돌아올 수단이 필요하다.
+  const todayNum = useMemo(() => rcDateFromDate(new Date()), []);
+  const isToday = dateNum === todayNum;
+
   const changeDate = (offset: number) => {
     const d = new Date(date);
     d.setDate(d.getDate() + offset);
@@ -160,11 +165,25 @@ export function Dashboard() {
           <ChevronRight className="w-4 h-4" />
         </button>
 
+        {/* 오늘로 빠른 이동 */}
+        <button
+          onClick={() => setDateNum(todayNum)}
+          disabled={isToday}
+          aria-label="오늘 날짜로 이동"
+          className={`ml-2 px-3 py-1.5 text-xs rounded transition-colors ${
+            isToday
+              ? 'bg-[var(--color-bg-elevated)] text-[var(--color-text-disabled)] cursor-default'
+              : 'bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black'
+          }`}
+        >
+          오늘
+        </button>
+
         {/* 동기화된 최근 날짜 빠른 이동 */}
         {availableDates && availableDates[0] && (
           <button
             onClick={() => setDateNum(availableDates[0]!)}
-            className="ml-2 px-3 py-1.5 text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black rounded transition-colors"
+            className="px-3 py-1.5 text-xs bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black rounded transition-colors"
           >
             최근 동기화: {formatRcDate(availableDates[0])}
           </button>
