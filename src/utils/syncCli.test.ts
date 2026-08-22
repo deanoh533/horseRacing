@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { yyyymmddOffset, isEmptySync, upcomingCardDates } from './syncCli.js';
+import {
+  yyyymmddOffset,
+  isEmptySync,
+  upcomingCardDates,
+  emptySyncVerdict,
+} from './syncCli.js';
 
 describe('yyyymmddOffset', () => {
   it('+2일: 수요일 발표 → 금요일 경주', () => {
@@ -63,5 +68,51 @@ describe('isEmptySync', () => {
 
   it('빈 배열이면 true (아무 것도 처리 못함)', () => {
     expect(isEmptySync([])).toBe(true);
+  });
+});
+
+describe('emptySyncVerdict', () => {
+  it('1건이라도 동기화됐으면 synced', () => {
+    expect(
+      emptySyncVerdict([
+        { racesSynced: 0, errors: [] },
+        { racesSynced: 3, errors: [] },
+      ])
+    ).toBe('synced');
+  });
+
+  it('0건 + 에러 없음 = 휴장일 (KRA가 빈 응답을 정상 반환)', () => {
+    expect(
+      emptySyncVerdict([
+        { racesSynced: 0, errors: [] },
+        { racesSynced: 0, errors: [] },
+      ])
+    ).toBe('holiday');
+  });
+
+  it('0건 + 에러 있음 = 진짜 실패 (타임아웃 등)', () => {
+    expect(
+      emptySyncVerdict([
+        { racesSynced: 0, errors: ['전체 실패: timeout of 60000ms exceeded'] },
+        { racesSynced: 0, errors: ['전체 실패: timeout of 60000ms exceeded'] },
+      ])
+    ).toBe('failed');
+  });
+
+  it('한 meet만 에러여도 나머지가 0건이면 실패', () => {
+    expect(
+      emptySyncVerdict([
+        { racesSynced: 0, errors: ['rcNo=3: boom'] },
+        { racesSynced: 0, errors: [] },
+      ])
+    ).toBe('failed');
+  });
+
+  it('동기화된 경주가 있으면 부분 에러가 있어도 synced', () => {
+    expect(emptySyncVerdict([{ racesSynced: 5, errors: ['rcNo=3: boom'] }])).toBe('synced');
+  });
+
+  it('빈 배열 = 아무 것도 시도 못함 = 실패', () => {
+    expect(emptySyncVerdict([])).toBe('failed');
   });
 });
