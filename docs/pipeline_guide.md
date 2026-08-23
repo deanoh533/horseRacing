@@ -186,6 +186,24 @@ holdout에서:
 
 다분기 버전: `npm run backtest:box:quarters` (5분기 연속 → 3/5 이상 양수 = 채택 기준)
 
+### backtest_box_size.ts (`npm run backtest:box:size`)
+
+**질문이 다르다.** box/box:quarters는 "이 신호를 넣으면 나아지나"(피처 판정)를 묻고,
+이건 **"예측 상위 몇 두를 박스로 사는 게 나은가"**(베팅 두수 판정)를 묻는다.
+상위 2·3·4·5·6두를 한 번에 스윕해 적중률·ROI·분기별 부호를 낸다.
+
+```bash
+npm run backtest:box:size -- --from 20250101 --to 20260510
+--matrix data/training_matrix_2022.jsonl   # 기본값
+--div    data/quinella_dividends.jsonl     # 복승 확정배당
+```
+
+- **분기마다 그 분기 시작 전 데이터로만 재학습**(walk-forward) — 한 번 학습해 전 구간에 쓰면 누수.
+- 비용은 실제 매수 조합 수 `C(k,2)`로 정산(`settleBoxN`) — 두수를 늘리면 적중률이 오르는 건
+  당연하므로, 비용을 안 세면 "많이 살수록 좋다"는 가짜 결론이 난다.
+- 전부 로컬 파일 + DuckDB 미러 → **Supabase egress 0**. 미러가 오래됐으면 `db:pull` 선행.
+- ⚠️ 배당은 사후 확정배당 = 내 베팅의 희석 미반영 → **ROI는 낙관적 상한**. 환급률 기준선 −20%.
+
 ### probe_feature_corr.ts (`npm run probe:corr`)
 
 **매트릭스 파일 읽기.** Gate A 진단 전용.
