@@ -6,23 +6,26 @@ on:
     # 3일치(금·토·일)는 수요일에 동시 발표 → 각 실행이 "남은 주말 전체"를 받는다
     # (수=금토일, 목=토일, 금=일). 수요일 조기 노출 + 목·금 재실행으로 임박 변경(제외마) 갱신.
     - cron: '0 6 * * 3,4,5'
-    # 결과: 금·토·일 19:00 KST 1차 + 23:00 KST 2차 = 같은 날 10:00 / 14:00 UTC
-    #   둘 다 당일 저녁이라 "오늘" 날짜를 받는다(아래 results 스텝에서 date +%Y%m%d).
-    #   2차 슬롯이 있는 이유 (결과 sync는 출마표와 달리 하루 1번뿐 = 실패하면 영구 구멍):
-    #     ① KRA 일시 장애 자동 복구 — 1차 타임아웃으로 20260808·0814·0821 결과를 통째로 잃었다.
-    #     ② 19시엔 막판 경주가 아직 KRA에 안 올라와 있을 수 있음(과거 01:00은 확정 보장).
-    #   upsert 멱등이라 1차가 성공했으면 2차는 같은 값을 덮어쓰고 정상 종료한다.
-    - cron: '0 10 * * 5,6,0'
-    - cron: '0 14 * * 5,6,0'
+    # 결과 폴러: 금·토·일 KST 10:00~21:45, 15분 간격 = UTC 01:00~12:45
+    #   (2026-08-29 설계) 고정 슬롯(19시·23시) 대신 출마표 발주시각(races.st_time) 기반으로
+    #   바꿨다 — 발주시각+15분 지난 미확정 경주가 있을 때만 KRA를 부른다(scripts/resultsPoll.ts).
+    #   실제 발주시각 분포(2026-08-28 실측): 첫 경주 10:35~12:55, 막경주 16:55(일)~19:55(토, 야간경마).
+    #   퍼블릭 레포라 Actions 분 제한 없음 — 자주 돌아도 KRA 호출은 "확인할 게 있을 때만" 발생한다.
+    - cron: '*/15 1-12 * * 5,6,0'
+    # 캐치업: 매일 KST 07:00 = UTC 22:00(전날) — 요일 무관, 결과 폴러와 독립.
+    #   최근 7일 중 여전히 구멍(hole·gap)인 날짜를 찾아 자동 재싱크한다(scripts/catchupSync.ts).
+    #   간헐적·다일 KRA 장애(2026-08-23~27 실측)는 하루짜리 재시도로 못 넘으므로,
+    #   폴러가 그날 통째로 못 돌아도 다음날 이 캐치업이 자동으로 메꾼다.
+    - cron: '0 22 * * *'
   workflow_dispatch:
     inputs:
       target:
         description: '실행할 잡'
         required: true
         type: choice
-        options: [racecard, results]
+        options: [racecard, resultsPoll, resultsCatchup]
       date:
-        description: '대상 날짜 YYYYMMDD (생략 시 자동: 출마표=오늘+2, 결과=오늘)'
+        description: '대상 날짜 YYYYMMDD (racecard 전용, 생략 시 오늘+2)'
         required: false
         type: string
 
@@ -55,10 +58,10 @@ jobs:
       - name: raceCardSync
         run: npm run sync:cards -- --fail-on-empty ${DATE_ARG:+--date $DATE_ARG}
 
-  results:
-    name: 결과 sync (당일)
+  resultsPoll:
+    name: 결과 폴러 (발주시각 기반)
     timeout-minutes: 45
-    if: github.event.schedule == '0 10 * * 5,6,0' || github.event.schedule == '0 14 * * 5,6,0' || (github.event_name == 'workflow_dispatch' && inputs.target == 'results')
+    if: github.event.schedule == '*/15 1-12 * * 5,6,0' || (github.event_name == 'workflow_dispatch' && inputs.target == 'resultsPoll')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +70,20 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: dailySync
-        # 당일 저녁 실행 → 스케줄 시 "오늘"(KST, TZ=Asia/Seoul) 날짜를 받는다.
-        # 수동 dispatch에서 date 입력 시 그 값 우선.
-        run: npm run sync -- --fail-on-empty --date "${DATE_ARG:-$(date +%Y%m%d)}"
+      - name: resultsPoll
+        run: npm run sync:poll
+
+  resultsCatchup:
+    name: 결과 캐치업 (최근 7일 구멍)
+    timeout-minutes: 45
+    if: github.event.schedule == '0 22 * * *' || (github.event_name == 'workflow_dispatch' && inputs.target == 'resultsCatchup')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: catchupSync
+        run: npm run sync:catchup

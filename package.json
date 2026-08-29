@@ -10,6 +10,8 @@
     "typecheck:api": "tsc -p api/tsconfig.json",
     "start": "node dist/index.js",
     "sync": "tsx src/sync/dailySync.ts",
+    "sync:poll": "tsx scripts/resultsPoll.ts",
+    "sync:catchup": "tsx scripts/catchupSync.ts",
     "sync:cards": "tsx src/sync/raceCardSync.ts",
     "sync:cards:bulk": "tsx scripts/backfill_race_cards.ts",
     "backfill": "tsx scripts/backfill_predictions.ts",

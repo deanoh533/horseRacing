@@ -404,7 +404,7 @@ npm run probe:sync-health -- --from 20260801 # 범위 지정
 ## 9. sync 자동화·백업 (2026-07-12, L-002~005)
 
 ### 무인 sync (GitHub Actions)
-- `.github/workflows/sync.yml` — 출마표 수·목·금 15:00 KST(`sync:cards`, 기본 날짜 오늘+2), 결과 금·토·일 **19:00 + 23:00 KST 2회**(`sync`, 경주 당일 저녁, `--date $(date +%Y%m%d)`로 오늘 수집). 결과는 출마표(수·목·금 3회)와 달리 재시도 여지가 없어 2차 슬롯을 둔다 — 1차 타임아웃으로 20260808·0814·0821 결과를 통째로 잃었고, 19시엔 막판 경주가 아직 안 올라와 있을 수 있다. upsert 멱등이라 1차 성공 시 2차는 같은 값을 덮어쓴다. KRA 클라이언트에 지수 백오프 재시도(5회)+타임아웃 120초 탑재(무인 러너 결과 API 지연 대비). 결과 sync는 조합배당(combo_dividends)도 함께 수집(API160_1, 2026-07-29).
+- `.github/workflows/sync.yml` — 출마표 수·목·금 15:00 KST(`sync:cards`, 기본 날짜 오늘+2). 결과는 **2026-08-29부터 고정 슬롯이 아니라 발주시각 기반 폴러**: ① `resultsPoll`(`scripts/resultsPoll.ts`, `sync:poll`) 경주 있는 날 KST 10:00~21:45·15분 간격 — 출마표 발주시각(`races.st_time`)+15분이 지났는데 착순 없는 경주가 있을 때만 KRA 호출(없으면 KRA 안 부름), ② `resultsCatchup`(`scripts/catchupSync.ts`, `sync:catchup`) 매일 KST 07:00 — 최근 7일 hole·gap 날짜를 자동 재싱크(폴러가 그날 전멸해도 다음날 복구, 2일 이상 묵으면 실패 메일). KRA 클라이언트에 지수 백오프 재시도(5회)+타임아웃 120초 탑재(무인 러너 결과 API 지연 대비). 결과 sync는 조합배당(combo_dividends)도 함께 수집(API160_1, 2026-07-29). 상세 → docs/status/05-data-infra.md.
 - `--fail-on-empty`는 **휴장일과 장애를 구분**한다(`emptySyncVerdict`): 0건 + 에러 0 = 휴장일 → 정상 종료 / 0건 + 에러 있음 = KRA 장애 → exit 1. 혹서기 휴장(7/31~8/2)마다 빨간불이 뜨던 오탐 제거.
 - 실패·0건(`--fail-on-empty`) 시 GitHub이 계정 이메일로 통지. 휴장일엔 0건 오탐 가능 — 확인 후 무시.
 - 수동 재실행: GitHub → Actions → Sync → Run workflow — **target은 `racecard`(출마표) 또는 `results`(결과)**, date는 YYYYMMDD(생략 시 자동). ⚠️ npm 스크립트명(`sync:cards`)과 잡/입력값(`racecard`)이 다름 — 혼동 주의.
