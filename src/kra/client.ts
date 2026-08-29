@@ -17,7 +17,8 @@
  *   부경: buG1fAccTime ~ buG8fAccTime, buS1fAccTime
  *   순위: sjG1fOrd, sjG3fOrd, sjS1fOrd, sj_3cOrd, sj_4cOrd
  */
-import axios, { type AxiosInstance } from 'axios';
+import axios, { type AxiosInstance } from 'axios';
+import { Agent as HttpsAgent } from 'node:https';
 import pLimit from 'p-limit';
 import { getEnv } from '@utils/env.js';
 import { stripHrNameTag } from '@utils/parsers.js';
@@ -50,9 +51,22 @@ function isRetryableError(err: unknown): boolean {
 }
 
 export interface KRAClientOptions {
-  /** axios 요청 타임아웃(ms). 기본 120초 — 60초일 때 무인 배치가 4회 전부 만료돼 결과 3일치를 통째로 놓쳤다(2026-08-08·14·21) */
+  /**
+   * axios 요청 타임아웃(ms). 기본 30초.
+   *
+   * 실측(Actions 로그) 정상 응답은 1~4초다. 한때 120초까지 늘려봤지만
+   * KRA가 무응답일 땐 30배 여유를 줘도 끝내 실패했고, 경마장당 10분·양쪽
+   * 20분을 태우기만 했다(2026-08-23 두 슬롯). 오래 기다린다고 오는 응답이
+   * 아니므로 정상치의 약 8배만 주고 빨리 포기한다.
+   */
   timeoutMs?: number;
-  /** 첫 시도 포함 최대 시도 횟수. 기본 5 */
+  /**
+   * 첫 시도 포함 최대 시도 횟수. 기본 4.
+   *
+   * 무응답 구간에서는 인프로세스 재시도가 출발지 IP를 못 바꿔 실효가 없다
+   * (같은 시각 다른 러너는 3분 뒤 성공 — 2026-08-21 실측). 짧은 지연에는
+   * 재시도가 듣지만 장기 무응답은 다음 날 catchup(새 러너 = 새 IP)에 맡긴다.
+   */
   maxAttempts?: number;
   /** 지수 백오프 기준 지연(ms). 기본 1000 (1s→2s→4s→8s) */
   baseDelayMs?: number;
@@ -79,11 +93,15 @@ export class KRAClient {
   constructor(opts: KRAClientOptions = {}) {
     const env = getEnv();
     this.apiKey = env.KRA_API_KEY;
-    this.maxAttempts = opts.maxAttempts ?? 5;
+    this.maxAttempts = opts.maxAttempts ?? 4;
     this.baseDelayMs = opts.baseDelayMs ?? 1000;
     this.client = axios.create({
       baseURL: BASE_URL,
-      timeout: opts.timeoutMs ?? 120_000,
+      timeout: opts.timeoutMs ?? 30_000,
+      // Node 19+ 전역 agent는 keep-alive가 기본 on이라, 응답이 끊긴 소켓을
+      // 그대로 물고 재시도하면 매 시도가 같은 조건이 된다. 시도마다 새로
+      // dial하게 해 최소한 커넥션(출발 포트·경로)은 바뀌게 한다.
+      httpsAgent: new HttpsAgent({ keepAlive: false }),
     });
   }
 
