@@ -17,7 +17,7 @@
  *   부경: buG1fAccTime ~ buG8fAccTime, buS1fAccTime
  *   순위: sjG1fOrd, sjG3fOrd, sjS1fOrd, sj_3cOrd, sj_4cOrd
  */
-import axios, { type AxiosInstance } from 'axios';
+import axios, { type AxiosInstance } from 'axios';
 import { Agent as HttpsAgent } from 'node:https';
 import pLimit from 'p-limit';
 import { getEnv } from '@utils/env.js';

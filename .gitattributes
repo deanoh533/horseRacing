@@ -1,0 +1,19 @@
+# 줄바꿈 정규화 — 저장소엔 항상 LF, 작업트리는 각자 OS 기본(Windows=CRLF).
+#
+# 왜 필요한가: 2026-08-30 커밋에서 src/kra/client.ts에 홑 CR(\r\r\n) 한 개가
+# 섞여 들어가자 git이 파일 전체를 바이너리(-text)로 판정했고, 실제 변경 22줄이
+# 1412줄로 찍혀 blame·리뷰가 무의미해졌다. core.autocrlf는 각자 머신 설정이라
+# 저장소가 스스로 보장하지 못한다 — 이 파일이 그 보장을 코드로 고정한다.
+* text=auto
+
+# 바이너리로 다룰 확장자 (현재 추적 중인 건 없지만, 추가될 때 대비)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.duckdb binary
+*.parquet binary
+*.woff binary
+*.woff2 binary

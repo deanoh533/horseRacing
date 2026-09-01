@@ -61,7 +61,9 @@ jobs:
 
   resultsPoll:
     name: 결과 폴러 (발주시각 기반)
-    timeout-minutes: 45
+    # 하루치 × 2 경마장. 무응답이면 경마장당 ~2분(30s×4 + 백오프 7s) ≈ 4분,
+    # 정상이어도 조합배당까지 받아 ~4분(2026-08-30 실측). 안전망으로 그 몇 배.
+    timeout-minutes: 20
     if: github.event.schedule == '*/15 1-12 * * 5,6,0' || (github.event_name == 'workflow_dispatch' && inputs.target == 'resultsPoll')
     runs-on: ubuntu-latest
     steps:
@@ -76,7 +78,9 @@ jobs:
 
   resultsCatchup:
     name: 결과 캐치업 (최근 7일 구멍)
-    timeout-minutes: 45
+    # 최악은 7일치가 전부 구멍인 경우 — 하루당 무응답 ~4분이면 ~28분.
+    # 실측은 2일치 재싱크에 3m30s(2026-08-30). 그 최악을 덮되 무한정 걸리진 않게.
+    timeout-minutes: 35
     if: github.event.schedule == '0 22 * * *' || (github.event_name == 'workflow_dispatch' && inputs.target == 'resultsCatchup')
     runs-on: ubuntu-latest
     steps:
