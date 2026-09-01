@@ -13,10 +13,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * 던지는지를 검증한다.
  */
 
-const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
+const { mockGet, createdConfig } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  // axios.create에 넘어간 설정을 붙잡아 기본값(타임아웃·커넥션 재사용)을 검증한다
+  createdConfig: { value: undefined as Record<string, unknown> | undefined },
+}));
 
 vi.mock('axios', () => {
-  const create = () => ({ get: mockGet });
+  const create = (cfg: Record<string, unknown>) => {
+    createdConfig.value = cfg;
+    return { get: mockGet };
+  };
   const isAxiosError = (e: unknown): boolean =>
     Boolean(e && typeof e === 'object' && (e as { isAxiosError?: boolean }).isAxiosError);
   return { default: { create, isAxiosError }, isAxiosError };
@@ -140,5 +147,42 @@ describe('KRAClient.getComboDividends', () => {
 
     expect(rows).toHaveLength(1);
     expect(mockGet).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * 기본값 회귀 — 2026-08-30 조정 근거를 고정한다.
+ *
+ * 실측(GitHub Actions 로그): 정상 응답은 1~4초. 그런데 타임아웃이 120초·5회여서
+ * KRA가 무응답일 때 경마장 하나당 10분, 두 곳이면 20분을 태우고도 결국 실패했다
+ * (2026-08-23 두 슬롯 실측). 무응답 구간에서는 인프로세스 재시도가 출발지 IP를
+ * 못 바꿔 실효가 없고 — 같은 시각 다른 러너는 3분 뒤 성공했다 — 구멍은 다음 날
+ * catchup(새 러너 = 새 IP)이 메운다. 그러니 빨리 포기하는 편이 낫다.
+ */
+describe('KRAClient 기본 설정', () => {
+  beforeEach(() => {
+    mockGet.mockReset();
+    createdConfig.value = undefined;
+  });
+
+  it('기본 타임아웃은 30초 (정상 응답 1~4초의 약 8배 여유)', () => {
+    new KRAClient();
+    expect(createdConfig.value?.timeout).toBe(30_000);
+  });
+
+  it('재시도가 죽은 커넥션을 재사용하지 않도록 keep-alive를 끈다', () => {
+    // Node 19+ 전역 agent는 keepAlive 기본 on이라, 무응답 소켓을 그대로 물고
+    // 재시도하면 매 시도가 같은 조건이 된다. 매번 새로 dial하게 한다.
+    new KRAClient();
+    const agent = createdConfig.value?.httpsAgent as { options?: { keepAlive?: boolean } };
+    expect(agent).toBeDefined();
+    expect(agent.options?.keepAlive).toBe(false);
+  });
+
+  it('기본 시도 횟수는 4회 (첫 시도 + 재시도 3회)', async () => {
+    mockGet.mockRejectedValue(timeoutError());
+    const client = new KRAClient({ baseDelayMs: 0 }); // 대기만 제거, 횟수는 기본값
+    await expect(client.getRaceResults({ meet: 1, rcDate: 20260726 })).rejects.toThrow();
+    expect(mockGet).toHaveBeenCalledTimes(4);
   });
 });

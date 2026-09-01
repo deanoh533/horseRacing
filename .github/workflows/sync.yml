@@ -44,8 +44,9 @@ env:
 jobs:
   racecard:
     name: 출마표 sync (발표일+2)
-    # KRA 타임아웃 시 시도당 최대 ~10분(120s×5) × 3일치 × 2 경마장 → 한도를 명시해 둔다
-    timeout-minutes: 90
+    # KRA 무응답 시 엔드포인트당 최대 ~2분(30s×4 + 백오프 7s) × 3일치 × 2 경마장
+    # ≈ 13분. 안전망으로 그 2배를 준다 (2026-08-30 타임아웃 하향 반영).
+    timeout-minutes: 30
     if: github.event.schedule == '0 6 * * 3,4,5' || (github.event_name == 'workflow_dispatch' && inputs.target == 'racecard')
     runs-on: ubuntu-latest
     steps:
