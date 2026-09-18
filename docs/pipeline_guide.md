@@ -426,7 +426,8 @@ npm run probe:sync-health -- --from 20260801 # 범위 지정
 
 ### 재학습 정책 (L-003)
 - v7 라이브 1개 분기(약 12주) 누적 + `probe:v7-accuracy` 첫 판정까지 **재학습·승격 동결**.
-- 이후 분기 1회 수동 사이클: `db:snapshot` → `learn:candidate` → `db:pull --table model_versions` → `benchmark` → 판단 → `promote`.
+- 이후 분기 1회 수동 사이클: `db:snapshot` → `extract:matrix -- --from 20220101` → `learn:logistic -- --label vN` → `db:pull --table model_versions` → `benchmark` → 판단 → `promote` → `calib:fit-live`(Platt 재적합)·`probe:picks`(임계 재확인).
+- ⚠️ `learn:candidate`는 레거시 Spearman 가중치 경로 — 로지스틱 후보를 만들지 않으므로 재학습에 쓰지 말 것 (2026-09-18 정정).
 
 ---
 

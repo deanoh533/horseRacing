@@ -55,7 +55,8 @@
   - 함정 처리: 러너 UTC → `TZ: Asia/Seoul` / 러너에 미러 없음 → `DB_SOURCE: supabase`.
 
 - [x] **L-003 가중치 재학습 주기 정책 결정** — 완료 2026-07-12 (정책 문서화)
-  - **v7 라이브 1개 분기(약 12주) 누적 + probe:v7-accuracy 첫 판정까지 재학습·승격 동결.** 이후 분기 1회 수동 사이클: `db:snapshot` → `learn:candidate` → `db:pull --table model_versions` → `benchmark` → 사용자 판단 → `promote`. 자동 재학습·자동 승격 없음.
+  - **v7 라이브 1개 분기(약 12주) 누적 + probe:v7-accuracy 첫 판정까지 재학습·승격 동결.** 이후 분기 1회 수동 사이클: `db:snapshot` → `extract:matrix -- --from 20220101` → `learn:logistic -- --label vN` → `db:pull --table model_versions` → `benchmark` → 사용자 판단 → `promote` → `calib:fit-live`(Platt 재적합)·`probe:picks`. 자동 재학습·자동 승격 없음.
+  - ⚠️ 2026-09-18 정정: 원래 `learn:candidate`로 적혀 있었으나 그건 레거시 Spearman 가중치 경로(로지스틱 후보를 안 만듦).
 
 - [x] **L-004 에러 알림 채널** — 완료 2026-07-12
   - 워크플로우 실패 → GitHub 이메일 자동. `--fail-on-empty`로 "성공인데 0건" 조용한 실패도 실패 처리(휴장일 오탐은 확인 후 무시).

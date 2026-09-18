@@ -10,7 +10,7 @@ v7 **라이브 적중률 추적 시작**(2026-07-11, L-001) — `dailySync`가 p
 
 > 캘리브레이션(Platt `p_win`/`p_top3`)·선별표시는 **시장엣지 트랙**이 SSOT → [03-market-edge](03-market-edge.md). 랭킹 모델(여기)과는 분리.
 
-**재학습 정책(L-003, 2026-07-12)**: v7 라이브 1개 분기 누적·첫 판정까지 재학습·승격 동결 → 이후 분기 1회 수동 사이클(db:snapshot → learn:candidate → db:pull → benchmark → promote).
+**재학습 정책(L-003, 2026-07-12)**: v7 라이브 1개 분기 누적·첫 판정까지 재학습·승격 동결 → 이후 분기 1회 수동 사이클(db:snapshot → extract:matrix → learn:logistic → db:pull --table model_versions → benchmark → promote → calib:fit-live·probe:picks). ⚠️ `learn:candidate`는 레거시 Spearman 경로라 쓰지 말 것 (2026-09-18 정정).
 
 ## 다음 후보·남음
 - 🔲 model_versions 스키마 영구화 — `feature_schema`/`params` Supabase 반영 + 챔피언 artifact 저장 (egress 리셋 후)
