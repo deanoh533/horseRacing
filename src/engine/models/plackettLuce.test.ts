@@ -47,4 +47,22 @@ describe('fitPL', () => {
     expect(model.intercept).toBe(0);
     expect(model.type).toBe('plackett-luce');
   });
+
+  it('topK=3은 계수 부호를 회복하고 topK를 기록한다', () => {
+    const races = makeRaces(400, 8);
+    const model = fitPL(races, ['x1', 'x2'], { l2: 0.02, iters: 800, lr: 0.2, topK: 3 });
+    expect(model.coef['x1']).toBeGreaterThan(0);
+    expect(model.coef['x2']).toBeLessThan(0);
+    expect(model.topK).toBe(3);
+  });
+
+  it('topK=3은 4착 이하 순서를 무시한다 (하위 순서를 뒤섞어도 계수 동일)', () => {
+    const races = makeRaces(200, 8);
+    const shuffled = races.map((r) => ({
+      horses: r.horses.map((h) => (h.ord >= 4 ? { ...h, ord: 12 - h.ord } : h)), // 8두: 4..8 → 8..4 역순
+    }));
+    const a = fitPL(races, ['x1', 'x2'], { iters: 200, topK: 3 });
+    const b = fitPL(shuffled, ['x1', 'x2'], { iters: 200, topK: 3 });
+    expect(a.coef['x1']).toBeCloseTo(b.coef['x1']!, 10);
+  });
 });
