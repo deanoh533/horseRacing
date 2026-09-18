@@ -31,6 +31,7 @@ import {
   toComboDividendRows,
 } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
+import { updateShadowActualOrd } from './shadowWriter.js';
 import { yyyymmddOffset, emptySyncVerdict } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
@@ -341,6 +342,13 @@ async function syncMeet(
                 `    [meet=${meet}, rcNo=${rcNo}, hr=${hrName}] actual_ord UPDATE 실패 (계속): ${actualOrdErr.message}`
               );
             }
+          }
+
+          // 6-b. 섀도(실험) 예측 착순 기록 — 격리 (spec 2026-09-18 §4.3)
+          try {
+            await updateShadowActualOrd(supabase, rcDate, meet, rcNo, resultOrds);
+          } catch (e) {
+            console.warn(`    [meet=${meet}, rcNo=${rcNo}] 섀도 actual_ord 실패 (라이브 무영향): ${(e as Error).message}`);
           }
 
           // 7. 조합 확정배당 수집 (복승·복연승·쌍승·삼복승·삼쌍승) → combo_dividends

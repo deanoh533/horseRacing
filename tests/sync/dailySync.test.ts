@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
  * dailySync의 predictions 쓰기 전략 검증.
@@ -313,5 +313,80 @@ describe('syncDay - predictions 쓰기 전략 (v7 라이브 추적)', () => {
 
     expect(mockGetComboDividends).not.toHaveBeenCalled();
     expect(fakeSb.tables['combo_dividends']?.rows ?? []).toHaveLength(0);
+  });
+
+  it('shadow_predictions도 같은 경주·말의 모든 버전 actual_ord를 채운다 (섀도 실험실 T4)', async () => {
+    fakeSb.tables['race_entries'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null }],
+    };
+    fakeSb.tables['predictions'] = {
+      rows: [{
+        race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말',
+        predicted_rank: 1, total_score: 0.68, actual_ord: null,
+      }],
+    };
+    // 같은 경주·말에 대해 실험 모델 버전 8·9 행이 이미 존재 (섀도 예측 저장 단계에서 채워짐)
+    fakeSb.tables['shadow_predictions'] = {
+      rows: [
+        { race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', model_version: 8, actual_ord: null },
+        { race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', model_version: 9, actual_ord: null },
+      ],
+    };
+
+    const { syncDay } = await import('../../src/sync/dailySync.js');
+    await syncDay({ rcDate: RC_DATE, meets: [MEET] });
+
+    // 라이브 predictions도 그대로 채워짐 (격리 확인용 대조군)
+    expect(fakeSb.tables['predictions']!.rows[0]!.actual_ord).toBe(2);
+
+    const shadowRows = fakeSb.tables['shadow_predictions']!.rows;
+    expect(shadowRows).toHaveLength(2);
+    expect(shadowRows[0]!.actual_ord).toBe(2); // 버전 8
+    expect(shadowRows[1]!.actual_ord).toBe(2); // 버전 9
+  });
+});
+
+describe('syncDay - 섀도 actual_ord 실패 격리 (라이브 무영향)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    fakeSb = new FakeSupabase();
+    mockGetAllRaceResults = vi.fn().mockResolvedValue([makeHorseFixture()]);
+    mockPredictRace = vi.fn().mockResolvedValue([]);
+    mockGetComboDividends = vi.fn().mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.doUnmock('../../src/sync/shadowWriter.js');
+    vi.resetModules();
+  });
+
+  it('updateShadowActualOrd가 throw해도 predictions.actual_ord는 정상 기록되고 에러 없이 끝난다', async () => {
+    vi.doMock('../../src/sync/shadowWriter.js', () => ({
+      updateShadowActualOrd: vi.fn().mockRejectedValue(new Error('섀도 DB 장애 (테스트)')),
+      writeShadowPredictions: vi.fn(),
+    }));
+
+    fakeSb.tables['race_entries'] = {
+      rows: [{ race_date: RC_DATE, meet: MEET, rc_no: RC_NO, pthr_no: 1, hr_name: '테스트말', ord: null }],
+    };
+    fakeSb.tables['predictions'] = {
+      rows: [{
+        race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말',
+        predicted_rank: 1, total_score: 0.68, actual_ord: null,
+      }],
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { syncDay } = await import('../../src/sync/dailySync.js');
+    await expect(syncDay({ rcDate: RC_DATE, meets: [MEET] })).resolves.not.toThrow();
+
+    // 라이브 predictions.actual_ord는 섀도 실패와 무관하게 정상 기록
+    expect(fakeSb.tables['predictions']!.rows[0]!.actual_ord).toBe(2);
+
+    // 격리 로그는 찍히되(선택 확인), 동기화 자체는 에러로 끝나지 않음
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('섀도'));
+
+    warnSpy.mockRestore();
   });
 });
