@@ -124,12 +124,18 @@ vi.mock('../../src/engine/scorePredictor.js', () => ({
   predictRace: (...args: unknown[]) => mockPredictRace(...args),
 }));
 
+let mockPredictShadows: ReturnType<typeof vi.fn>;
+vi.mock('../../src/engine/shadowPredictor.js', () => ({
+  predictShadows: (...args: unknown[]) => mockPredictShadows(...args),
+}));
+
 describe('syncRaceCards - 사전 예측 스냅샷 보호 가드', () => {
   beforeEach(() => {
     fakeSb = new FakeSupabase();
     mockGetAllEntrySheet = vi.fn().mockResolvedValue([makeEntrySheetItem()]);
     mockGetRaceCard = vi.fn().mockResolvedValue([]); // 보조싱크 무해화
     mockPredictRace = vi.fn().mockResolvedValue([]);
+    mockPredictShadows = vi.fn().mockResolvedValue([]);
   });
 
   it('결과(ord)가 이미 있는 경주는 예측 재계산을 건너뛰고 기존 predictions을 보존한다', async () => {
@@ -188,5 +194,34 @@ describe('syncRaceCards - 사전 예측 스냅샷 보호 가드', () => {
     expect(predRows).toHaveLength(1);
     expect(predRows[0]!.total_score).toBe(0.5);
     expect(predRows[0]!.predicted_rank).toBe(1);
+  });
+
+  it('섀도 채점이 예외를 던져도 라이브 예측은 저장되고 동기화는 성공한다', async () => {
+    mockPredictRace.mockResolvedValue([{
+      race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', total_score: 0.5,
+      predicted_rank: 1, item_scores: {}, actual_ord: null, model_version: 7, p_top3: 0.6, p_win: 0.2,
+    }]);
+    mockPredictShadows.mockRejectedValue(new Error('column is_shadow does not exist'));
+    const { syncRaceCards } = await import('../../src/sync/raceCardSync.js');
+    const res = [await syncRaceCards({ rcDate: RC_DATE, meets: [MEET as 1] })].flat();
+    expect(fakeSb.tables['predictions']!.rows).toHaveLength(1);
+    expect(res.reduce((s, r) => s + r.racesSynced, 0)).toBe(1);
+    expect(res.flatMap((r) => r.errors)).toHaveLength(0);
+  });
+
+  it('섀도 행은 shadow_predictions에 source=live로 저장된다', async () => {
+    mockPredictRace.mockResolvedValue([{
+      race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', total_score: 0.5,
+      predicted_rank: 1, item_scores: {}, actual_ord: null, model_version: 7, p_top3: 0.6, p_win: 0.2,
+    }]);
+    mockPredictShadows.mockResolvedValue([{
+      race_date: RC_DATE, meet: MEET, rc_no: RC_NO, hr_name: '테스트말', model_version: 9,
+      total_score: 0.1, predicted_rank: 1, p_top3: null, actual_ord: null,
+    }]);
+    const { syncRaceCards } = await import('../../src/sync/raceCardSync.js');
+    await syncRaceCards({ rcDate: RC_DATE, meets: [MEET as 1] });
+    const sh = fakeSb.tables['shadow_predictions']!.rows;
+    expect(sh).toHaveLength(1);
+    expect(sh[0]).toMatchObject({ model_version: 9, source: 'live' });
   });
 });

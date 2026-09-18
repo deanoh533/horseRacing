@@ -16,6 +16,8 @@ import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
+import { predictShadows } from '../engine/shadowPredictor.js';
+import { writeShadowPredictions } from './shadowWriter.js';
 import { upcomingCardDates, emptySyncVerdict } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
 import type { MeetCode } from '@app-types/index.js';
@@ -135,6 +137,15 @@ async function syncOneMeet(
               .eq('race_date', rcDate).eq('meet', meet).eq('rc_no', rcNo);
             const { error: predErr } = await sb.from('predictions').insert(preds);
             if (predErr) throw predErr;
+
+            // 섀도(실험) 버전 예측 — 라이브와 완전 격리 (spec 2026-09-18 §4.2).
+            // 실패해도 경고만: 라이브 결과·--fail-on-empty 판정 불변.
+            try {
+              const shadows = await predictShadows(sb as unknown as ReadClient, rcDate, meet, rcNo);
+              await writeShadowPredictions(sb, shadows, 'live');
+            } catch (e) {
+              console.warn(`    rc_no=${rcNo} ⚠️ 섀도 예측 실패 (라이브 무영향): ${(e as Error).message}`);
+            }
           }
         } catch (e) {
           console.warn(`    rc_no=${rcNo} ⚠️ 예측 생성 실패 (계속): ${(e as Error).message}`);
