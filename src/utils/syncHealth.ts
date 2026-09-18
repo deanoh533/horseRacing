@@ -11,7 +11,7 @@
 export type SyncDateStatus =
   | 'ok'      // 결과 + 조합배당까지 정상
   | 'pending' // 오늘/미래 경주 — 결과가 아직 없는 게 정상
-  | 'partial' // 결과는 왔는데 조합배당이 빔 (조합 수집은 실패 격리 대상)
+  | 'partial' // 결과는 왔는데 조합배당이 (일부 경주라도) 빔 — 조합 수집은 실패 격리라 따로 메워야 함
   | 'gap'     // 일부 경주만 결과가 옴 = 부분 구멍 (재싱크 대상)
   | 'hole';   // 지난 경주인데 결과가 0건 = 데이터 구멍
 
@@ -28,6 +28,12 @@ export interface RaceDateCounts {
    * 전부 와야 정상이다.
    */
   racesWithResult: number;
+  /**
+   * 결과가 있는 경주 중 조합배당도 있는 경주 수. 날짜 전체 comboRows만 보면
+   * 경주 몇 개만 빠진 걸 못 잡는다(2026-09-18 — 마지막 결과를 받은 폴러에서
+   * 조합배당만 실패하면 그 뒤로 아무도 다시 안 받는다).
+   */
+  racesWithCombo: number;
   /** 발주시각이 남아 있는 경주 수 (결과 sync가 지우지 않는지 확인용) */
   stTimeFilled: number;
   comboRows: number;
@@ -52,7 +58,9 @@ export function classifyRaceDate(c: RaceDateCounts, today: number): SyncDateStat
   // 서울 R9·R10이 아직 KRA에 없어 10경주 중 8경주만 왔는데, ordFilled > 0이라
   // 기존 판정은 '정상'으로 통과시켰다. 재싱크가 채우므로 hole과 같이 안내한다.
   if (c.races > 0 && c.racesWithResult < c.races) return 'gap';
-  if (c.comboRows === 0 && c.raceDate >= COMBO_SYNC_SINCE) return 'partial';
+  if (c.raceDate >= COMBO_SYNC_SINCE && (c.comboRows === 0 || c.racesWithCombo < c.racesWithResult)) {
+    return 'partial';
+  }
   return 'ok';
 }
 

@@ -17,6 +17,7 @@
 import 'dotenv/config';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fetchRaceDateCounts } from '../src/sync/syncHealthQuery.js';
+import { isCatchupTarget } from '../src/sync/catchupLogic.js';
 import {
   classifyRaceDate, ST_TIME_PRESERVED_SINCE,
   type SyncDateStatus,
@@ -47,23 +48,25 @@ async function main(): Promise<void> {
 
   const rows = await fetchRaceDateCounts(sb, from);
   console.log(`\n📋 sync 건전성 — ${from} ~ (오늘 ${today})\n`);
-  console.log('   경주일    출전  결과  결과경주  조합배당  발주시각  상태');
+  console.log('   경주일    출전  결과  결과경주  조합경주  조합배당  발주시각  상태');
   const holes: number[] = [];
   for (const r of rows) {
     const st = classifyRaceDate(r, today);
-    if (st === 'hole' || st === 'gap') holes.push(r.raceDate);
+    // 백필 안내는 캐치업과 같은 기준 — 조합배당만 빠진 날(partial)도 재싱크로 메워진다
+    if (isCatchupTarget(st)) holes.push(r.raceDate);
     console.log(
       `${MARK[st]} ${r.raceDate}  ${String(r.entries).padStart(4)}  ${String(r.ordFilled).padStart(4)}  ` +
       `${String(r.racesWithResult + '/' + r.races).padStart(8)}  ` +
+      `${String(r.racesWithCombo + '/' + r.racesWithResult).padStart(8)}  ` +
       `${String(r.comboRows).padStart(8)}  ${String(r.stTimeFilled + '/' + r.races).padStart(8)}  ${LABEL[st]}`
     );
   }
 
-  console.log('\n' + '='.repeat(64));
+  console.log('\n' + '='.repeat(74));
   if (holes.length === 0) {
     console.log('✅ 결과 구멍 없음');
   } else {
-    console.log(`❌ 결과 구멍 ${holes.length}일치 — 아래 명령으로 백필:`);
+    console.log(`❌ 결과·조합배당 구멍 ${holes.length}일치 — 아래 명령으로 백필 (최근 7일이면 캐치업이 자동으로 메움):`);
     for (const d of holes) console.log(`   npm run sync -- --date ${d}`);
     console.log('   ⏭ "미시행·결과 미확정 → 스킵"이 찍히는 경주는 실제 취소된 경주다(빈 값 유지가 정답).');
   }
