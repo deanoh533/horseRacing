@@ -64,6 +64,8 @@ npm run sync:cards -- --date YYYYMMDD
 
 `race_entries.ord = NULL` → 사전 모드. 웹에서 즉시 출전마 표시 가능.
 
+**2026-09-18부터 섀도(실험) 분기 추가:** 라이브 `predictions` INSERT 직후, `is_shadow=true` 버전이 있으면 `predictShadows()` → `shadow_predictions`(source='live')에 별도 기록. try/catch로 격리 — 실패해도 라이브 결과·경주 sync에 영향 없음(spec `docs/superpowers/specs/2026-09-18-shadow-lab-design.md` §4.2).
+
 ### 1-2. 경기 결과 도착 (금~일 밤)
 
 ```bash
@@ -81,6 +83,7 @@ npm run sync -- --date YYYYMMDD
 - 이미 예측이 있는 경주 → `predictions.actual_ord`만 UPDATE (예측값 필드는 불변)
 - 예측이 없는 경주(수요일 실패 등) → `forcePrecompetition:true`로 사전 모드 계산해 보충 INSERT 후 `actual_ord` UPDATE
 - 백필 경로(`skipPredictions=true`)는 이 단계 전체를 건너뜀 (egress 보호)
+- **섀도(실험) 버전도 같은 (경주·말) 키로 `shadow_predictions.actual_ord`를 격리 UPDATE** (2026-09-18, 실패해도 라이브 무영향, spec §4.3)
 
 상세: [prediction_mode.md §8](prediction_mode.md) · [accuracy_metrics.md §8.6](accuracy_metrics.md) · 설계 `docs/superpowers/specs/2026-07-11-v7-live-tracking-design.md`.
 

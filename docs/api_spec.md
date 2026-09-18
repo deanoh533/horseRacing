@@ -602,6 +602,28 @@ PK: `hr_no`
 
 > 결과 sync(dailySync)가 경주 결과 저장 직후 `API160_1/integratedInfo_1`에서 채워 넣는다(멱등 upsert, forward만). 단승/연승은 `race_entries`에 이미 존재하므로 여기 저장 안 함.
 
+#### `shadow_predictions` — 섀도(실험) 버전 예측 (migration 018, 2026-09-18 — ⚠️ **Supabase 미적용, 코드만 존재**)
+
+PK: `(race_date, meet, rc_no, hr_name, model_version)`
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `race_date` | number | 경주 날짜 (PK) |
+| `meet` | number | 경마장 코드 (PK) |
+| `rc_no` | number | 경주 번호 (PK) |
+| `hr_name` | string | 말 이름 (PK) |
+| `model_version` | number | `model_versions(id)` FK (PK) |
+| `total_score` | number | 종합 점수 |
+| `predicted_rank` | number | 예측 순위 |
+| `p_top3` | number\|null | 보정 연승확률 (보정 없으면 null) |
+| `actual_ord` | number\|null | 실제 착순 (결과 도착 시 UPDATE) |
+| `source` | `'live'\|'backfill'` | 사전 저장(라이브 경로) / 과거 채우기 |
+| `computed_at` | string | 계산 시각 (기본 now()) |
+
+> 라이브 `predictions`와 완전 분리(섞지 않음, `item_scores`는 저장 안 함 — YAGNI, egress 절약). RLS는 `combo_dividends`와 동일(anon 읽기 / service_role 쓰기). `raceCardSync`가 라이브 INSERT 직후, `dailySync`가 라이브 `actual_ord` UPDATE 직후 각각 격리된 try/catch로 기록한다(실패해도 라이브 무영향). 상세: `docs/superpowers/specs/2026-09-18-shadow-lab-design.md` §3~4.
+
+> **`model_versions` 컬럼 확장 (같은 migration):** `is_shadow BOOLEAN NOT NULL DEFAULT false`(실험 버전 표시, `is_active`와 동시 불가 CHECK) · `train_until INT`(학습 데이터 마지막 경주일 YYYYMMDD — 과거 채우기 하한 근거, `learn:logistic -- --shadow` 실행 시 기록). `model_versions` 전체 컬럼은 이 문서에 없음 — 개요는 [pipeline_guide.md §6](pipeline_guide.md#6-모델-버전-관리-model_versions) 참고 (모델 버전 관리 절).
+
 ---
 
 ### 2.2 뷰 (Views)
@@ -716,6 +738,7 @@ PK: `hr_no`
 | `useRaceSectionalStats` | `rcDate, meet, rcNo` | `RaceSectionalStats\|null` | 10분 |
 | `useRaceCardsCoverage` | — | `{totalRows,injuredRows,...}` | 30분 |
 | `useHistoryRacesPrizeCond` | `{race_date,meet,rc_no}[]` | `Map<key, prize_cond>` | 24시간 |
+| `useLabData` | `from, to (YYYYMMDD)` | `{versions, live, shadow}` — `/lab` 라이브 vs 섀도 비교(migration 018 적용 전엔 `shadow_predictions` 조회 실패) | 10분 |
 
 #### 사용자 설정
 

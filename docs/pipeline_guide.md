@@ -317,9 +317,29 @@ npm run benchmark                         # 9개 모델 전체 (DuckDB 직접)
 npm run benchmark -- --include <itemId>   # 게이트 무관 강제 포함 (통제 A/B ON, 예: shape_signal)
 npm run benchmark -- --exclude <itemId>   # 강제 제외 (통제 A/B OFF)
 npm run learn:logistic                    # 매트릭스로 로지스틱만
+npm run learn:logistic -- --matrix <path> --label <name> [--model logistic|pl-top3] [--l2 0.02] [--iters 800] [--shadow]
+                                           # --shadow: is_shadow=true로 등록 + train_until 기록 (섀도 실험용, 2026-09-18)
 npm run refresh:logistic                  # 재학습
 npm run verify:logistic                   # 검증
 ```
+
+### 섀도 실험실 (실험 버전 채점·비교 — `/lab`, 2026-09-18)
+
+```bash
+npm run shadow:leak-check -- [--from YYYYMMDD] [--to YYYYMMDD] [--sample N]
+# 읽기전용(DuckDB 미러, DB쓰기 없음). 활성 모델의 보존된 사전 예측을 과거채우기 경로로 재계산해 일치 검증.
+# 합격(순위 완전일치 + |Δtotal_score|<1e-6) = 과거 채우기 개방 조건.
+
+npm run shadow:backfill -- --version <id> [--from YYYYMMDD] [--to YYYYMMDD] [--dry-run] [--force-unverified]
+# --version의 train_until 이후만 채움(from ≤ train_until은 거부). leak-check 합격 전엔 거부(강제는 --force-unverified).
+# source='backfill'로 shadow_predictions 저장, 이미 source='live' 행이 있는 경주는 건너뜀.
+
+npm run exp:learning
+# 학습 방식 실험(오프라인, DuckDB 미러): E0 수렴점검(800회 vs 3000회) → E1 l2×iters 튜닝(2024Q4 holdout) → E2 pl-top3(상위3 조건부 로짓).
+# 판정은 6분기 롤링 연승 Δ 사전등록 기준(기준선=라이브 v7). 결과는 실행 후 별도 기록.
+```
+
+**섀도 실험 사이클:** 학습(`learn:logistic -- --shadow`) → `shadow:leak-check` → `shadow:backfill` → `/lab`에서 라이브 대비 관찰 → 합격 후보만 기존 `promote`로 승격 (승격 자동화 없음, 실험은 라이브와 완전 분리).
 
 ### Spearman 가중치 (기존 경로)
 
@@ -428,6 +448,8 @@ npm run probe:sync-health -- --from 20260801 # 범위 지정
 - v7 라이브 1개 분기(약 12주) 누적 + `probe:v7-accuracy` 첫 판정까지 **재학습·승격 동결**.
 - 이후 분기 1회 수동 사이클: `db:snapshot` → `extract:matrix -- --from 20220101` → `learn:logistic -- --label vN` → `db:pull --table model_versions` → `benchmark` → 판단 → `promote` → `calib:fit-live`(Platt 재적합)·`probe:picks`(임계 재확인).
 - ⚠️ `learn:candidate`는 레거시 Spearman 가중치 경로 — 로지스틱 후보를 만들지 않으므로 재학습에 쓰지 말 것 (2026-09-18 정정).
+- ⚠️ **마이그레이션 018(`supabase/migrations/018_shadow_predictions.sql` — `model_versions.is_shadow`/`train_until` + `shadow_predictions` 테이블) 미적용 — 다음 재학습 전에 반드시 적용.** `learn:logistic`이 이제 `train_until`을 기록하므로 적용 전엔 `--shadow` 등록이 실패한다 (O-004, 10월 초 재학습 예정).
+- 섀도 실험 사이클(위 §7 참고)은 승격과 별개로 병행 가능 — L-003 동결과 충돌 없음(승격 아님).
 
 ---
 
@@ -438,3 +460,4 @@ npm run probe:sync-health -- --from 20260801 # 범위 지정
 | 2026-06-12 | 초안: 4개 데이터 소스 · 라이브 예측 흐름 · 3개 핵심 스크립트 · 전체 명령어 정리 |
 | 2026-07-11 | `probe:v7-accuracy` 추가 (v7 라이브 적중률 판정, L-001 predictions 보존 전략과 함께 도입) |
 | 2026-07-12 | sync 자동화·predictions 스냅샷·재학습 동결 정책 섹션 추가 (L-002~005) |
+| 2026-09-18 | 섀도 실험실(`/lab`) 명령어 추가 — `shadow:leak-check`·`shadow:backfill`·`exp:learning`·`learn:logistic --shadow`. 마이그레이션 018 미적용 경고 (재학습 정책 절) |

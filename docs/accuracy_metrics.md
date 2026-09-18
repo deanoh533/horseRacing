@@ -22,6 +22,8 @@ predictions를 (race_date, meet, rc_no)로 그룹핑
 
 ## 2. 4가지 지표
 
+> ⚠️ **이름 정의 불일치 — TODO D-001.** `/lab`(섀도 비교 화면, 2026-09-18)은 여기와 다른 규칙 정의를 쓴다(spec `docs/superpowers/specs/2026-09-18-shadow-lab-design.md` §6.1). 본 정리는 D-001에서.
+
 ### ① 단승 (Win)
 **예측 1위 = 실제 1위**
 

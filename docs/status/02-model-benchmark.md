@@ -1,5 +1,5 @@
 # 예측모델·벤치마크 — 진행 상황
-> 마지막 업데이트: 2026-07-12 · 관련 메모리: [[project_rolling_benchmark_integration]], [[project_market_benchmark]], [[project_race_shape_track]], [[project_score_learning_redesign]]
+> 마지막 업데이트: 2026-09-18 · 관련 메모리: [[project_rolling_benchmark_integration]], [[project_market_benchmark]], [[project_race_shape_track]], [[project_score_learning_redesign]]
 
 ## 현재 상태
 활성 모델 **id=7 (v7-shape, logistic)** — 2026-07-10 승격. 전개 shape_signal 포함, 학습 2022-01~2026-06(82,716행·피처 108). 검증 벤치(2025Q1~2026Q2) 연승 61.9% vs v6 61.6% vs 시장 68.8%(−6.9%p); 미래 예측력 근거는 t3 사전등록 A/B Δ+2.1%p([[project_race_shape_track]]). Platt 임베드 완료(renormWin=false). `npm run benchmark` = 롤링 확장윈도우 9모델 + 챔피언 대결 + 시장 진단, **기간 플래그 지원**(`--from/--to/--first-test/--gate-holdout`, 2026-07-09). 코드 `src/engine/eval/`. 롤백 = `npm run promote -- --version 6`.
@@ -11,6 +11,8 @@ v7 **라이브 적중률 추적 시작**(2026-07-11, L-001) — `dailySync`가 p
 > 캘리브레이션(Platt `p_win`/`p_top3`)·선별표시는 **시장엣지 트랙**이 SSOT → [03-market-edge](03-market-edge.md). 랭킹 모델(여기)과는 분리.
 
 **재학습 정책(L-003, 2026-07-12)**: v7 라이브 1개 분기 누적·첫 판정까지 재학습·승격 동결 → 이후 분기 1회 수동 사이클(db:snapshot → extract:matrix → learn:logistic → db:pull --table model_versions → benchmark → promote → calib:fit-live·probe:picks). ⚠️ `learn:candidate`는 레거시 Spearman 경로라 쓰지 말 것 (2026-09-18 정정).
+
+**섀도 실험실(2026-09-18, `feat/shadow-lab`)**: 라이브와 완전 분리된 실험 버전 채점·저장 인프라(`shadow_predictions` + `model_versions.is_shadow`/`train_until`, migration 018 — **Supabase 미적용**) + `/lab` 비교 화면 + 학습 방식 실험 도구(`exp:learning`: E0 수렴점검·E1 l2×iters 튜닝·E2 `pl-top3`, 6분기 사전등록 판정) 구현 완료. 현재 등록된 섀도 버전 없음 — 마이그레이션 적용 후 실험 실행, 결과는 별도로 기록 예정. 스펙: `docs/superpowers/specs/2026-09-18-shadow-lab-design.md`.
 
 ## 다음 후보·남음
 - 🔲 model_versions 스키마 영구화 — `feature_schema`/`params` Supabase 반영 + 챔피언 artifact 저장 (egress 리셋 후)
