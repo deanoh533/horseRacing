@@ -38,16 +38,46 @@ export function maxRaceDate(rows: { race_date: number }[]): number {
   return rows.reduce((mx, r) => Math.max(mx, r.race_date), 0);
 }
 
-async function main() {
-  const args = process.argv.slice(2);
+export interface LearnArgs {
+  matrixPath: string;
+  label: string;
+  modelType: 'logistic' | 'pl-top3';
+  l2: number;
+  iters: number;
+  shadow: boolean;
+}
+
+/** CLI 인자 파싱 + 검증(순수 함수). --model/--l2/--iters 오탈자·비정상값을 조기 차단해 Supabase 삽입 전 provenance를 보호한다. */
+export function parseLearnArgs(args: string[]): LearnArgs {
   const arg = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1]! : d; };
   const flag = (k: string) => args.includes(k);
   const matrixPath = arg('--matrix', 'data/training_matrix.jsonl');
   const label = arg('--label', 'v4-logit');
-  const modelType = arg('--model', 'logistic');
-  const l2 = parseFloat(arg('--l2', '0.02'));
-  const iters = parseInt(arg('--iters', '800'), 10);
+
+  const modelTypeRaw = arg('--model', 'logistic');
+  if (modelTypeRaw !== 'logistic' && modelTypeRaw !== 'pl-top3') {
+    throw new Error(`--model은 'logistic' 또는 'pl-top3'만 허용 (받은 값: ${modelTypeRaw})`);
+  }
+
+  const l2Raw = arg('--l2', '0.02');
+  const l2 = Number(l2Raw);
+  if (!Number.isFinite(l2) || l2 <= 0) {
+    throw new Error(`--l2는 0보다 큰 유한수여야 함 (받은 값: ${l2Raw})`);
+  }
+
+  const itersRaw = arg('--iters', '800');
+  const iters = Number(itersRaw);
+  if (!Number.isInteger(iters) || iters <= 0) {
+    throw new Error(`--iters는 0보다 큰 정수여야 함 (받은 값: ${itersRaw})`);
+  }
+
   const shadow = flag('--shadow');
+
+  return { matrixPath, label, modelType: modelTypeRaw, l2, iters, shadow };
+}
+
+async function main() {
+  const { matrixPath, label, modelType, l2, iters, shadow } = parseLearnArgs(process.argv.slice(2));
 
   const rows: MatrixRow[] = readFileSync(matrixPath, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
   const schema = buildSchema(rows.map((r) => r.features));
