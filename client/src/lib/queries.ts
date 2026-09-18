@@ -19,6 +19,7 @@ import {
 } from './supabase';
 import { pickConfig } from './selectivePicks';
 import { weekRange } from './week';
+import { dedupeRows, type LabRow } from './labMetrics';
 
 /**
  * 특정 날짜의 모든 경주 (서울 + 부산경남)
@@ -1414,6 +1415,49 @@ export function useComboDividends(rcDate: number, meet: number, rcNo: number, ga
       return (data ?? []) as ComboDividend[];
     },
     enabled: !!rcDate && !!meet && !!rcNo && gates.length >= 2,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+async function fetchAllPaged<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const out: T[] = [];
+  const PAGE = 1000;
+  for (let off = 0; ; off += PAGE) {
+    const { data, error } = await build(off, off + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    out.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return out;
+}
+
+/** /lab 섀도 비교 — 기간 내 라이브 예측 + 섀도 예측 + 버전 목록 (spec 2026-09-18 §6). */
+export function useLabData(from: number, to: number) {
+  return useQuery({
+    queryKey: ['lab', from, to],
+    queryFn: async () => {
+      const { data: versions, error: vErr } = await supabase
+        .from('model_versions').select('id, label, is_active, is_shadow').order('id');
+      if (vErr) throw vErr;
+      const versionRows = (versions ?? []) as { id: number; label: string; is_active: boolean; is_shadow: boolean }[];
+      const activeId = versionRows.find((v) => v.is_active)?.id ?? null;
+      const cols = 'race_date, meet, rc_no, hr_name, predicted_rank, actual_ord, model_version';
+      // 활성 버전 필터 없이는 구버전 행이 덤프에 섞여 dedupe에서 잘못 이길 수 있음 → 활성 버전이 없으면 라이브는 비운다.
+      const live = activeId == null ? [] : await fetchAllPaged<LabRow>((a, b) => supabase.from('predictions').select(cols)
+        .eq('model_version', activeId)
+        .gte('race_date', from).lte('race_date', to).order('race_date').order('meet').order('rc_no').order('hr_name').order('id').range(a, b));
+      const shadow = await fetchAllPaged<LabRow>((a, b) => supabase.from('shadow_predictions').select(`${cols}, source`)
+        .gte('race_date', from).lte('race_date', to).order('race_date').order('meet').order('rc_no').order('hr_name').order('model_version').range(a, b));
+      return {
+        versions: versionRows,
+        live: dedupeRows(live).map((r) => ({ ...r, source: 'prod' as const })),
+        shadow,
+      };
+    },
+    enabled: !!from && !!to,
     staleTime: 10 * 60 * 1000,
   });
 }

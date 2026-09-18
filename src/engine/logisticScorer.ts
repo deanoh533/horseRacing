@@ -9,9 +9,12 @@ import { buildFeatures } from './features/buildFeatures.js';
 import { featureToItem } from './features/featureItemMap.js';
 import { ITEM_NAMES } from '../types/index.js';
 
+/** 계수·표준화 구조를 가진 선형 모델(로지스틱·Plackett-Luce 공통). */
+export type LinearModel = Pick<LogisticModel, 'features' | 'means' | 'stds' | 'coef' | 'intercept'>;
+
 /** 피처 기여도(βᵢ·zᵢ)를 항목별 합산 + 총 logit. 스키마=model.features. */
 export function itemContributions(
-  model: LogisticModel, features: { name: string; value: number }[],
+  model: LinearModel, features: { name: string; value: number }[],
 ): { total: number; byItem: Record<string, number> } {
   const valByName = new Map(features.map((f) => [f.name, f.value]));
   const byItem: Record<string, number> = {};
@@ -29,7 +32,7 @@ export function itemContributions(
 }
 
 /** 라이브 로지스틱 점수: 총점 + item_scores(어댑터). */
-export function scoreLogistic(model: LogisticModel, input: ScoreEngineInput): HorseScoreResult {
+export function scoreLogistic(model: LinearModel, input: ScoreEngineInput): HorseScoreResult {
   const features = buildFeatures(input);
   const { total, byItem } = itemContributions(model, features);
   const items: Record<string, ItemScore> = {};

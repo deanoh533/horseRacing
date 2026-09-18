@@ -11,7 +11,12 @@ export interface LogisticModel {
   intercept: number;
 }
 
-export interface FitOpts { l2?: number; iters?: number; lr?: number; }
+export interface FitOpts {
+  l2?: number; iters?: number; lr?: number;
+  /** lossEvery(기본 100)회마다 평균 음의 로그우도(+L2항 제외) 보고 */
+  onLoss?: (iter: number, loss: number) => void;
+  lossEvery?: number;
+}
 
 export function fitLogistic(
   X: number[][], y: number[], features: string[], opts: FitOpts = {}
@@ -28,13 +33,16 @@ export function fitLogistic(
   const w = new Array(d).fill(0); let b = 0;
   for (let it = 0; it < iters; it++) {
     const gw = new Array(d).fill(0); let gb = 0;
+    let loss = 0;
     for (let i = 0; i < n; i++) {
       let z = b; for (let j = 0; j < d; j++) z += w[j]! * Z[i]![j]!;
       const p = 1 / (1 + Math.exp(-z));
       const err = p - y[i]!;
       for (let j = 0; j < d; j++) gw[j]! += err * Z[i]![j]!;
       gb += err;
+      if (opts.onLoss) { const pc = Math.min(Math.max(p, 1e-12), 1 - 1e-12); loss -= y[i]! ? Math.log(pc) : Math.log(1 - pc); }
     }
+    if (opts.onLoss && (it + 1) % (opts.lossEvery ?? 100) === 0) opts.onLoss(it + 1, loss / n);
     for (let j = 0; j < d; j++) w[j]! -= lr * (gw[j]! / n + l2 * w[j]!);
     b -= lr * (gb / n);
   }

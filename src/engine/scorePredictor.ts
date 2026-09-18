@@ -7,7 +7,7 @@
  */
 import type { ReadClient } from '../db/localDb.js';
 import { ScoreEngine, type HorseScoreResult, type ScoreEngineInput, type TrainingSession } from './index.js';
-import { getActiveModelVersion } from './modelVersion.js';
+import { getActiveModelVersion, type ActiveModelVersion } from './modelVersion.js';
 import { scoreLogistic } from './logisticScorer.js';
 import { parseClassBand } from './features/intentSignals.js';
 import { fetchAsOfHorseStats, distCategoryOf, type AsOfHorseStats } from './asOfHorseStats.js';
@@ -314,27 +314,24 @@ export function attachCalibratedProbs(
   return vectors.map((_, i) => ({ p_win: pWin[i]!, p_top3: pTop3[i]! }));
 }
 
-export async function predictRace(
-  sb: ReadClient,
-  rcDate: number,
-  meet: number,
-  rcNo: number,
-  opts?: { shapeParCutoff?: number; forcePrecompetition?: boolean }
-): Promise<PredictionRow[]> {
-  const rows = await gatherRaceInputs(sb, rcDate, meet, rcNo, opts);
-  if (rows.length === 0) return [];
+/** 선형 채점 경로(logisticScorer)를 타는 모델 유형. */
+export const LINEAR_MODEL_TYPES: ReadonlySet<string> = new Set(['logistic', 'pl-top3']);
 
-  // 활성 모델 버전으로 스코어링 (rho-legacy=ScoreEngine / logistic=logisticScorer)
-  const activeVersion = await getActiveModelVersion(sb);
-  const scoreOne = activeVersion.model_type === 'logistic' && activeVersion.artifact
-    ? (input: ScoreEngineInput) => scoreLogistic(activeVersion.artifact!, input)
-    : (() => { const engine = new ScoreEngine(activeVersion.weights); return (input: ScoreEngineInput) => engine.calculateScores(input); })();
+/**
+ * 수집된 입력 행을 주어진 버전으로 채점·순위화. 라이브(predictRace)와 섀도(predictShadows) 공용.
+ * DB 접근 없음(순수). rho-legacy=ScoreEngine / 선형=logisticScorer.
+ */
+export function scoreRaceRows(
+  rows: RaceInputRow[], version: ActiveModelVersion, rcDate: number, meet: number, rcNo: number,
+): PredictionRow[] {
+  const scoreOne = LINEAR_MODEL_TYPES.has(version.model_type) && version.artifact
+    ? (input: ScoreEngineInput) => scoreLogistic(version.artifact!, input)
+    : (() => { const engine = new ScoreEngine(version.weights); return (input: ScoreEngineInput) => engine.calculateScores(input); })();
 
   const results = rows.map((row) => ({ row, score: scoreOne(row.input) }));
 
-  // 보정 확률(로지스틱 + calibration 있을 때만). 랭킹과 무관.
-  // buildFeatures가 scoreLogistic 내부에서도 호출되지만, 경주당 수 마리·CPU-only라 중복 허용.
-  const artifact = activeVersion.artifact;
+  // 보정 확률(선형 + calibration 있을 때만). 랭킹과 무관.
+  const artifact = version.artifact;
   const probRows = artifact
     ? attachCalibratedProbs(
         artifact,
@@ -355,10 +352,23 @@ export async function predictRace(
     predicted_rank: rankMap.get(r.row.pthr_no)!,
     item_scores: r.score.items,
     actual_ord: r.row.ord,
-    model_version: activeVersion.id,
+    model_version: version.id,
     p_win: probRows[i]!.p_win,
     p_top3: probRows[i]!.p_top3,
   }));
+}
+
+export async function predictRace(
+  sb: ReadClient,
+  rcDate: number,
+  meet: number,
+  rcNo: number,
+  opts?: { shapeParCutoff?: number; forcePrecompetition?: boolean }
+): Promise<PredictionRow[]> {
+  const rows = await gatherRaceInputs(sb, rcDate, meet, rcNo, opts);
+  if (rows.length === 0) return [];
+  const activeVersion = await getActiveModelVersion(sb);
+  return scoreRaceRows(rows, activeVersion, rcDate, meet, rcNo);
 }
 
 type HistFull = {

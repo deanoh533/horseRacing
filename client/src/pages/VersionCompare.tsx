@@ -54,7 +54,7 @@ export function VersionCompare() {
           <span className="text-xs text-[var(--color-text-disabled)]">가중치 · 차이 · ρ</span>
         </div>
         <Link to="/lab" className="text-xs text-[var(--color-accent-cyan)] hover:underline">
-          ← 실험실(단일경주)
+          ← 실험실
         </Link>
       </div>
 

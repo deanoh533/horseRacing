@@ -5,6 +5,7 @@
  *
  * 우도 (경주별, ord 오름차순):
  *   ℓ = Σ_race Σ_i [ θ_i − log Σ_{j≥i} exp(θ_j) ],   θ_i = w·z_i
+ * topK 지정 시 1~topK 단계만(상위K 조건부 로짓, 2026-09-18 E2)
  * 위치 불변(경주 내 상수항은 상쇄) → intercept 미식별 → 항상 0. 구조 호환 위해 필드만 유지.
  */
 export interface PLModel {
@@ -14,15 +15,16 @@ export interface PLModel {
   stds: number[];
   coef: Record<string, number>;
   intercept: number; // 항상 0 (PL 위치 불변). LogisticModel과 구조 호환용.
+  topK?: number;
 }
 
 /** 경주 1건 — 말별 raw 피처 벡터 + 착순(ord, 1=1착). */
 export interface PLRace { horses: { x: number[]; ord: number }[]; }
 
-export interface PLFitOpts { l2?: number; iters?: number; lr?: number; }
+export interface PLFitOpts { l2?: number; iters?: number; lr?: number; topK?: number; }
 
 export function fitPL(races: PLRace[], features: string[], opts: PLFitOpts = {}): PLModel {
-  const { l2 = 0.02, iters = 800, lr = 0.2 } = opts;
+  const { l2 = 0.02, iters = 800, lr = 0.2, topK } = opts;
   const d = features.length;
 
   // z-표준화: 전체 말 기준 평균/표준편차
@@ -49,7 +51,7 @@ export function fitPL(races: PLRace[], features: string[], opts: PLFitOpts = {})
       const K = Z.length;
       const theta = Z.map((z) => { let t = 0; for (let j = 0; j < d; j++) t += w[j]! * z[j]!; return t; });
       // 각 단계 i: 잔여집합 {i..K-1}에서 softmax 기대피처
-      for (let i = 0; i < K; i++) {
+      for (let i = 0; i < Math.min(K, topK ?? K); i++) {
         let mx = -Infinity; for (let k = i; k < K; k++) if (theta[k]! > mx) mx = theta[k]!;
         let sum = 0; for (let k = i; k < K; k++) sum += Math.exp(theta[k]! - mx);
         for (let j = 0; j < d; j++) {
@@ -65,7 +67,7 @@ export function fitPL(races: PLRace[], features: string[], opts: PLFitOpts = {})
 
   const coef: Record<string, number> = {};
   features.forEach((f, j) => (coef[f] = w[j]!));
-  return { type: 'plackett-luce', features, means, stds, coef, intercept: 0 };
+  return { type: 'plackett-luce', features, means, stds, coef, intercept: 0, ...(topK ? { topK } : {}) };
 }
 
 /** 표준화 공간 선형 점수(=랭킹 점수). PL은 위치 불변이라 intercept 없음. */

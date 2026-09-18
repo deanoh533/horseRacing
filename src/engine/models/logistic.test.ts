@@ -19,4 +19,14 @@ describe('fitLogistic', () => {
     const p = 1 / (1 + Math.exp(-predictLogit(model, [2, -2])));
     expect(p).toBeGreaterThan(0.9);
   });
+
+  it('onLoss 콜백으로 손실이 감소하는 궤적을 보고한다', () => {
+    const rnd = (() => { let s = 7; return () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff); })();
+    const X: number[][] = [], y: number[] = [];
+    for (let i = 0; i < 500; i++) { const x = rnd() * 4 - 2; X.push([x]); y.push(rnd() < 1 / (1 + Math.exp(-2 * x)) ? 1 : 0); }
+    const losses: number[] = [];
+    fitLogistic(X, y, ['x'], { iters: 300, lr: 0.2, onLoss: (_it, l) => losses.push(l), lossEvery: 100 });
+    expect(losses).toHaveLength(3);
+    expect(losses[2]!).toBeLessThan(losses[0]!);
+  });
 });

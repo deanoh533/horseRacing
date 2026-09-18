@@ -34,3 +34,25 @@ export async function getActiveModelVersion(
   }
   return { id: null, label: 'v1-fallback', model_type: 'rho-legacy', weights: { ...ITEM_WEIGHTS }, artifact: null };
 }
+
+export interface ShadowModelVersion extends ActiveModelVersion {
+  train_until: number | null;   // 학습 데이터 마지막 경주일 — 과거 채우기 하한
+}
+
+/** 실험(섀도) 버전 목록. 라이브 경로는 사용하지 않는다(spec 2026-09-18 §3.1). */
+export async function getShadowModelVersions(sb: ReadClient): Promise<ShadowModelVersion[]> {
+  const { data, error } = await sb
+    .from('model_versions')
+    .select('id, label, model_type, weights, artifact, train_until')
+    .eq('is_shadow', true)
+    .order('id');
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map((d) => ({
+    id: d.id as number,
+    label: d.label as string,
+    model_type: (d.model_type as string) ?? 'logistic',
+    weights: (d.weights as Record<string, number>) ?? {},
+    artifact: (d.artifact as CalibratedArtifact | null) ?? null,
+    train_until: (d.train_until as number | null) ?? null,
+  }));
+}

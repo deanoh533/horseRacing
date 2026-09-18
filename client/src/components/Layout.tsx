@@ -24,7 +24,7 @@ export function Layout() {
             <Link
               to="/lab"
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors"
-              title="판단항목 가중치 실험"
+              title="라이브 vs 실험 버전 예측 비교"
             >
               <FlaskConical className="w-4 h-4" />
               <span>실험실</span>
