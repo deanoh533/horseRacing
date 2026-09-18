@@ -58,6 +58,9 @@ export function Lab() {
 
       {isLoading && <p className="text-sm text-[var(--color-text-secondary)]">불러오는 중…</p>}
       {error && <p className="text-sm text-red-400">불러오기 실패: {(error as Error).message}</p>}
+      {!isLoading && !error && data && !view && (
+        <p className="text-sm text-[var(--color-text-secondary)]">활성 모델 버전이 없습니다.</p>
+      )}
       {view && (
         <>
           <section className="overflow-x-auto">

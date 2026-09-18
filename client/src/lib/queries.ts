@@ -1444,7 +1444,7 @@ export function useLabData(from: number, to: number) {
       if (vErr) throw vErr;
       const cols = 'race_date, meet, rc_no, hr_name, predicted_rank, actual_ord, model_version';
       const live = await fetchAllPaged<LabRow>((a, b) => supabase.from('predictions').select(cols)
-        .gte('race_date', from).lte('race_date', to).order('race_date').order('meet').order('rc_no').order('hr_name').range(a, b));
+        .gte('race_date', from).lte('race_date', to).order('race_date').order('meet').order('rc_no').order('hr_name').order('id').range(a, b));
       const shadow = await fetchAllPaged<LabRow>((a, b) => supabase.from('shadow_predictions').select(`${cols}, source`)
         .gte('race_date', from).lte('race_date', to).order('race_date').order('meet').order('rc_no').order('hr_name').order('model_version').range(a, b));
       return {
