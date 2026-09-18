@@ -93,7 +93,8 @@ export function Lab() {
               </tbody>
             </table>
             <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-              실험 버전은 라이브와 둘 다 예측한 경주만 셉니다. 차이가 "운 범위" 안이면 아직 실력 차라고 말할 수 없어요.
+              라이브 줄은 기간 내 전체 경주 기준, 실험 줄은 라이브와 겹치는 경주 기준이며 Δ는 겹치는 경주끼리 비교한 값입니다.
+              차이가 "운 범위" 안이면 아직 실력 차라고 말할 수 없어요.
             </p>
           </section>
 

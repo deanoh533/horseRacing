@@ -47,7 +47,7 @@ async function main() {
   const s = summarize(results);
   for (const r of results.filter((x) => x.status === 'mismatch')) console.log(`  ❌ ${r.key} 최대 점수차 ${r.maxAbsDiff.toExponential(2)}`);
   console.log(`\n일치 ${s.match} · 출전마 변동(제외) ${s.fieldChanged} · 불일치 ${s.mismatch} → ${s.pass ? '✅ 합격' : '❌ 불합격'}`);
-  writeFileSync('data/shadow_leak_check.json', JSON.stringify({ checkedAt: new Date().toISOString(), activeVersion: active.id, ...s }, null, 2));
+  writeFileSync('data/shadow_leak_check.json', JSON.stringify({ checkedAt: new Date().toISOString(), activeVersion: active.id, from, to, ...s }, null, 2));
   if (!s.pass) process.exit(1);
 }
 

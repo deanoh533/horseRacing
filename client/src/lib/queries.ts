@@ -1442,13 +1442,17 @@ export function useLabData(from: number, to: number) {
       const { data: versions, error: vErr } = await supabase
         .from('model_versions').select('id, label, is_active, is_shadow').order('id');
       if (vErr) throw vErr;
+      const versionRows = (versions ?? []) as { id: number; label: string; is_active: boolean; is_shadow: boolean }[];
+      const activeId = versionRows.find((v) => v.is_active)?.id ?? null;
       const cols = 'race_date, meet, rc_no, hr_name, predicted_rank, actual_ord, model_version';
-      const live = await fetchAllPaged<LabRow>((a, b) => supabase.from('predictions').select(cols)
+      // 활성 버전 필터 없이는 구버전 행이 덤프에 섞여 dedupe에서 잘못 이길 수 있음 → 활성 버전이 없으면 라이브는 비운다.
+      const live = activeId == null ? [] : await fetchAllPaged<LabRow>((a, b) => supabase.from('predictions').select(cols)
+        .eq('model_version', activeId)
         .gte('race_date', from).lte('race_date', to).order('race_date').order('meet').order('rc_no').order('hr_name').order('id').range(a, b));
       const shadow = await fetchAllPaged<LabRow>((a, b) => supabase.from('shadow_predictions').select(`${cols}, source`)
         .gte('race_date', from).lte('race_date', to).order('race_date').order('meet').order('rc_no').order('hr_name').order('model_version').range(a, b));
       return {
-        versions: (versions ?? []) as { id: number; label: string; is_active: boolean; is_shadow: boolean }[],
+        versions: versionRows,
         live: dedupeRows(live).map((r) => ({ ...r, source: 'prod' as const })),
         shadow,
       };

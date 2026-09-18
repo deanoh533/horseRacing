@@ -20,8 +20,12 @@ export async function writeShadowPredictions(
   }
   for (const g of groups.values()) {
     const { race_date, meet, rc_no, model_version } = g[0]!;
-    const { error: delErr } = await sb.from('shadow_predictions').delete()
+    // backfill은 source='backfill' 행만 지운다 — source='live' 행을 절대 지우지 않아
+    // (동일 PK로) insert가 덮어쓰지 못하고 충돌로 실패하게 한다(라이브 우선 보호).
+    let del = sb.from('shadow_predictions').delete()
       .eq('race_date', race_date).eq('meet', meet).eq('rc_no', rc_no).eq('model_version', model_version);
+    if (source === 'backfill') del = del.eq('source', 'backfill');
+    const { error: delErr } = await del;
     if (delErr) throw delErr;
     const { error: insErr } = await sb.from('shadow_predictions').insert(g.map((r) => ({ ...r, source })));
     if (insErr) throw insErr;

@@ -21,3 +21,23 @@ export function summarize(results: { status: RaceCheckStatus }[]) {
   const mismatch = results.filter((r) => r.status === 'mismatch').length;
   return { match, fieldChanged, mismatch, pass: mismatch === 0 && match > 0 };
 }
+
+/** 과거 채우기가 이 누수 점검 결과를 써도 되는지 판정 (spec §5 — 범위 명시 + 최신성). */
+export interface LeakCheckFreshness { ok: boolean; reason?: string }
+
+const LEAK_CHECK_MAX_AGE_MS = 7 * 24 * 3600_000;
+
+export function isLeakCheckUsable(json: unknown, now: Date): LeakCheckFreshness {
+  if (json == null || typeof json !== 'object') return { ok: false, reason: '기록 형식이 올바르지 않음' };
+  const j = json as Record<string, unknown>;
+  if (typeof j.pass !== 'boolean') return { ok: false, reason: '기록 형식이 올바르지 않음(pass 필드 없음)' };
+  if (typeof j.checkedAt !== 'string') return { ok: false, reason: '기록 형식이 올바르지 않음(checkedAt 필드 없음)' };
+  const checkedAt = new Date(j.checkedAt);
+  if (Number.isNaN(checkedAt.getTime())) return { ok: false, reason: '기록 형식이 올바르지 않음(checkedAt 파싱 실패)' };
+  if (j.pass !== true) return { ok: false, reason: '누수 점검 불합격' };
+  const ageMs = now.getTime() - checkedAt.getTime();
+  if (ageMs > LEAK_CHECK_MAX_AGE_MS || ageMs < 0) {
+    return { ok: false, reason: `누수 점검이 오래됨(${j.checkedAt}) — 7일 이내 재실행 필요` };
+  }
+  return { ok: true };
+}

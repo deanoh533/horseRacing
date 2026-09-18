@@ -49,8 +49,12 @@ async function main() {
   const X0 = tuneTrain.flatMap((r) => r.horses.map((h) => toVector(h.features, schema)));
   const y0 = tuneTrain.flatMap((r) => r.horses.map((h) => (h.ord <= 3 ? 1 : 0)));
   const e0: [number, number][] = [];
-  fitLogistic(X0, y0, schema, { l2: 0.02, iters: 3000, lr: 0.2, lossEvery: 200, onLoss: (it, l) => e0.push([it, l]) });
+  fitLogistic(X0, y0, schema, { l2: 0.02, iters: 3000, lr: 0.2, lossEvery: 100, onLoss: (it, l) => e0.push([it, l]) });
   console.log('\nE0 손실 궤적:', e0.map(([i, l]) => `${i}:${l.toFixed(5)}`).join(' '));
+  const l3000 = e0.find(([i]) => i === 3000)?.[1];
+  const l2900 = e0.find(([i]) => i === 2900)?.[1];
+  const e0RelChange = l3000 != null && l2900 != null && l2900 !== 0 ? Math.abs(l3000 - l2900) / l2900 : NaN;
+  console.log(`E0 최근 100회 상대 손실 변화 |l(3000)-l(2900)|/l(2900): ${(e0RelChange * 100).toFixed(3)}%`);
 
   // E1·E2 튜닝 (검증 분기만)
   const best: Record<Variant, { l2: number; iters: number; val: number }> = {} as never;
@@ -75,8 +79,9 @@ async function main() {
   for (const [v, r] of Object.entries(verdicts)) {
     console.log(`판정 ${v}(튜닝): 평균 Δ ${(r.meanDelta * 100).toFixed(2)}%p · 양수 ${r.positive}/${r.quarters} → ${r.pass ? '✅ 합격' : '❌ 불합격'}`);
   }
+  console.log('※ 후보 3개를 같은 기준선과 비교 — 다중비교 보정 없음, 단일 합격은 신중히 해석');
   const out = `data/exp_learning_${Date.now()}.json`;
-  writeFileSync(out, JSON.stringify({ e0, best, quarters: blocks.map((b) => b.key), series, verdicts }, null, 2));
+  writeFileSync(out, JSON.stringify({ e0, e0RelChange, best, quarters: blocks.map((b) => b.key), series, verdicts }, null, 2));
   console.log(`\n→ ${out}`);
 }
 

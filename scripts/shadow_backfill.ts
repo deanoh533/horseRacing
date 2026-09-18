@@ -12,6 +12,7 @@ import { predictShadows } from '../src/engine/shadowPredictor.js';
 import { writeShadowPredictions } from '../src/sync/shadowWriter.js';
 import { fetchLiveShadowKeys, type LiveKeyRow } from '../src/sync/shadowLiveKeys.js';
 import { resolveBackfillRange } from '../src/engine/shadow/backfillRange.js';
+import { isLeakCheckUsable } from '../src/engine/shadow/leakCheck.js';
 
 function todayKst(): number {
   const s = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10).replace(/-/g, '');
@@ -27,8 +28,15 @@ async function main() {
 
   if (!args.includes('--force-unverified')) {
     const f = 'data/shadow_leak_check.json';
-    const ok = existsSync(f) && JSON.parse(readFileSync(f, 'utf8')).pass === true;
-    if (!ok) throw new Error('누수 점검 합격 기록 없음 — 먼저 npm run shadow:leak-check (spec §5)');
+    if (!existsSync(f)) throw new Error('누수 점검 기록 없음 — 먼저 npm run shadow:leak-check (spec §5)');
+    let record: unknown;
+    try { record = JSON.parse(readFileSync(f, 'utf8')); } catch { record = null; }
+    const freshness = isLeakCheckUsable(record, new Date());
+    if (!freshness.ok) throw new Error(`누수 점검 기록 사용 불가 — ${freshness.reason} (강제 진행은 --force-unverified, 재검증은 npm run shadow:leak-check 권장)`);
+    const r = record as { from?: number; to?: number; checkedAt?: string };
+    console.log(`✅ 누수 점검 통과 확인 (검증 범위 ${r.from}~${r.to}, ${r.checkedAt})`);
+  } else {
+    console.log('⚠️ --force-unverified: 누수 점검 미확인 상태로 진행');
   }
 
   const sbw = getSupabaseAdmin();

@@ -103,6 +103,15 @@ describe('writeShadowPredictions', () => {
     await writeShadowPredictions(sb as never, [], 'live');
     expect(sb.tables['shadow_predictions']).toBeUndefined();
   });
+
+  it('백필 쓰기는 같은 경주·버전의 라이브 행을 지우지 않는다 (T6)', async () => {
+    const sb = new FakeSupabase();
+    sb.tables['shadow_predictions'] = { rows: [{ ...row('A', 8, 1), source: 'live' }] };
+    await writeShadowPredictions(sb as never, [row('A', 8, 1)], 'backfill');
+    const rows = sb.tables['shadow_predictions']!.rows;
+    const live = rows.find((r) => r.hr_name === 'A' && r.model_version === 8 && r.source === 'live');
+    expect(live).toBeDefined();
+  });
 });
 
 describe('updateShadowActualOrd', () => {

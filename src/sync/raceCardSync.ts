@@ -17,6 +17,7 @@ import { getSupabaseAdmin } from '@db/supabase.js';
 import { toRaceEntryRowFromEntrySheet, toRaceRowFromEntrySheet } from './transformer.js';
 import { predictRace } from '../engine/scorePredictor.js';
 import { predictShadows } from '../engine/shadowPredictor.js';
+import { getShadowModelVersions, type ShadowModelVersion } from '../engine/modelVersion.js';
 import { writeShadowPredictions } from './shadowWriter.js';
 import { upcomingCardDates, emptySyncVerdict } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
@@ -39,8 +40,17 @@ export async function syncRaceCards(options: {
 
   console.log(`\n🎫 출주표 sync: ${options.rcDate} (meets: ${meets.join(',')})`);
 
+  // 섀도(실험) 버전 목록 — 경주마다 조회하면 낭비이므로 이 sync 실행 전체에서 한 번만 조회.
+  // 실패해도 라이브 무영향: 경고만 남기고 섀도 없음으로 취급.
+  let shadowVersions: ShadowModelVersion[] = [];
+  try {
+    shadowVersions = await getShadowModelVersions(getSupabaseAdmin() as unknown as ReadClient);
+  } catch (e) {
+    console.warn(`  ⚠️ 섀도 버전 조회 실패 (섀도 예측 스킵): ${(e as Error).message}`);
+  }
+
   for (const meet of meets) {
-    const r = await syncOneMeet(meet, options.rcDate);
+    const r = await syncOneMeet(meet, options.rcDate, shadowVersions);
     results.push(r);
   }
 
@@ -49,7 +59,8 @@ export async function syncRaceCards(options: {
 
 async function syncOneMeet(
   meet: MeetCode,
-  rcDate: number
+  rcDate: number,
+  shadowVersions: ShadowModelVersion[]
 ): Promise<RaceCardSyncResult> {
   const result: RaceCardSyncResult = {
     meet,
@@ -139,12 +150,15 @@ async function syncOneMeet(
             if (predErr) throw predErr;
 
             // 섀도(실험) 버전 예측 — 라이브와 완전 격리 (spec 2026-09-18 §4.2).
+            // 버전 목록은 syncRaceCards에서 이미 한 번만 조회됨 — 실패했거나 섀도가 없으면 스킵.
             // 실패해도 경고만: 라이브 결과·--fail-on-empty 판정 불변.
-            try {
-              const shadows = await predictShadows(sb as unknown as ReadClient, rcDate, meet, rcNo);
-              await writeShadowPredictions(sb, shadows, 'live');
-            } catch (e) {
-              console.warn(`    rc_no=${rcNo} ⚠️ 섀도 예측 실패 (라이브 무영향): ${(e as Error).message}`);
+            if (shadowVersions.length > 0) {
+              try {
+                const shadows = await predictShadows(sb as unknown as ReadClient, rcDate, meet, rcNo, { versions: shadowVersions });
+                await writeShadowPredictions(sb, shadows, 'live');
+              } catch (e) {
+                console.warn(`    rc_no=${rcNo} ⚠️ 섀도 예측 실패 (라이브 무영향): ${(e as Error).message}`);
+              }
             }
           }
         } catch (e) {

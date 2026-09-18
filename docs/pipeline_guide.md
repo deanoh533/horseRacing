@@ -341,6 +341,8 @@ npm run exp:learning
 
 **섀도 실험 사이클:** 학습(`learn:logistic -- --shadow`) → `shadow:leak-check` → `shadow:backfill` → `/lab`에서 라이브 대비 관찰 → 합격 후보만 기존 `promote`로 승격 (승격 자동화 없음, 실험은 라이브와 완전 분리).
 
+**승격 체크리스트(pl-top3 주의):** `pl-top3`로 학습한 섀도 버전을 승격하면 라이브 스코어러는 선형(`logistic`) 경로로 채점하지만 그 artifact엔 Platt 보정이 없어 `p_top3`가 null로 나와 `/picks`가 비게 된다. 승격 전후로 `npm run calib:fit-live`를 돌려 보정을 새로 적합하거나(또는 기존 보정이 유효한지 확인 후) 진행할 것.
+
 ### Spearman 가중치 (기존 경로)
 
 ```bash
