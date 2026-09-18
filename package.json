@@ -70,6 +70,7 @@
     "db:pull": "tsx scripts/sync_local_db.ts",
     "db:snapshot": "tsx scripts/snapshot_predictions.ts",
     "shadow:leak-check": "tsx scripts/shadow_leak_check.ts",
+    "shadow:backfill": "tsx scripts/shadow_backfill.ts",
     "export:h7": "tsx scripts/export_h7_table.ts"
   },
   "engines": {
