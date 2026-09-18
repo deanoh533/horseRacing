@@ -69,6 +69,7 @@
     "backtest:box:size": "tsx scripts/backtest_box_size.ts",
     "db:pull": "tsx scripts/sync_local_db.ts",
     "db:snapshot": "tsx scripts/snapshot_predictions.ts",
+    "shadow:leak-check": "tsx scripts/shadow_leak_check.ts",
     "export:h7": "tsx scripts/export_h7_table.ts"
   },
   "engines": {
