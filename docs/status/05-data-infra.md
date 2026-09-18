@@ -1,5 +1,5 @@
 # 데이터인프라 — 진행 상황
-> 마지막 업데이트: 2026-08-23 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
+> 마지막 업데이트: 2026-09-18 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
 
 ## 현재 상태
 - **DuckDB 로컬 미러** 배포 — Supabase egress 영구 탈출, 오프라인 분석 전용(benchmark·backtest·probe 전부). `npm run db:pull`로 동기화.
@@ -21,6 +21,8 @@
 - **결과 수신을 발주시각 기반 폴러로 재설계 + 캐치업 분리 (2026-08-29, feat/results-poller)** — O-003 최종 결론: 고정 19시·23시 슬롯을 폐지하고 ① **결과 폴러**(`scripts/resultsPoll.ts`) 경주 있는 날 KST 10:00~21:45·15분 간격, 출마표 발주시각(`races.st_time`, "출발 :HH:MM")+15분이 지났는데 착순 없는 경주가 있을 때만 KRA 호출(없으면 DB 조회만 하고 종료 — KRA 쿼터 절약) ② **캐치업**(`scripts/catchupSync.ts`) 폴러와 독립적으로 매일 KST 07:00, 최근 7일 hole·gap을 `classifyRaceDate`로 찾아 자동 재싱크 — 폴러가 그날 전멸해도 다음날 자동 복구. 순수 판정 `src/sync/resultsPollLogic.ts`(11 테스트)·`src/sync/catchupLogic.ts`(3 테스트), DB 조회는 `probe_sync_health.ts`와 공유(`src/sync/syncHealthQuery.ts`)로 중복 제거. 알림은 캐치업이 **2일 이상 묵은 구멍을 이번 시도로도 못 채웠을 때만** 실패 처리(L-004 유지, 매 폴 실패마다 오던 옛 소음 제거). 퍼블릭 레포 확인(`gh repo view` → PUBLIC) → Actions 분 무제한이라 15분 간격 비용 우려 없음.
 
   ⚠️ **알려진 한계**: 위 §"Actions schedule cron 지연 실측(2026-08-23)"에 이미 기록된 대로 `schedule` 트리거는 지연 중앙값 +62분·정시 실행 0건 — 15분 간격으로 등록해도 **정확히 15분마다 확인된다는 보장은 없다**. 슬롯이 많아(하루 최대 47개) 전체적으로는 기존 고정 2슬롯보다 훨씬 자주 확인되지만, "경주 끝나자마자 정확히"는 아닐 수 있음을 인지하고 채택(정밀 타이밍이 필요하면 러너 내부 sleep 루프 방식이 대안이나, job 6시간 상한 < 경마 스팬이라 별도 설계 필요 — 보류).
+
+- **폴러 알람을 GitHub 밖으로 옮김 (2026-09-18, feat/external-poll-alarm)** — 위 "알려진 한계"가 예상보다 훨씬 나빴다. 9/1~9/14 전수조사: GitHub이 15분 폴러 예약을 **7%만 실행**(288번 중 20번, 나머지는 기록 자체가 없음 = 늦은 게 아니라 버려짐). 예약 3종 모두 ~9·~14·~18~19·~22시에 몰려 떴다(출마표 15시 예약도 ~19시). 폴러의 KRA 호출은 **14번 중 6번 완전 실패**, 실패는 실행 단위로 전부/전무(서울·부경 섞인 적 0) → 러너(IP) 스코프 단서(미확정). 데이터는 9일치 전부 정상 — 캐치업이 받쳤다. 또 O-003에서 `results` 잡을 없애고 `api/sync.ts`를 안 고쳐 **설정탭 결과 버튼이 8/29부터 고장**. 조치: workflow_dispatch는 즉시 시작(실측 3초)하므로 **cron-job.org → `/api/sync` → workflow_dispatch**를 폴러의 주 알람으로, GitHub 예약은 백업. `api/sync.ts` 허용값을 sync.yml 선택지와 일치시키고(`results`→`resultsPoll` 별칭), `resultsPoll`에 `concurrency` 추가. KRA 일일 트래픽 3,000 기준 15분 폴링 조합배당 호출 ≈12%라 "이미 받은 경주 건너뛰기"는 보류. 상세·다음 단계 → TODO O-007.
 
   **`20251226` 부경 R6은 영구 미해결**로 남는다 — 재싱크해도 KRA가 `⏭ 미시행·결과 미확정 → 스킵`을 반환(실제 취소 경주). `dailySync`의 미시행 가드(`ord>0` 유무)와 KRA 응답 어디에도 "일시적 지연 vs 영구 취소"를 구분할 신호가 없음(`ordBigo` 등 상태 필드 미제공) → `probe:sync-health`가 이 날짜를 앞으로도 계속 gap으로 표시한다. 1건짜리 예외로 판정 로직에 휴리스틱을 넣지 않고 알려진 예외로만 기록.
 

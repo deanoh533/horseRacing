@@ -20,7 +20,7 @@ export function Settings() {
     localStorage.setItem('kra_sync_key', v);
   };
 
-  const runSync = async (target: 'racecard' | 'results') => {
+  const runSync = async (target: 'racecard' | 'resultsPoll') => {
     if (!syncKey.trim()) {
       setSyncMsg({ tone: 'err', text: '먼저 암구호를 입력하세요.' });
       return;
@@ -134,7 +134,7 @@ export function Settings() {
               출마표 실행
             </button>
             <button
-              onClick={() => runSync('results')}
+              onClick={() => runSync('resultsPoll')}
               disabled={running !== null}
               className="px-3 py-2 text-sm bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black rounded transition-colors disabled:opacity-50"
             >

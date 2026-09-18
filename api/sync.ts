@@ -8,18 +8,33 @@ export type SyncParse =
   | { ok: true; inputs: { target: string; date?: string } }
   | { ok: false; error: string };
 
-const TARGETS = new Set(['racecard', 'results']);
+/** sync.yml의 workflow_dispatch target 선택지와 반드시 일치해야 한다 */
+const TARGETS = new Set(['racecard', 'resultsPoll', 'resultsCatchup']);
 
-/** 요청 본문 → workflow_dispatch inputs. target 필수(허용값), date는 8자리 숫자만 채택. */
+/**
+ * 옛 이름 → 현재 잡. 2026-08-29 결과 수집을 폴러로 재설계하며 `results` 잡이 사라졌는데
+ * 여기를 안 고쳐서 설정탭 결과 버튼이 GitHub 422로 깨져 있었다(2026-09-18 발견).
+ */
+const ALIASES: Record<string, string> = { results: 'resultsPoll' };
+
+/**
+ * 요청 본문 → workflow_dispatch inputs. target 필수(허용값·옛 이름),
+ * date는 8자리 숫자만, 그리고 출마표일 때만 채택(워크플로가 출마표에만 씀).
+ *
+ * 호출자: 설정탭 수동 버튼 + 외부 크론(cron-job.org)의 폴러 알람. GitHub 예약 실행은
+ * 대부분 버려져서(2026-09 실측 7%) 폴러를 깨우는 시계를 GitHub 밖에 둔다.
+ */
 export function parseSyncBody(raw: unknown): SyncParse {
   if (typeof raw !== 'object' || raw === null) return { ok: false, error: '잘못된 요청 본문' };
   const body = raw as { target?: unknown; date?: unknown };
-  const target = body.target;
+  const target = typeof body.target === 'string' ? (ALIASES[body.target] ?? body.target) : body.target;
   if (typeof target !== 'string' || !TARGETS.has(target)) {
-    return { ok: false, error: "target은 'racecard' 또는 'results'" };
+    return { ok: false, error: "target은 'racecard'·'resultsPoll'·'resultsCatchup' 중 하나" };
   }
   const inputs: { target: string; date?: string } = { target };
-  if (typeof body.date === 'string' && /^\d{8}$/.test(body.date)) inputs.date = body.date;
+  if (target === 'racecard' && typeof body.date === 'string' && /^\d{8}$/.test(body.date)) {
+    inputs.date = body.date;
+  }
   return { ok: true, inputs };
 }
 
