@@ -1,6 +1,6 @@
 // scripts/catchupSync.ts
 /**
- * 결과 캐치업 — 최근 7일 중 여전히 구멍(hole·gap)인 날짜를 찾아 자동 재싱크한다.
+ * 결과 캐치업 — 최근 7일 중 여전히 구멍(hole·gap·partial)인 날짜를 찾아 자동 재싱크한다.
  *
  * 왜 필요한가: 2026-08-23~27 KRA 장애처럼 며칠에 걸쳐 간헐적으로 재발하는 장애는
  * 하루짜리 재시도(슬롯 늘리기·타임아웃 늘리기)로 못 넘는다(docs/status/05-data-infra.md
@@ -30,7 +30,7 @@ import { fetchRaceDateCounts } from '../src/sync/syncHealthQuery.js';
 import { classifyRaceDate } from '../src/utils/syncHealth.js';
 import { yyyymmddOffset } from '../src/utils/syncCli.js';
 import { syncDay } from '../src/sync/dailySync.js';
-import { STALE_THRESHOLD_DAYS, isStaleUnresolved } from '../src/sync/catchupLogic.js';
+import { STALE_THRESHOLD_DAYS, isStaleUnresolved, isCatchupTarget } from '../src/sync/catchupLogic.js';
 
 const LOOKBACK_DAYS = 7;
 const dryRun = process.argv.includes('--dry-run');
@@ -43,8 +43,7 @@ async function main(): Promise<void> {
   const rows = await fetchRaceDateCounts(sb, from);
   const targets = rows
     .filter((r) => {
-      const st = classifyRaceDate(r, today);
-      return st === 'hole' || st === 'gap';
+      return isCatchupTarget(classifyRaceDate(r, today));
     })
     .map((r) => r.raceDate);
 

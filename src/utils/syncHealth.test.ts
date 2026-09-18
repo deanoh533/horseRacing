@@ -3,7 +3,7 @@ import { classifyRaceDate, type RaceDateCounts } from './syncHealth.js';
 
 const c = (over: Partial<RaceDateCounts>): RaceDateCounts => ({
   raceDate: 20260815, entries: 100, ordFilled: 98,
-  races: 10, racesWithResult: 10, stTimeFilled: 10, comboRows: 9000, ...over,
+  races: 10, racesWithResult: 10, racesWithCombo: 10, stTimeFilled: 10, comboRows: 9000, ...over,
 });
 
 describe('classifyRaceDate', () => {
@@ -76,5 +76,35 @@ describe('classifyRaceDate — 조합배당 도입 이전 오탐 방지', () => 
 
   it('도입 당일부터는 조합배당 0이면 partial', () => {
     expect(classifyRaceDate(c({ raceDate: 20260729, ordFilled: 100, comboRows: 0 }), TODAY)).toBe('partial');
+  });
+});
+
+describe('classifyRaceDate — 경주 단위 조합배당 대조', () => {
+  const TODAY = 20260919;
+
+  // 2026-09-18 발견: 그날 마지막 결과를 받은 폴러에서 조합배당만 실패하면, 날짜 전체
+  // comboRows는 0이 아니라서 기존 판정은 'ok'로 통과시켰다(캐치업도 안 잡음).
+  it('착순 있는 경주 중 일부에 조합배당이 없으면 partial', () => {
+    expect(classifyRaceDate(
+      c({ raceDate: 20260918, races: 9, racesWithResult: 9, racesWithCombo: 8, comboRows: 11000 }), TODAY
+    )).toBe('partial');
+  });
+
+  it('착순 있는 경주 전부에 조합배당이 있으면 ok', () => {
+    expect(classifyRaceDate(
+      c({ raceDate: 20260918, races: 9, racesWithResult: 9, racesWithCombo: 9 }), TODAY
+    )).toBe('ok');
+  });
+
+  it('결과 구멍(gap)이 조합배당 구멍보다 우선한다 — 재싱크가 둘 다 채운다', () => {
+    expect(classifyRaceDate(
+      c({ raceDate: 20260918, races: 9, racesWithResult: 8, racesWithCombo: 7 }), TODAY
+    )).toBe('gap');
+  });
+
+  it('조합배당 수집 도입(2026-07-29) 이전 날짜는 경주 단위 대조도 하지 않는다', () => {
+    expect(classifyRaceDate(
+      c({ raceDate: 20260718, races: 10, racesWithResult: 10, racesWithCombo: 0, comboRows: 0 }), TODAY
+    )).toBe('ok');
   });
 });

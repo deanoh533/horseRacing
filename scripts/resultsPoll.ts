@@ -20,6 +20,7 @@ import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { hasDueUnsyncedRace, type RaceTimingStatus } from '../src/sync/resultsPollLogic.js';
 import { yyyymmddOffset } from '../src/utils/syncCli.js';
 import { syncDay } from '../src/sync/dailySync.js';
+import { racesWithComboSet } from '../src/sync/syncHealthQuery.js';
 
 const BUFFER_MINUTES = 15;
 const dryRun = process.argv.includes('--dry-run');
@@ -37,9 +38,16 @@ async function fetchTodayTiming(sb: any, rcDate: number): Promise<RaceTimingStat
     (entries ?? []).map((e: { meet: number; rc_no: number }) => `${e.meet}-${e.rc_no}`)
   );
 
-  return (races ?? []).map((r: { meet: number; rc_no: number; st_time: string | null }) => ({
+  // 조합배당은 착순이 있는 경주만 확인하면 된다(착순 없는 경주는 어차피 확인 대상)
+  const typed = (races ?? []) as Array<{ meet: number; rc_no: number; st_time: string | null }>;
+  const withCombo = await racesWithComboSet(
+    sb, rcDate, typed.filter((r) => resulted.has(`${r.meet}-${r.rc_no}`))
+  );
+
+  return typed.map((r) => ({
     stTime: r.st_time,
     hasResult: resulted.has(`${r.meet}-${r.rc_no}`),
+    hasCombo: withCombo.has(`${r.meet}-${r.rc_no}`),
   }));
 }
 
@@ -57,7 +65,7 @@ async function main(): Promise<void> {
 
   const due = hasDueUnsyncedRace(timing, nowMinutes, BUFFER_MINUTES);
   if (!due) {
-    console.log(`⏳ ${rcDate} — 발주시각+${BUFFER_MINUTES}분 지난 미확정 경주 없음 (KRA 호출 생략)`);
+    console.log(`⏳ ${rcDate} — 발주시각+${BUFFER_MINUTES}분 지난 미확정 경주(착순·조합배당) 없음 (KRA 호출 생략)`);
     return;
   }
 

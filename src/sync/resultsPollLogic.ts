@@ -3,7 +3,7 @@
  *
  * 배경: 결과 sync를 19시·23시 고정 슬롯 대신 발주시각(races.st_time) 기반으로
  * 바꾼다(2026-08-29 설계). 출마표에 이미 있는 발주시각 + 여유시간이 지났는데
- * 아직 착순이 없는 경주가 하나라도 있으면 그때만 KRA를 부른다 — 없으면 폴마다
+ * 아직 착순(또는 조합배당)이 없는 경주가 하나라도 있으면 그때만 KRA를 부른다 — 없으면 폴마다
  * KRA 쿼터를 쓰지 않는다. "미시행 가드"(dailySync)가 이미 있어 너무 일찍 불러도
  * 안전하므로, 여기서는 "부를지 말지"만 싸게 판정한다.
  */
@@ -23,6 +23,12 @@ export interface RaceTimingStatus {
   stTime: string | null;
   /** 이 경주에 착순(ord)이 하나라도 채워졌는지 */
   hasResult: boolean;
+  /**
+   * 이 경주에 조합배당(combo_dividends)이 하나라도 있는지. 조합배당 수집은 실패 격리라
+   * 착순만 저장되고 조합배당이 빠질 수 있다 — 그날 마지막 결과를 받은 폴에서 그러면
+   * 그 뒤로 아무도 다시 안 받는다(2026-09-18). 그래서 이것도 "확인 대상"에 넣는다.
+   */
+  hasCombo: boolean;
 }
 
 /**
@@ -36,7 +42,8 @@ export function hasDueUnsyncedRace(
   bufferMinutes: number
 ): boolean {
   return races.some((r) => {
-    if (r.hasResult) return false;
+    // 착순·조합배당 둘 다 있어야 끝난 경주. 하나라도 빠졌으면 다시 받을 대상이다.
+    if (r.hasResult && r.hasCombo) return false;
     const post = parseStTime(r.stTime);
     if (post == null) return false;
     return post + bufferMinutes <= nowMinutes;

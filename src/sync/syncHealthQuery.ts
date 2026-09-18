@@ -4,7 +4,27 @@
  * 하고, 여기는 그 입력(RaceDateCounts)을 Supabase에서 긁어오는 I/O만 맡는다.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { RaceDateCounts } from '../utils/syncHealth.js';
+import { COMBO_SYNC_SINCE, type RaceDateCounts } from '../utils/syncHealth.js';
+
+/**
+ * 주어진 경주들 중 조합배당(combo_dividends)이 한 행이라도 있는 경주 키(`meet-rc_no`) 집합.
+ * 조합배당은 경주당 수백~수천 행이라 행을 받아 세면 egress가 크다 → 경주마다 서버
+ * count(head)만 묻는다. 경주 수만큼 요청하지만 응답은 숫자 하나씩이다.
+ */
+export async function racesWithComboSet(
+  sb: SupabaseClient,
+  raceDate: number,
+  races: Array<{ meet: number; rc_no: number }>
+): Promise<Set<string>> {
+  const hits = await Promise.all(races.map(async (r) => {
+    const { count, error: e } = await sb.from('combo_dividends')
+      .select('*', { count: 'exact', head: true })
+      .eq('race_date', raceDate).eq('meet', r.meet).eq('rc_no', r.rc_no);
+    if (e) throw new Error(`combo_dividends(${raceDate} ${r.meet}-${r.rc_no}): ${e.message}`);
+    return (count ?? 0) > 0 ? `${r.meet}-${r.rc_no}` : null;
+  }));
+  return new Set(hits.filter((k): k is string => k !== null));
+}
 
 /**
  * `from`(YYYYMMDD) 이후 경주일 전체의 카운트를 모아 반환한다.
@@ -62,6 +82,13 @@ export async function fetchRaceDateCounts(
       ordFilled: await countOf('race_entries', d, (q: any) => q.not('ord', 'is', null)),
       races: await countOf('races', d),
       racesWithResult: resultRaces.get(d)?.size ?? 0,
+      // 조합배당 수집 이전 날짜는 판정에 안 쓰므로 조회를 생략하고 결과 경주 수로 채운다
+      racesWithCombo: d >= COMBO_SYNC_SINCE
+        ? (await racesWithComboSet(sb, d, [...(resultRaces.get(d) ?? [])].map((k) => {
+            const [meet, rc_no] = k.split('-').map(Number);
+            return { meet: meet!, rc_no: rc_no! };
+          }))).size
+        : resultRaces.get(d)?.size ?? 0,
       stTimeFilled: await countOf('races', d, (q: any) => q.not('st_time', 'is', null)),
       comboRows: await countOf('combo_dividends', d),
     });
