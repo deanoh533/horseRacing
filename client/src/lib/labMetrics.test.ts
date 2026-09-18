@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { raceHits, pairedNoise, buildScoreboard, buildRaceComparisons, type LabRow } from './labMetrics';
+import { raceHits, pairedNoise, buildScoreboard, buildRaceComparisons, dedupeRows, type LabRow } from './labMetrics';
 
 const mk = (v: number, date: number, rc: number, picks: [string, number, number | null][]): LabRow[] =>
   picks.map(([hr, rank, ord]) => ({ race_date: date, meet: 1, rc_no: rc, hr_name: hr, predicted_rank: rank, actual_ord: ord, model_version: v }));
@@ -51,5 +51,23 @@ describe('buildRaceComparisons', () => {
     expect(rc[0]!.disagree).toBe(true);
     expect(rc[1]!.disagree).toBe(false);
     expect(rc[0]!.picks[9]).toEqual(['C']);
+  });
+});
+
+describe('dedupeRows', () => {
+  it('같은 (race_date, meet, rc_no, hr_name)이면 첫 행만 남긴다', () => {
+    const rows: LabRow[] = [
+      ...mk(7, 1, 1, [['A', 1, 1]]),
+      ...mk(7, 1, 1, [['A', 1, 1]]), // 중복
+      ...mk(7, 1, 1, [['B', 2, 2]]),
+    ];
+    const out = dedupeRows(rows);
+    expect(out).toHaveLength(2);
+    expect(out.map((r) => r.hr_name)).toEqual(['A', 'B']);
+  });
+
+  it('중복이 없으면 그대로 반환', () => {
+    const rows = mk(7, 1, 1, [['A', 1, 1], ['B', 2, 2]]);
+    expect(dedupeRows(rows)).toHaveLength(2);
   });
 });

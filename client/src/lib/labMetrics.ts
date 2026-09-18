@@ -10,6 +10,19 @@ export interface LabRow {
 }
 export const raceKey = (r: { race_date: number; meet: number; rc_no: number }) => `${r.race_date}-${r.meet}-${r.rc_no}`;
 
+/** predictions 테이블에 남아있는 과거 중복 행 제거 — (race_date, meet, rc_no, hr_name) 키로 첫 등장만 남긴다. */
+export function dedupeRows(rows: LabRow[]): LabRow[] {
+  const seen = new Set<string>();
+  const out: LabRow[] = [];
+  for (const r of rows) {
+    const k = `${r.race_date}-${r.meet}-${r.rc_no}-${r.hr_name}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+  }
+  return out;
+}
+
 const inTop = (o: number | null, k: number) => o != null && o >= 1 && o <= k;
 
 export function raceHits(rows: LabRow[]) {

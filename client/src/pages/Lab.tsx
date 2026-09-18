@@ -1,374 +1,116 @@
 /**
- * Lab.tsx — 실험실 (판단항목 가중치 실험)
- *
- * Phase 1: predictions.item_scores 의 rawScore 를 그대로 두고
- *          가중치 벡터만 바꿔 v1(현재 적용) ↔ 실험 버전 예상순위를 비교한다.
- *          백엔드/DB 변경 없이 클라이언트에서 즉시 재계산.
- *
+ * Lab.tsx — 섀도 실험실: 라이브 모델 vs 실험(섀도) 버전 예측을 같은 경주끼리 비교.
+ * spec: docs/superpowers/specs/2026-09-18-shadow-lab-design.md §6
+ * (2026-09-18 옛 "판단항목 가중치 실험"을 교체 — 로지스틱 전환 후 무의미해져서)
  * 진입점: 헤더 "개인 도구" → /lab
  */
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { FlaskConical, RotateCcw, ArrowUp, ArrowDown, Minus } from 'lucide-react';
-import { useAvailableDates, useRacesByDate, usePredictionsByRace, useHorsesByRace } from '../lib/queries';
-import { RaceInfoBlock } from '../components/RaceInfoBlock';
-import {
-  V1_WEIGHTS,
-  SCORE_ITEM_IDS,
-  ITEM_NAMES,
-  SEALED_ITEMS,
-  recomputeRanking,
-  weightSum,
-} from '../lib/labScoring';
+import { useMemo, useState } from 'react';
+import { FlaskConical } from 'lucide-react';
+import { useLabData } from '../lib/queries';
+import { buildScoreboard, buildRaceComparisons } from '../lib/labMetrics';
 
-const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부경' };
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+const ymd = (d: Date) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const daysAgo = (n: number) => ymd(new Date(Date.now() - n * 86400_000));
+const MEET_NAME: Record<number, string> = { 1: '서울', 3: '부경' };
 
-function fmtRcDate(d: number): string {
-  const y = Math.floor(d / 10000);
-  const m = Math.floor((d % 10000) / 100);
-  const day = d % 100;
-  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-interface CompareRow {
-  hr_name: string;
-  v1Rank: number;
-  expRank: number;
-  expScore: number;
-  delta: number; // v1Rank - expRank, 양수 = 실험에서 상승
-  actualOrd: number | null;
-}
+type SourceFilter = 'all' | 'live' | 'backfill';
 
 export function Lab() {
-  const { data: availableDates } = useAvailableDates();
+  const [range, setRange] = useState<{ from: number; to: number }>({ from: daysAgo(28), to: daysAgo(0) });
+  const [source, setSource] = useState<SourceFilter>('all');
+  const [meet, setMeet] = useState<0 | 1 | 3>(0);
+  const [onlyDisagree, setOnlyDisagree] = useState(false);
+  const { data, isLoading, error } = useLabData(range.from, range.to);
 
-  const [date, setDate] = useState<number | null>(null);
-  const selectedDate = date ?? availableDates?.[0] ?? null;
-
-  const { data: races } = useRacesByDate(selectedDate ?? 0);
-
-  const [raceKey, setRaceKey] = useState<string | null>(null); // "meet-rcNo"
-  const [meet, rcNo] = useMemo(() => {
-    if (!raceKey) return [null, null] as [number | null, number | null];
-    const [m, r] = raceKey.split('-').map(Number);
-    return [m, r];
-  }, [raceKey]);
-
-  // 실험 가중치 (초기값 = v1 기준선)
-  const [weights, setWeights] = useState<Record<string, number>>({ ...V1_WEIGHTS });
-  const isPristine = useMemo(
-    () => SCORE_ITEM_IDS.every((id) => weights[id] === V1_WEIGHTS[id]),
-    [weights]
-  );
-
-  const rcDate = selectedDate ?? 0;
-  const { data: predictions, isLoading: predLoading } = usePredictionsByRace(
-    rcDate,
-    meet ?? 0,
-    rcNo ?? 0
-  );
-  const { data: horses } = useHorsesByRace(rcDate, meet ?? 0, rcNo ?? 0);
-
-  const selectedRace = useMemo(
-    () => races?.find((r) => r.meet === meet && r.rc_no === rcNo) ?? null,
-    [races, meet, rcNo]
-  );
-
-  // v1 = 저장된 predicted_rank, 실험 = recomputeRanking(weights)
-  const rows = useMemo<CompareRow[]>(() => {
-    if (!predictions || predictions.length === 0) return [];
-    const expRanking = recomputeRanking(predictions, weights);
-    return predictions
-      .map((p) => {
-        const exp = expRanking.get(p.hr_name);
-        const expRank = exp?.rank ?? 0;
-        return {
-          hr_name: p.hr_name,
-          v1Rank: p.predicted_rank,
-          expRank,
-          expScore: exp?.score ?? 0,
-          delta: p.predicted_rank - expRank,
-          actualOrd: p.actual_ord,
-        };
-      })
-      .sort((a, b) => a.v1Rank - b.v1Rank);
-  }, [predictions, weights]);
-
-  const hasResult = rows.some((r) => r.actualOrd !== null);
-
-  // 실제 1·2·3위 말이 각 버전에서 몇 위로 예측됐나 (per-race 인사이트)
-  const actualTop3 = useMemo(() => {
-    return rows
-      .filter((r) => r.actualOrd !== null && r.actualOrd <= 3)
-      .sort((a, b) => (a.actualOrd! - b.actualOrd!));
-  }, [rows]);
-
-  const setWeight = (id: string, v: number) =>
-    setWeights((w) => ({ ...w, [id]: Math.max(0, v) }));
+  const view = useMemo(() => {
+    if (!data) return null;
+    const active = data.versions.find((v) => v.is_active);
+    if (!active) return null;
+    const meetOk = (r: { meet: number }) => meet === 0 || r.meet === meet;
+    const live = data.live.filter((r) => r.model_version === active.id && meetOk(r));
+    const shadow = data.shadow.filter((r) => meetOk(r) && (source === 'all' || r.source === source));
+    const label = new Map(data.versions.map((v) => [v.id, v.label]));
+    return {
+      active, label,
+      board: buildScoreboard(live, shadow, active.id),
+      races: buildRaceComparisons(live, shadow).filter((r) => !onlyDisagree || r.disagree),
+    };
+  }, [data, source, meet, onlyDisagree]);
 
   return (
-    <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <FlaskConical className="w-5 h-5 text-[var(--color-accent-cyan)]" />
-          <h1 className="text-lg font-semibold">실험실</h1>
-          <span className="text-xs text-[var(--color-text-disabled)]">
-            판단항목 가중치 실험 · v1 비교
-          </span>
-        </div>
-        <Link to="/versions" className="text-xs text-[var(--color-accent-cyan)] hover:underline">
-          버전 비교 →
-        </Link>
-      </div>
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <header className="flex items-center gap-2">
+        <FlaskConical className="w-5 h-5 text-[var(--color-accent-cyan)]" />
+        <h1 className="text-lg font-bold">실험실 — 라이브 vs 실험 버전</h1>
+      </header>
 
-      {/* 경주 선택 */}
-      <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] flex flex-wrap items-center gap-3">
-        <label className="text-xs text-[var(--color-text-secondary)]">날짜</label>
-        <select
-          value={selectedDate ?? ''}
-          onChange={(e) => {
-            setDate(Number(e.target.value));
-            setRaceKey(null);
-          }}
-          className="bg-[var(--color-bg-elevated)] rounded px-3 py-2 text-sm font-mono-num outline-none"
-        >
-          {(availableDates ?? []).map((d) => (
-            <option key={d} value={d}>
-              {fmtRcDate(d)}
-            </option>
-          ))}
+      <section className="flex flex-wrap gap-3 text-sm">
+        <label>기간 <input type="number" value={range.from} onChange={(e) => setRange({ ...range, from: Number(e.target.value) })} className="w-28 bg-[var(--color-bg-elevated)] rounded px-2 py-1" />
+          ~ <input type="number" value={range.to} onChange={(e) => setRange({ ...range, to: Number(e.target.value) })} className="w-28 bg-[var(--color-bg-elevated)] rounded px-2 py-1" /></label>
+        <select value={source} onChange={(e) => setSource(e.target.value as SourceFilter)} className="bg-[var(--color-bg-elevated)] rounded px-2 py-1">
+          <option value="all">실험: 전체</option><option value="live">실험: 사전 저장만</option><option value="backfill">실험: 과거 채우기만</option>
         </select>
-
-        <label className="text-xs text-[var(--color-text-secondary)]">경주</label>
-        <select
-          value={raceKey ?? ''}
-          onChange={(e) => setRaceKey(e.target.value || null)}
-          className="bg-[var(--color-bg-elevated)] rounded px-3 py-2 text-sm outline-none min-w-[14rem]"
-        >
-          <option value="">— 경주 선택 —</option>
-          {(races ?? []).map((r) => (
-            <option key={`${r.meet}-${r.rc_no}`} value={`${r.meet}-${r.rc_no}`}>
-              {MEET_NAMES[r.meet] ?? r.meet} {r.rc_no}R
-              {r.rc_dist ? ` · ${r.rc_dist}m` : ''}
-              {r.rc_name ? ` · ${r.rc_name}` : ''}
-            </option>
-          ))}
+        <select value={meet} onChange={(e) => setMeet(Number(e.target.value) as 0 | 1 | 3)} className="bg-[var(--color-bg-elevated)] rounded px-2 py-1">
+          <option value={0}>서울+부경</option><option value={1}>서울</option><option value={3}>부경</option>
         </select>
-      </div>
+      </section>
 
-      {meet && rcNo && (
-        <RaceInfoBlock rcDate={rcDate} meet={meet} rcNo={rcNo} race={selectedRace} horses={horses} />
-      )}
-
-      {meet && rcNo && (
-        <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4">
-          {/* 가중치 패널 */}
-          <section className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] h-fit">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold">실험 가중치</h2>
-              <button
-                onClick={() => setWeights({ ...V1_WEIGHTS })}
-                disabled={isPristine}
-                className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-[var(--color-bg-elevated)] hover:bg-[var(--color-accent-cyan)] hover:text-black transition-colors disabled:opacity-40 disabled:hover:bg-[var(--color-bg-elevated)] disabled:hover:text-inherit"
-              >
-                <RotateCcw className="w-3 h-3" />
-                v1 리셋
-              </button>
-            </div>
-            <div className="text-[11px] text-[var(--color-text-disabled)] mb-3">
-              합계 {weightSum(weights).toFixed(1)}
-              <span className="ml-1">(v1 = {weightSum(V1_WEIGHTS).toFixed(1)})</span>
-            </div>
-
-            <div className="space-y-2.5">
-              {SCORE_ITEM_IDS.map((id) => {
-                const v1 = V1_WEIGHTS[id];
-                const cur = weights[id] ?? 0;
-                const changed = cur !== v1;
-                const sealed = SEALED_ITEMS.has(id);
-                return (
-                  <div key={id} className="text-xs">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className={sealed ? 'text-[var(--color-text-disabled)]' : ''}>
-                        {ITEM_NAMES[id] ?? id}
-                        {sealed && <span className="ml-1 text-[10px]">(SEALED)</span>}
-                      </span>
-                      <div className="flex items-center gap-1.5 font-mono-num">
-                        {changed && (
-                          <span className="text-[10px] text-[var(--color-text-disabled)]">
-                            v1 {v1}
+      {isLoading && <p className="text-sm text-[var(--color-text-secondary)]">불러오는 중…</p>}
+      {error && <p className="text-sm text-red-400">불러오기 실패: {(error as Error).message}</p>}
+      {view && (
+        <>
+          <section className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-[var(--color-text-secondary)]">
+                <tr><th className="text-left py-1">버전</th><th>경주</th><th>단승</th><th>연승(1순위 3착내)</th><th>복승</th><th>TOP3 겹침</th></tr>
+              </thead>
+              <tbody>
+                {view.board.map((r) => {
+                  const isShadow = r.version !== view.active.id;
+                  const empty = isShadow && r.races === 0;
+                  return (
+                    <tr key={r.version} className="border-t border-[var(--color-bg-elevated)] text-center">
+                      <td className="text-left py-1">{view.label.get(r.version) ?? r.version}{r.version === view.active.id ? ' (라이브)' : ''}</td>
+                      <td>{r.races}</td>
+                      <td>{empty ? '—' : pct(r.win)}</td>
+                      <td>
+                        {empty ? '—' : pct(r.place)}
+                        {!empty && r.placeDelta != null && (
+                          <span className="ml-1 text-xs text-[var(--color-text-secondary)]">
+                            ({r.placeDelta >= 0 ? '+' : ''}{(r.placeDelta * 100).toFixed(1)}%p, 운 범위 ±{((r.placeBand ?? 0) * 100).toFixed(1)}%p)
                           </span>
                         )}
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.5}
-                          value={cur}
-                          onChange={(e) => setWeight(id, Number(e.target.value))}
-                          className={`w-14 bg-[var(--color-bg-elevated)] rounded px-1.5 py-0.5 text-right outline-none ${
-                            changed ? 'text-[var(--color-accent-cyan)]' : ''
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={30}
-                      step={0.5}
-                      value={cur}
-                      onChange={(e) => setWeight(id, Number(e.target.value))}
-                      className="w-full accent-[var(--color-accent-cyan)] h-1"
-                    />
-                  </div>
-                );
-              })}
-            </div>
+                      </td>
+                      <td>{empty ? '—' : pct(r.quinella)}</td>
+                      <td>{empty ? '—' : r.top3Overlap.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+              실험 버전은 라이브와 둘 다 예측한 경주만 셉니다. 차이가 "운 범위" 안이면 아직 실력 차라고 말할 수 없어요.
+            </p>
           </section>
 
-          {/* 비교 결과 */}
-          <section className="space-y-4">
-            {predLoading && (
-              <div className="text-sm text-[var(--color-text-secondary)] py-8 text-center">
-                예측 로딩 중...
-              </div>
-            )}
-
-            {!predLoading && rows.length === 0 && (
-              <div className="bg-[var(--color-bg-surface)] rounded-xl p-6 text-center text-[var(--color-text-secondary)]">
-                이 경주는 예측 데이터(predictions)가 없습니다.
-              </div>
-            )}
-
-            {rows.length > 0 && (
-              <>
-                {/* 실제 결과 인사이트 요약 */}
-                {hasResult && actualTop3.length > 0 && (
-                  <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)]">
-                    <div className="text-xs font-semibold text-[var(--color-accent-gold)] mb-2">
-                      실제 1·2·3위 말의 예측 순위 (v1 → 실험)
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {actualTop3.map((r) => {
-                        const better = r.expRank < r.v1Rank;
-                        const worse = r.expRank > r.v1Rank;
-                        return (
-                          <div
-                            key={r.hr_name}
-                            className="bg-[var(--color-bg-elevated)] rounded-lg p-2.5 text-sm"
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[var(--color-accent-gold)] font-bold">
-                                {['🥇', '🥈', '🥉'][r.actualOrd! - 1]}
-                              </span>
-                              <span className="font-medium truncate">{r.hr_name}</span>
-                            </div>
-                            <div className="mt-1 font-mono-num text-xs flex items-center gap-1.5">
-                              <span>{r.v1Rank}위</span>
-                              <span className="text-[var(--color-text-disabled)]">→</span>
-                              <span
-                                className={
-                                  better
-                                    ? 'text-[var(--color-success)] font-bold'
-                                    : worse
-                                      ? 'text-[var(--color-accent-pink)]'
-                                      : ''
-                                }
-                              >
-                                {r.expRank}위
-                              </span>
-                              {better && <ArrowUp className="w-3 h-3 text-[var(--color-success)]" />}
-                              {worse && <ArrowDown className="w-3 h-3 text-[var(--color-accent-pink)]" />}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* 비교 표 */}
-                <div className="bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-bg-elevated)] overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-[var(--color-text-secondary)] text-xs border-b border-[var(--color-bg-elevated)]">
-                        <th className="text-left font-medium px-3 py-2">마명</th>
-                        <th className="text-center font-medium px-2 py-2">v1 순위</th>
-                        <th className="text-center font-medium px-2 py-2">실험 순위</th>
-                        <th className="text-center font-medium px-2 py-2">Δ</th>
-                        {hasResult && (
-                          <th className="text-center font-medium px-2 py-2">실제</th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="font-mono-num">
-                      {rows.map((r) => {
-                        const up = r.delta > 0;
-                        const down = r.delta < 0;
-                        const isActualTop3 = r.actualOrd !== null && r.actualOrd <= 3;
-                        return (
-                          <tr
-                            key={r.hr_name}
-                            className={`border-b border-[var(--color-bg-elevated)]/50 ${
-                              isActualTop3 ? 'bg-[var(--color-accent-gold)]/5' : ''
-                            }`}
-                          >
-                            <td className="px-3 py-2 font-sans">{r.hr_name}</td>
-                            <td className="text-center px-2 py-2 text-[var(--color-text-secondary)]">
-                              {r.v1Rank}
-                            </td>
-                            <td className="text-center px-2 py-2 font-semibold text-[var(--color-accent-cyan)]">
-                              {r.expRank}
-                            </td>
-                            <td className="text-center px-2 py-2">
-                              <span
-                                className={`inline-flex items-center gap-0.5 ${
-                                  up
-                                    ? 'text-[var(--color-success)]'
-                                    : down
-                                      ? 'text-[var(--color-accent-pink)]'
-                                      : 'text-[var(--color-text-disabled)]'
-                                }`}
-                              >
-                                {up && <ArrowUp className="w-3 h-3" />}
-                                {down && <ArrowDown className="w-3 h-3" />}
-                                {!up && !down && <Minus className="w-3 h-3" />}
-                                {r.delta !== 0 && Math.abs(r.delta)}
-                              </span>
-                            </td>
-                            {hasResult && (
-                              <td className="text-center px-2 py-2">
-                                {r.actualOrd === null ? (
-                                  <span className="text-[var(--color-text-disabled)]">-</span>
-                                ) : (
-                                  <span
-                                    className={
-                                      isActualTop3
-                                        ? 'text-[var(--color-accent-gold)] font-bold'
-                                        : 'text-[var(--color-text-secondary)]'
-                                    }
-                                  >
-                                    {r.actualOrd}
-                                  </span>
-                                )}
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <p className="text-[11px] text-[var(--color-text-disabled)]">
-                  v1 순위 = 현재 적용된 예측(predicted_rank). 실험 순위 = 같은 항목 rawScore에 위
-                  가중치를 적용해 재계산. Δ 양수(▲) = 실험에서 순위 상승.
-                </p>
-              </>
-            )}
+          <section>
+            <label className="text-sm flex items-center gap-2 mb-2">
+              <input type="checkbox" checked={onlyDisagree} onChange={(e) => setOnlyDisagree(e.target.checked)} /> 1순위가 엇갈린 경주만
+            </label>
+            <ul className="space-y-1 text-sm">
+              {view.races.map((rc) => (
+                <li key={rc.key} className="flex flex-wrap gap-x-4 border-t border-[var(--color-bg-elevated)] py-1">
+                  <span className="w-36">{rc.race_date} {MEET_NAME[rc.meet] ?? rc.meet} {rc.rc_no}R</span>
+                  {Object.entries(rc.picks).map(([v, p]) => (
+                    <span key={v}>{view.label.get(Number(v)) ?? v}: {p.join('·')} {rc.placeHit[Number(v)] ? '✅' : ''}</span>
+                  ))}
+                  <span className="text-[var(--color-text-secondary)]">실제: {rc.actualTop3.join('·') || '결과 전'}</span>
+                </li>
+              ))}
+            </ul>
           </section>
-        </div>
+        </>
       )}
     </div>
   );
