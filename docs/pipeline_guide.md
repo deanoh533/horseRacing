@@ -450,7 +450,7 @@ npm run probe:sync-health -- --from 20260801 # 범위 지정
 - v7 라이브 1개 분기(약 12주) 누적 + `probe:v7-accuracy` 첫 판정까지 **재학습·승격 동결**.
 - 이후 분기 1회 수동 사이클: `db:snapshot` → `extract:matrix -- --from 20220101` → `learn:logistic -- --label vN` → `db:pull --table model_versions` → `benchmark` → 판단 → `promote` → `calib:fit-live`(Platt 재적합)·`probe:picks`(임계 재확인).
 - ⚠️ `learn:candidate`는 레거시 Spearman 가중치 경로 — 로지스틱 후보를 만들지 않으므로 재학습에 쓰지 말 것 (2026-09-18 정정).
-- ⚠️ **마이그레이션 018(`supabase/migrations/018_shadow_predictions.sql` — `model_versions.is_shadow`/`train_until` + `shadow_predictions` 테이블) 미적용 — 다음 재학습 전에 반드시 적용.** `learn:logistic`이 이제 `train_until`을 기록하므로 적용 전엔 `--shadow` 등록이 실패한다 (O-004, 10월 초 재학습 예정).
+- 마이그레이션 018(`supabase/migrations/018_shadow_predictions.sql` — `model_versions.is_shadow`/`train_until` + `shadow_predictions` 테이블) **2026-09-19 Supabase 적용 완료.** `learn:logistic`은 이제 항상 `model_type`·`is_shadow`·`train_until`을 기록한다.
 - 섀도 실험 사이클(위 §7 참고)은 승격과 별개로 병행 가능 — L-003 동결과 충돌 없음(승격 아님).
 
 ---

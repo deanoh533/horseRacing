@@ -602,7 +602,7 @@ PK: `hr_no`
 
 > 결과 sync(dailySync)가 경주 결과 저장 직후 `API160_1/integratedInfo_1`에서 채워 넣는다(멱등 upsert, forward만). 단승/연승은 `race_entries`에 이미 존재하므로 여기 저장 안 함.
 
-#### `shadow_predictions` — 섀도(실험) 버전 예측 (migration 018, 2026-09-18 — ⚠️ **Supabase 미적용, 코드만 존재**)
+#### `shadow_predictions` — 섀도(실험) 버전 예측 (migration 018, 2026-09-19 Supabase 적용)
 
 PK: `(race_date, meet, rc_no, hr_name, model_version)`
 
@@ -738,7 +738,7 @@ PK: `(race_date, meet, rc_no, hr_name, model_version)`
 | `useRaceSectionalStats` | `rcDate, meet, rcNo` | `RaceSectionalStats\|null` | 10분 |
 | `useRaceCardsCoverage` | — | `{totalRows,injuredRows,...}` | 30분 |
 | `useHistoryRacesPrizeCond` | `{race_date,meet,rc_no}[]` | `Map<key, prize_cond>` | 24시간 |
-| `useLabData` | `from, to (YYYYMMDD)` | `{versions, live, shadow}` — `/lab` 라이브 vs 섀도 비교(migration 018 적용 전엔 `shadow_predictions` 조회 실패) | 10분 |
+| `useLabData` | `from, to (YYYYMMDD)` | `{versions, live, shadow}` — `/lab` 라이브 vs 섀도 비교 | 10분 |
 
 #### 사용자 설정
 

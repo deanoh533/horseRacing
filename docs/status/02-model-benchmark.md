@@ -12,7 +12,7 @@ v7 **라이브 적중률 추적 시작**(2026-07-11, L-001) — `dailySync`가 p
 
 **재학습 정책(L-003, 2026-07-12)**: v7 라이브 1개 분기 누적·첫 판정까지 재학습·승격 동결 → 이후 분기 1회 수동 사이클(db:snapshot → extract:matrix → learn:logistic → db:pull --table model_versions → benchmark → promote → calib:fit-live·probe:picks). ⚠️ `learn:candidate`는 레거시 Spearman 경로라 쓰지 말 것 (2026-09-18 정정).
 
-**섀도 실험실(2026-09-18, `feat/shadow-lab`)**: 라이브와 완전 분리된 실험 버전 채점·저장 인프라(`shadow_predictions` + `model_versions.is_shadow`/`train_until`, migration 018 — **Supabase 미적용**) + `/lab` 비교 화면 + 학습 방식 실험 도구(`exp:learning`: E0 수렴점검·E1 l2×iters 튜닝·E2 `pl-top3`, 6분기 사전등록 판정) 구현 완료. 현재 등록된 섀도 버전 없음(마이그레이션 적용 대기). 스펙: `docs/superpowers/specs/2026-09-18-shadow-lab-design.md`.
+**섀도 실험실(2026-09-18, `feat/shadow-lab`)**: 라이브와 완전 분리된 실험 버전 채점·저장 인프라(`shadow_predictions` + `model_versions.is_shadow`/`train_until`, migration 018 — 2026-09-19 Supabase 적용) + `/lab` 비교 화면 + 학습 방식 실험 도구(`exp:learning`: E0 수렴점검·E1 l2×iters 튜닝·E2 `pl-top3`, 6분기 사전등록 판정) 구현 완료. 현재 등록된 섀도 버전 없음. 스펙: `docs/superpowers/specs/2026-09-18-shadow-lab-design.md`.
 
 ## 학습 방식 실험 E0~E2 (2026-09-19) — ❌ 전부 불합격 (학습 방식은 천장이 아님)
 사전등록 판정(연승=1순위 3착내, 기준 logistic l2 0.02·800회, 6분기 2025Q1~2026Q2, 합격 = 평균 Δ ≥ +1.0%p AND 과반 분기 양수). 피처 스키마 = v7 108개 고정, 튜닝은 2024Q4 검증 분기만. 7,806경주. 로그 `data/exp_learning_1789724713476.json`.
