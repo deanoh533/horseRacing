@@ -105,6 +105,7 @@ npm run test:run     # vitest 단위 테스트
 
 > 출마표는 수요일 오후에 금·토·일 3일치가 한 번에 발표된다(docs/data_lifecycle.md). 무인 cron은 수·목·금 15시 실행되며 각 회차가 **남은 주말 전체**를 받는다(수=금토일, 목=토일, 금=일 — 수요일 조기 노출 + 목·금 재실행으로 제외마 등 임박 변경 갱신).
 > **결과는 2026-08-29부터 발주시각 기반 폴러로 받는다**(고정 19시·23시 슬롯 폐지) — 경주 있는 날 KST 10:00~21:45에 15분 간격으로 출마표의 발주시각(`races.st_time`)을 확인해, 발주시각+15분이 지났는데 아직 착순이 없는 경주가 있을 때만 KRA를 부른다(`scripts/resultsPoll.ts`). 없으면 KRA를 안 부르고 조용히 끝난다. 그날 폴이 전부 실패해도(간헐적 다일 KRA 장애, 2026-08-23~27 실측) 매일 아침 캐치업(`scripts/catchupSync.ts`)이 최근 7일 구멍을 찾아 자동 재싱크한다 — 2일 이상 묵은 구멍이 그래도 안 채워지면 그때만 실패 메일이 간다.
+> **폴러를 깨우는 시계는 GitHub 밖(cron-job.org → `/api/sync` → workflow_dispatch)이다**(2026-09-18) — GitHub의 15분 예약은 실측 7%만 실행돼 백업으로만 남겼다. 상세 → TODO O-007.
 > 위 sync 명령은 2026-07-12부터 GitHub Actions로 무인 실행 (수동 실행도 가능) — .github/workflows/sync.yml
 
 상세 → [docs/data_lifecycle.md](docs/data_lifecycle.md)
