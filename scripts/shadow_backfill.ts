@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { getShadowModelVersions } from '../src/engine/modelVersion.js';
 import { predictShadows } from '../src/engine/shadowPredictor.js';
 import { writeShadowPredictions } from '../src/sync/shadowWriter.js';
+import { fetchLiveShadowKeys, type LiveKeyRow } from '../src/sync/shadowLiveKeys.js';
 import { resolveBackfillRange } from '../src/engine/shadow/backfillRange.js';
 
 function todayKst(): number {
@@ -38,12 +39,16 @@ async function main() {
   const range = resolveBackfillRange(version.train_until, fromArg ? Number(fromArg) : undefined, toArg ? Number(toArg) : undefined, todayKst());
   console.log(`🧪 과거 채우기 ${version.label}(id=${versionId}) ${range.from}~${range.to}${dryRun ? ' [dry-run]' : ''}`);
 
-  // 이미 사전 저장본(live)이 있는 경주는 건너뜀
-  const { data: liveRows, error: liveErr } = await sbw.from('shadow_predictions')
-    .select('race_date, meet, rc_no').eq('model_version', versionId).eq('source', 'live')
-    .gte('race_date', range.from).lte('race_date', range.to);
-  if (liveErr) throw liveErr;
-  const liveKeys = new Set(((liveRows ?? []) as { race_date: number; meet: number; rc_no: number }[]).map((r) => `${r.race_date}-${r.meet}-${r.rc_no}`));
+  // 이미 사전 저장본(live)이 있는 경주는 건너뜀 — PostgREST 기본 1000행 캡을 넘을 수 있어 페이지 순회
+  const liveKeys = await fetchLiveShadowKeys(async (offset, limit) => {
+    const { data, error } = await sbw.from('shadow_predictions')
+      .select('race_date, meet, rc_no').eq('model_version', versionId).eq('source', 'live')
+      .gte('race_date', range.from).lte('race_date', range.to)
+      .order('race_date').order('meet').order('rc_no').order('hr_name')
+      .range(offset, offset + limit - 1);
+    if (error) throw error;
+    return (data ?? []) as LiveKeyRow[];
+  });
 
   const db = await getReadClient();
   const { data: races, error } = await db.from('races').select('race_date, meet, rc_no')
