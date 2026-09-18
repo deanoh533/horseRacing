@@ -51,8 +51,8 @@
 - 현재 `predictRace()` = `gatherRaceInputs()` + 활성 버전 채점. 이를
   `scoreRaceRows(rows, version)`(순수 채점·순위)로 분리하고 `predictRace()`는 이를 호출하도록 리팩터.
 - **라이브 출력은 바이트 단위 불변**(기존 테스트 + 리팩터 전후 동일성 테스트).
-- 입력 수집(`gatherRaceInputs`)은 경주당 1회, 채점만 버전 수만큼. 단 버전의 `artifact.shape_par_cutoff`가 라이브와 다르면 해당 버전용으로 재수집(기본은 동일 → 재수집 없음).
-- 모델 유형: `logistic` 및 신규 `pl-top3`(§7 E2) 모두 계수·평균·표준편차 구조라 같은 선형 채점 경로 사용.
+- 섀도 채점은 별도 함수 `predictShadows()`(`src/engine/shadowPredictor.ts`)가 **입력을 따로 한 번 수집**한 뒤 실험 버전 수만큼 채점한다. (계획 단계 수정: 라이브 `predictRace`와 호출을 분리해 섀도 쪽 수집 실패가 라이브에 절대 번지지 않게 함. 비용 경주당 ~0.3초 추가, 실험 버전이 0개면 수집 자체를 건너뜀.)
+- 모델 유형: `logistic` 및 신규 `pl-top3`(§7 E2) 모두 계수·평균·표준편차 구조라 같은 선형 채점 경로 사용(`LINEAR_MODEL_TYPES`).
 
 ### 4.2 앞으로 쌓기 (`raceCardSync.ts`)
 - 라이브 예측 INSERT 직후, `is_shadow=true` 버전마다 채점 → 해당 경주의 `shadow_predictions(source='live')` 행을 버전별 delete 후 insert.
@@ -108,7 +108,7 @@
 - 합격 = 규칙 지표 **연승(1순위 3착 안)** 평균 Δ ≥ **+1.0%p** AND 분기 **과반 양수** (vs v8a, 6분기 롤링).
 - 참고 진단(판정 무관): 단승·복승·TOP3 겹침, 로그손실.
 
-**`/lab` 연결:** v8a + 합격 후보를 `learn:logistic`(또는 신규 `learn:pl-top3`)로 학습 → `is_shadow=true`, `train_until` 기록 → 누수 점검 합격 후 과거 채우기 → 이후 앞으로 쌓기.
+**`/lab` 연결:** 합격 후보를 **v7과 같은 학습 기간(2022-01~2026-06-30)**으로 `learn:logistic --model … --shadow`로 학습 → `is_shadow=true`, `train_until` 기록 → 누수 점검 합격 후 과거 채우기(7월~) → 이후 앞으로 쌓기. (계획 단계 수정: 학습 기간을 v7과 맞추면 v8a는 v7과 사실상 동일하므로 등록하지 않고 **라이브 v7 자체가 기준선**. 학습 방식 차이만 남는 가장 깨끗한 비교.) 합격 후보가 없으면 튜닝 없이도 기록 목적으로 `pl-top3` 1개만 섀도 등록할지 사용자 판단.
 
 **동결 관계:** 실험 버전은 승격이 아니므로 L-003 동결과 충돌 없음. O-004(10월 초 v7 판정) 그대로. 승격은 오프라인 판정 + `/lab` 누적 성적 둘 다 통과한 후보만 기존 절차로.
 
