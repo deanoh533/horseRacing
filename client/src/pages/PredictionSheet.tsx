@@ -28,7 +28,6 @@ import {
   useHorseSectionalAbilityByNames,
   useTrainerStatsBatch,
   useJockeyStatsBatch,
-  useGradeWinnerStats,
   useTrainingBatchByNames,
   useJockeyHorseComboBatch,
   useHorseGateStatsBatch,
@@ -1179,7 +1178,6 @@ export function PredictionSheet() {
   const { data: jockeyRecentFormMap } = useJockeyRecentFormBatch(jckyNos, meet);
 
   // 해당 등급/거리 우승마 평균기록
-  const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
 
   // F-001 실측: 경기 후 이 경주 초반 페이스(avg_s1f). 사전(결과 전)이면 null → 실측 줄 자동 생략.
   const { data: sectional } = useRaceSectionalStats(rcDate, meet, rcNo);
@@ -1306,7 +1304,6 @@ export function PredictionSheet() {
         rcNo={rcNo}
         race={race}
         horses={horses}
-        gradeStats={gradeStats}
       />
 
       {/* F-001: 경주 페이스 예상 */}

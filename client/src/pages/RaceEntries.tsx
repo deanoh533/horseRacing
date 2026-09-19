@@ -23,7 +23,6 @@ import {
   useHorseTraining,
   useJockeyStats,
   useHorseInfo,
-  useGradeWinnerStats,
   useTrainerStats,
   useJockeyHorseComboBatch,
   useJockeyRecentForm,
@@ -97,7 +96,6 @@ export function RaceEntries() {
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
   const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
-  const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
   // F-001 실측: 경기 후 이 경주 초반 페이스(avg_s1f). 사전(결과 전)이면 null → 실측 줄 자동 생략.
   const { data: sectional } = useRaceSectionalStats(rcDate, meet, rcNo);
 
@@ -179,7 +177,7 @@ export function RaceEntries() {
         </button>
       </div>
 
-      <RaceInfoBlock rcDate={rcDate} meet={meet} rcNo={rcNo} race={race} horses={horses} gradeStats={gradeStats} />
+      <RaceInfoBlock rcDate={rcDate} meet={meet} rcNo={rcNo} race={race} horses={horses} />
 
       {/* F-001: 경주 페이스 예상 */}
       {hrNames.length > 0 && (

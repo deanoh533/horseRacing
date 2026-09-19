@@ -895,43 +895,6 @@ export function useJockeyRecentFormBatch(jckyNos: string[], meet: number, daysBa
   });
 }
 
-/**
- * 해당 등급/거리 우승마 평균·최고 기록
- * race_entries JOIN races (Supabase 관계 필터) — migration 불필요
- * 3경주 미만이면 null 반환
- */
-export function useGradeWinnerStats(prizeCond: string | null, rcDist: number | null) {
-  return useQuery({
-    queryKey: ['grade-winner-stats', prizeCond, rcDist],
-    queryFn: async (): Promise<{ avg: number; best: number; count: number; avgBurdWgt: number | null } | null> => {
-      if (!prizeCond || !rcDist) return null;
-      const { data, error } = await supabase
-        .from('race_entries')
-        .select('rc_time, burd_wgt, races!inner(prize_cond, rc_dist)')
-        .eq('ord', 1)
-        .not('rc_time', 'is', null)
-        .filter('races.prize_cond', 'eq', prizeCond)
-        .filter('races.rc_dist', 'eq', rcDist);
-      if (error) throw error;
-      type Row = { rc_time: number | null; burd_wgt: number | null };
-      const items = (data ?? []).filter((r: Row) => (r.rc_time ?? 0) > 0);
-      if (items.length < 3) return null;
-      const times = items.map((r: Row) => r.rc_time as number);
-      const wgts = items
-        .map((r: Row) => r.burd_wgt)
-        .filter((w): w is number => w != null && w > 0);
-      return {
-        avg: times.reduce((a, b) => a + b, 0) / times.length,
-        best: Math.min(...times),
-        count: items.length,
-        avgBurdWgt: wgts.length > 0 ? wgts.reduce((a, b) => a + b, 0) / wgts.length : null,
-      };
-    },
-    enabled: !!prizeCond && !!rcDist,
-    staleTime: 24 * 60 * 60 * 1000,
-  });
-}
-
 // ============================================
 // 통계 (race_entries 기반)
 // ============================================
