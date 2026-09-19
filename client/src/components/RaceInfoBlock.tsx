@@ -31,7 +31,6 @@ interface RaceInfoBlockProps {
   rcNo: number;
   race?: Race | null;
   horses?: RaceEntry[];
-  gradeStats?: { avg: number; best: number; count: number; avgBurdWgt: number | null } | null;
 }
 
 export function RaceInfoBlock({

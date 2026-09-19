@@ -734,7 +734,6 @@ PK: `(race_date, meet, rc_no, hr_name, model_version)`
 | `useLatestCorrelations` | — | `Record<string,number>\|null` | 30분 |
 | `useRecentArchives` | `limit=30` | `ArchiveRow[]` | 10분 |
 | `useEarningsHitRate` | — | `EarningsBucket[]` | 30분 |
-| `useGradeWinnerStats` | `prizeCond, rcDist` | `{avg,best,count,avgBurdWgt}\|null` | 24시간 |
 | `useRaceSectionalStats` | `rcDate, meet, rcNo` | `RaceSectionalStats\|null` | 10분 |
 | `useRaceCardsCoverage` | — | `{totalRows,injuredRows,...}` | 30분 |
 | `useHistoryRacesPrizeCond` | `{race_date,meet,rc_no}[]` | `Map<key, prize_cond>` | 24시간 |
