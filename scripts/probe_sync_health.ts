@@ -51,7 +51,9 @@ const DOW = '일월화수목금토';
  */
 function cardCell(cardFetchedAt: string | null, raceDate: number): string {
   const age = cardAgeDays(cardFetchedAt, raceDate);
-  return age == null ? '—' : `D-${age}`;
+  if (age == null) return '—';
+  // 음수 = 경주가 끝난 뒤 받았다(백필). `D--9` 같은 표기를 피한다.
+  return age < 0 ? `D+${-age}` : `D-${age}`;
 }
 
 async function main(): Promise<void> {

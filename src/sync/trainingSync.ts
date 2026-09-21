@@ -136,7 +136,7 @@ async function main() {
       meets = args[i + 1]!
         .split(',')
         .map((s) => parseInt(s, 10) as MeetCode)
-        .filter((m) => m === 1 || m === 3);
+        .filter((m): m is MeetCode => SYNC_MEETS.includes(m as MeetCode));
     } else if (args[i] === '--hr_no' && args[i + 1]) {
       hrNo = args[i + 1]!;
     }

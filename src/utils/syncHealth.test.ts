@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { cardAgeDays, classifyRaceDate, venueChanges, weekdayOf, type RaceDateCounts } from './syncHealth.js';
+import {
+  cardAgeDays, classifyRaceDate, isLivePrediction, venueChanges, weekdayOf,
+  type RaceDateCounts,
+} from './syncHealth.js';
 
 const c = (over: Partial<RaceDateCounts>): RaceDateCounts => ({
   raceDate: 20260815, entries: 100, ordFilled: 98,
@@ -179,5 +182,31 @@ describe('weekdayOf', () => {
   it('YYYYMMDD의 요일을 준다 (0=일)', () => {
     expect(weekdayOf(20260920)).toBe(0); // 일요일
     expect(weekdayOf(20260918)).toBe(5); // 금요일
+  });
+});
+
+describe('isLivePrediction — 백필 예측 걸러내기', () => {
+  // 2026-09-22에 영천 9/13 경주를 백필하면서 실제로 생긴 경로.
+  // 사전 모드(ord NULL)로 계산돼도, race_entries 누적 필드가 경주 후 스냅샷이라 라이브가 아니다.
+  it('경주 뒤에 만든 예측은 라이브가 아니다', () => {
+    expect(isLivePrediction('2026-09-22T01:00:00.000Z', 20260913)).toBe(false);
+  });
+
+  it('경주 전에 만든 예측은 라이브', () => {
+    expect(isLivePrediction('2026-09-16T10:22:00.000Z', 20260919)).toBe(true);
+  });
+
+  it('경주 당일 생성도 라이브 (발주 전 사전 예측)', () => {
+    expect(isLivePrediction('2026-09-19T01:00:00.000Z', 20260919)).toBe(true);
+  });
+
+  // KST 9/20 01:00은 UTC로는 아직 9/19 — 날짜 경계에서 밀리면 안 된다
+  it('KST 날짜로 판정한다', () => {
+    expect(isLivePrediction('2026-09-19T16:00:00.000Z', 20260919)).toBe(false);
+  });
+
+  it('생성 시각을 모르면 라이브로 치지 않는다', () => {
+    expect(isLivePrediction(null, 20260919)).toBe(false);
+    expect(isLivePrediction('아무말', 20260919)).toBe(false);
   });
 });

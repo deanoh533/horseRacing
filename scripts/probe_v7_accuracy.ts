@@ -15,6 +15,7 @@
  */
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
+import { isLivePrediction } from '../src/utils/syncHealth.js';
 import { getReadClient } from '../src/db/localDb.js';
 import {
   joinResults, computeTiersByVersion,
@@ -32,13 +33,21 @@ function arg(name: string): string | undefined {
 async function loadPredictions(from?: number, to?: number): Promise<PredictionSlim[]> {
   const sb = await getReadClient();
   let q = sb.from('predictions')
-    .select('race_date, meet, rc_no, hr_name, p_top3, model_version')
+    .select('race_date, meet, rc_no, hr_name, p_top3, model_version, created_at')
     .not('p_top3', 'is', null);
   if (from) q = q.gte('race_date', from);
   if (to) q = q.lte('race_date', to);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as PredictionSlim[];
+  // 백필 예측은 라이브가 아니다 — 경주가 끝난 뒤에 받은 race_entries 누적 필드가
+  // 섞여 적중률을 부풀린다(2026-09-22 영천 12경주 백필로 실제로 생긴 경로).
+  const rows = (data ?? []) as Array<PredictionSlim & { created_at: string | null }>;
+  const live = rows.filter((r) => isLivePrediction(r.created_at, r.race_date));
+  const dropped = rows.length - live.length;
+  if (dropped > 0) {
+    console.log(`ℹ️  백필 예측 ${dropped}건 제외 (경주일 이후 생성 — 라이브 아님)`);
+  }
+  return live as PredictionSlim[];
 }
 
 async function loadResults(from?: number, to?: number): Promise<ResultSlim[]> {
