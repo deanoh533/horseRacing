@@ -1,5 +1,5 @@
 # 데이터인프라 — 진행 상황
-> 마지막 업데이트: 2026-09-18 · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
+> 마지막 업데이트: 2026-09-21 (주말 전수조사 — 무인 sync 재설계 합격) · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
 
 ## 현재 상태
 - **DuckDB 로컬 미러** 배포 — Supabase egress 영구 탈출, 오프라인 분석 전용(benchmark·backtest·probe 전부). `npm run db:pull`로 동기화.
@@ -27,6 +27,8 @@
 - **조합배당 경주 단위 구멍 감지·복구 (2026-09-19, fix/combo-gap-recovery)** — 9/18 첫 동시 비교에서 조합배당 API가 한국 PC에서도 6경주 중 5경주 무응답. 조합배당 수집은 실패 격리라 착순만 저장되는데, 그날 **마지막 결과를 받은 폴**에서 그러면 폴러(착순 없는 경주만 확인)도 캐치업(날짜 comboRows>0이면 정상)도 안 잡아 **영구로 빠질 수 있었다**. 지금까지 0건이었던 건 이후 폴이 끝난 경주 조합배당을 전부 다시 받아서 우연히 메운 덕. 수정: 폴러 확인 대상에 "착순은 있는데 조합배당 없는 경주" 추가, 날짜 판정에 `racesWithCombo`(경주별 head count, egress 거의 0)로 `partial` 확장, 캐치업이 `partial`도 재싱크, probe에 `조합경주` 칸. 원래 조합배당이 없는 경주는 7/29~ 213경주 중 0개.
 
   **`20251226` 부경 R6은 영구 미해결**로 남는다 — 재싱크해도 KRA가 `⏭ 미시행·결과 미확정 → 스킵`을 반환(실제 취소 경주). `dailySync`의 미시행 가드(`ord>0` 유무)와 KRA 응답 어디에도 "일시적 지연 vs 영구 취소"를 구분할 신호가 없음(`ordBigo` 등 상태 필드 미제공) → `probe:sync-health`가 이 날짜를 앞으로도 계속 gap으로 표시한다. 1건짜리 예외로 판정 로직에 휴리스틱을 넣지 않고 알려진 예외로만 기록.
+
+- **✅ 주말 전수조사 — 재설계 합격 (2026-09-21, 대상 9/18~9/20)** — 실행 142건 + 로그 45건 정독. **데이터 100% 완전**(부경 9/9·서울 10/10·11/11 경주, 결과·조합배당·발주시각 전부, `predictions.actual_ord` 불일치 0건). **cron-job.org 알람 무결손**(금 28·토 48·일 48 = 10:00~21:45 15분 간격 전부), 같은 기간 **GitHub 예약은 6%만 실행**(48번 중 3번) → 백업 유지가 맞다. `cancelled` 0건 — 백업 예약과 겹쳐도 `concurrency`가 줄 세워 둘 다 완주. **러너 KRA 전멸률 58%(금)→29%(토)→17%(일)**, 전부 `timeout 30000ms`×4, 시간대 편중 없음. 폴러 133번 중 95번은 KRA를 아예 안 불렀다(설계대로). **결과 도착 지연 중앙 20~25분**(이론 최소 15~30분에 붙어 있음). **KRA 호출 ~157회/일 = 한도 3,000의 5%** → "이미 받은 경주 건너뛰기" 정식 기각(아낄 게 없고 그 재수집이 조합배당 자가복구 역할). 금요일 조합배당 13경주 실패를 다음 폴들이 전부 회수 = 직전 주 수정의 실전 검증. **IP 가설·한국 이전은 보류**(전멸률 하락 추세 + 완전성 100%, 이득은 지연 5분). 남은 약점은 **하루 1회뿐인 출마표 잡**(9/17 목 전멸 → 토요일 막판 변경 미반영, 지금은 감지도 안 됨) → TODO O-008, 전수조사 자동화 → O-009.
 
 - **조합 확정배당 수집 (2026-07-29)** — 결과 sync(dailySync)가 경주 결과 저장 직후 `API160_1/integratedInfo_1`에서 조합배당(복승·복연승·쌍승·삼복승·삼쌍승)을 받아 `combo_dividends`(migration 015)에 멱등 upsert. forward만(skipPredictions=false), 실패 격리. 단승/연승은 race_entries에 이미 존재. 과거 백필·DuckDB 미러 반영은 별도. 스펙/플랜 docs/superpowers/*/2026-07-29-combo-dividends-sync*.
 
