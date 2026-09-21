@@ -1,5 +1,5 @@
 # 시장엣지·전략 — 진행 상황
-> 마지막 업데이트: 2026-08-23 · 관련 메모리: [[project_market_edge_strategy]], [[project_selective_picks]], [[project_market_dominance_ceiling]], [[project_benter_blend]], [[project_odds_blend_candidate]], [[project_race_shape_track]]
+> 마지막 업데이트: 2026-09-21 · 관련 메모리: [[project_market_edge_strategy]], [[project_selective_picks]], [[project_market_dominance_ceiling]], [[project_benter_blend]], [[project_odds_blend_candidate]], [[project_race_shape_track]]
 
 ## 현재 상태
 공개피처로 승/연승 시장격파 = **종결(천장)**. 두 양성 배포 완료:
@@ -8,6 +8,9 @@
 - **v7-shape 승격 반영 (2026-07-10)** — 랭킹 모델 v6→v7 교체([[project_race_shape_track]], SSOT [02-model-benchmark](02-model-benchmark.md))에 맞춰 Platt 재적합: platt3 a=1.057·b=0.047(거의 항등, renormWin=false). `probe:picks` 재실측 0.75↑ 74.6%·0.70↑ 68.5% → **기존 임계 0.72/0.62 그대로 유효**, 캘리브레이션·선별표시 코드/설정 변경 없음. 남은 것: 주말부터 v7 기반 선별 적중률 라이브 추적.
 
 ## 다음 후보·남음
+- 🔲 **경주 전 배당이 실시간인지 확인 (O-005)** — 배당 블렌드 보류 사유("라이브 배당 API 없음")를 직접 때리는 관찰.
+  도구 `npm run probe:live-odds -- --date YYYYMMDD --meet 1|3 --rc N` (2026-09-21 추가) — 같은 경주를 발주 전 2~3회 호출해
+  조합배당이 변하는지 비교. 양성이면 [[project_odds_blend_candidate]](연승 +7~11.5%p) 재개, 음성이면 종결. KRA 호출은 사용자 실행.
 - 🔲 선별 표시 **시각 확인** (`/picks`·뱃지·통계 섹션 — Vercel/로컬)
 - 🔲 predictions 중복 행 정리(38,518→distinct 24,296) + in-sample 누수 → **L-001 완료(2026-07-11)**: prediction_logs 신설 대신 predictions 쓰기 경로 변경(dailySync 미덮어쓰기·actual_ord만 기록·raceCardSync 결과도착 가드)으로 라이브 스냅샷 불변 확보. 과거 중복 행 정리는 별도 잔여 과제.
 

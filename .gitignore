@@ -85,3 +85,6 @@ _trash/
 
 # 옛 기획문서 — 제자리 보존하되 Claude 검색(ripgrep) 제외. Read는 .claude/settings.json deny. 변천사 정본은 docs/history/service-evolution.md.
 docs/_archive/
+
+# 경주 전 배당 관찰 스냅샷 (O-005, 로컬 기록)
+data/live_odds/
