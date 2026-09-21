@@ -37,6 +37,13 @@ export interface RaceDateCounts {
   /** 발주시각이 남아 있는 경주 수 (결과 sync가 지우지 않는지 확인용) */
   stTimeFilled: number;
   comboRows: number;
+  /**
+   * 이 경주일 출마표를 **마지막으로** 수집한 시각(ISO). 아직 판정에는 안 쓰고
+   * 관측만 한다 — 출마표 잡은 수·목·금 하루 1회라 실패가 곧 손실인데
+   * (2026-09-17 실측), 며칠 묵었는지를 볼 데이터가 그동안 없었다.
+   * 재실행이 실제로 무엇을 갱신하는지 실측한 뒤 판정에 넣을지 정한다(TODO O-008).
+   */
+  cardFetchedAt: string | null;
 }
 
 /**
@@ -62,6 +69,36 @@ export function classifyRaceDate(c: RaceDateCounts, today: number): SyncDateStat
     return 'partial';
   }
   return 'ok';
+}
+
+/**
+ * `race_entries.fetched_at`이 **마지막** 출마표 수집 시각이 된 날.
+ * 이전에는 DB 기본값(`DEFAULT NOW()`)에만 의존해 INSERT에만 찍혔다 — 그래서
+ * 이 날짜 이전 경주일의 값은 최초 수집 시각이고, 신선도가 실제보다 나빠 보인다.
+ */
+export const CARD_FETCH_TRACKED_SINCE = 20260921;
+
+/**
+ * 출마표를 경주 며칠 전에 마지막으로 받았는지 (KST 달력 일수).
+ * 3이면 "경주 3일 전 수집이 마지막" = 그 뒤 재실행이 한 번도 안 돌았다는 뜻.
+ * 출마표는 수요일에 금·토·일 3일치가 한 번에 발표되므로, 목·금 재실행이 정상이면
+ * 금=D-0~2 · 토=D-1~3 · 일=D-2~4 범위로 줄어든다.
+ *
+ * `fetched_at`이 없으면(결과만 백필된 과거 행) null.
+ */
+export function cardAgeDays(cardFetchedAt: string | null, raceDate: number): number | null {
+  if (!cardFetchedAt) return null;
+  const t = Date.parse(cardFetchedAt);
+  if (Number.isNaN(t)) return null;
+  // UTC+9로 옮긴 뒤 UTC 달력으로 읽으면 KST 날짜가 된다
+  const kst = new Date(t + 9 * 3600_000);
+  const fetchedUtcDay = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
+  const raceUtcDay = Date.UTC(
+    Math.floor(raceDate / 10000),
+    Math.floor((raceDate % 10000) / 100) - 1,
+    raceDate % 100
+  );
+  return Math.round((raceUtcDay - fetchedUtcDay) / 86400_000);
 }
 
 /**

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { classifyRaceDate, type RaceDateCounts } from './syncHealth.js';
+import { cardAgeDays, classifyRaceDate, type RaceDateCounts } from './syncHealth.js';
 
 const c = (over: Partial<RaceDateCounts>): RaceDateCounts => ({
   raceDate: 20260815, entries: 100, ordFilled: 98,
-  races: 10, racesWithResult: 10, racesWithCombo: 10, stTimeFilled: 10, comboRows: 9000, ...over,
+  races: 10, racesWithResult: 10, racesWithCombo: 10, stTimeFilled: 10, comboRows: 9000,
+  cardFetchedAt: '2026-08-12T06:00:00.000Z', ...over,
 });
 
 describe('classifyRaceDate', () => {
@@ -106,5 +107,29 @@ describe('classifyRaceDate — 경주 단위 조합배당 대조', () => {
     expect(classifyRaceDate(
       c({ raceDate: 20260718, races: 10, racesWithResult: 10, racesWithCombo: 0, comboRows: 0 }), TODAY
     )).toBe('ok');
+  });
+});
+
+describe('cardAgeDays', () => {
+  // 2026-09-16(수) 19:22 KST = 10:22 UTC 수집 → 9/19(토) 경주는 3일 전 수집
+  it('KST 달력 기준으로 경주일과의 일수를 센다', () => {
+    expect(cardAgeDays('2026-09-16T10:22:00.000Z', 20260919)).toBe(3);
+    expect(cardAgeDays('2026-09-16T10:22:00.000Z', 20260920)).toBe(4);
+    expect(cardAgeDays('2026-09-18T10:05:00.000Z', 20260920)).toBe(2);
+  });
+
+  // UTC로 읽으면 하루가 밀리는 구간 — KST 9/17 01:00은 UTC로는 아직 9/16이다
+  it('UTC 자정 근처에서도 KST 날짜로 센다', () => {
+    expect(cardAgeDays('2026-09-16T16:00:00.000Z', 20260919)).toBe(2); // KST 9/17 01:00
+  });
+
+  it('당일 수집이면 0', () => {
+    expect(cardAgeDays('2026-09-19T01:00:00.000Z', 20260919)).toBe(0);
+  });
+
+  // 결과만 백필된 과거 행은 출마표를 받은 적이 없다
+  it('값이 없거나 못 읽으면 null', () => {
+    expect(cardAgeDays(null, 20260919)).toBeNull();
+    expect(cardAgeDays('아무말', 20260919)).toBeNull();
   });
 });

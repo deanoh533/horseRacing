@@ -150,6 +150,16 @@ export interface RaceEntryRow {
   latst_bledg2: string | null;
   latst_trea1_txt: string | null;
   latst_trea2_txt: string | null;
+  /**
+   * **마지막** 출마표 수집 시각 — 재실행(UPDATE)에서도 갱신된다.
+   *
+   * DB 기본값(`DEFAULT NOW()`, migration 004)에만 맡기면 INSERT에만 찍혀서
+   * "최초 수집 시각"이 된다. 그러면 출마표가 며칠 묵었는지 아무도 알 수 없다
+   * — 2026-09-17 출마표 잡이 KRA 타임아웃으로 전멸했는데 9/18~20 행은 전부
+   * 9/16 값 그대로였고, 설정탭은 이 값을 "마지막 수집 시각"으로 보여주고 있었다.
+   * 그래서 매퍼가 매번 명시적으로 채운다.
+   */
+  fetched_at: string;
 }
 
 /**
@@ -261,6 +271,7 @@ export function toRaceEntryRow(c: KRARaceCard, meet: number, rcDate: number, rcN
     latst_bledg2: dashToNull(c.latstBledg2),
     latst_trea1_txt: dashToNull(c.latstTrea1Txt),
     latst_trea2_txt: dashToNull(c.latstTrea2Txt),
+    fetched_at: new Date().toISOString(),
   };
 }
 
@@ -315,6 +326,7 @@ export function toRaceEntryRowFromEntrySheet(item: KRAEntrySheetItem): RaceEntry
     latst_bledg2: null,
     latst_trea1_txt: null,
     latst_trea2_txt: null,
+    fetched_at: new Date().toISOString(),
   };
 }
 

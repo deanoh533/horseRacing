@@ -19,7 +19,7 @@ import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fetchRaceDateCounts } from '../src/sync/syncHealthQuery.js';
 import { isCatchupTarget } from '../src/sync/catchupLogic.js';
 import {
-  classifyRaceDate, ST_TIME_PRESERVED_SINCE,
+  cardAgeDays, CARD_FETCH_TRACKED_SINCE, classifyRaceDate, ST_TIME_PRESERVED_SINCE,
   type SyncDateStatus,
 } from '../src/utils/syncHealth.js';
 
@@ -39,6 +39,16 @@ const LABEL: Record<SyncDateStatus, string> = {
   gap: '경주 일부 구멍', hole: '결과 구멍',
 };
 
+/**
+ * 출마표 칸 — "경주 며칠 전 수집이 마지막인가". `D-3`처럼 찍는다.
+ * `—`는 출마표를 받은 적이 없는 행(결과만 백필된 과거 경주일).
+ * 2026-09-21 이전 경주일은 값이 **최초** 수집 시각이라 실제보다 커 보인다(그날 매퍼가 고쳐짐).
+ */
+function cardCell(cardFetchedAt: string | null, raceDate: number): string {
+  const age = cardAgeDays(cardFetchedAt, raceDate);
+  return age == null ? '—' : `D-${age}`;
+}
+
 async function main(): Promise<void> {
   const sb = getSupabaseAdmin();
   const today = ymd(new Date());
@@ -48,7 +58,7 @@ async function main(): Promise<void> {
 
   const rows = await fetchRaceDateCounts(sb, from);
   console.log(`\n📋 sync 건전성 — ${from} ~ (오늘 ${today})\n`);
-  console.log('   경주일    출전  결과  결과경주  조합경주  조합배당  발주시각  상태');
+  console.log('   경주일    출전  결과  결과경주  조합경주  조합배당  발주시각  출마표  상태');
   const holes: number[] = [];
   for (const r of rows) {
     const st = classifyRaceDate(r, today);
@@ -58,11 +68,16 @@ async function main(): Promise<void> {
       `${MARK[st]} ${r.raceDate}  ${String(r.entries).padStart(4)}  ${String(r.ordFilled).padStart(4)}  ` +
       `${String(r.racesWithResult + '/' + r.races).padStart(8)}  ` +
       `${String(r.racesWithCombo + '/' + r.racesWithResult).padStart(8)}  ` +
-      `${String(r.comboRows).padStart(8)}  ${String(r.stTimeFilled + '/' + r.races).padStart(8)}  ${LABEL[st]}`
+      `${String(r.comboRows).padStart(8)}  ${String(r.stTimeFilled + '/' + r.races).padStart(8)}  ` +
+      `${cardCell(r.cardFetchedAt, r.raceDate).padStart(6)}  ${LABEL[st]}`
     );
   }
 
-  console.log('\n' + '='.repeat(74));
+  console.log('\n' + '='.repeat(82));
+  console.log(
+    `ℹ️  출마표 D-n = 경주 n일 전 수집이 마지막. 수·목·금 재실행이 정상이면 금 D-0~2 · 토 D-1~3 · 일 D-2~4로 줄어든다.\n` +
+    `   ${CARD_FETCH_TRACKED_SINCE} 이전 경주일은 값이 **최초** 수집 시각이라 실제보다 커 보인다(그날 매퍼가 고쳐짐 — TODO O-008).`
+  );
   if (holes.length === 0) {
     console.log('✅ 결과 구멍 없음');
   } else {

@@ -27,6 +27,24 @@ export async function racesWithComboSet(
 }
 
 /**
+ * 이 경주일 출마표를 마지막으로 수집한 시각. 한 행만 받는다(정렬 + limit 1).
+ *
+ * `fetched_at`은 2026-09-21까지 DB 기본값(`DEFAULT NOW()`)에만 의존해 **INSERT에만**
+ * 찍혔다 — 그래서 그 이전 경주일은 전부 "최초 수집 시각"이고, 재실행이 돌았는지
+ * 알 수 없다. 결과만 백필된 과거 행은 `null`이다(출마표를 받은 적 없음).
+ */
+export async function latestCardFetch(
+  sb: SupabaseClient,
+  raceDate: number
+): Promise<string | null> {
+  const { data, error: e } = await sb.from('race_entries')
+    .select('fetched_at').eq('race_date', raceDate)
+    .order('fetched_at', { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
+  if (e) throw new Error(`race_entries.fetched_at(${raceDate}): ${e.message}`);
+  return (data?.fetched_at as string | undefined) ?? null;
+}
+
+/**
  * `from`(YYYYMMDD) 이후 경주일 전체의 카운트를 모아 반환한다.
  * PostgREST 1000행 캡을 페이지네이션으로 넘긴다(이 저장소가 이미 겪은 함정).
  */
@@ -91,6 +109,7 @@ export async function fetchRaceDateCounts(
         : resultRaces.get(d)?.size ?? 0,
       stTimeFilled: await countOf('races', d, (q: any) => q.not('st_time', 'is', null)),
       comboRows: await countOf('combo_dividends', d),
+      cardFetchedAt: await latestCardFetch(sb, d),
     });
   }
 
