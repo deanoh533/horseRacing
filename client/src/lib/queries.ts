@@ -264,12 +264,19 @@ export function useWeeklyPicks(anchorDate: number = getTodayRaceDate()) {
 // 통계 페이지용 hooks
 // ============================================
 
+/**
+ * 월별 적중 집계. **이름이 아니라 규칙으로** 정의한다 — 영어 경마 용어(place=2착 안,
+ * show=3착 안)를 한국어로 직역해 "연승=1~2위 / 복승=1~3위"라고 부르던 것이 KRA 정의와
+ * 달랐다(TODO D-001). KRA 기준은 연승 = 1순위 3착 안, 복승 = 두 마리가 실제 1·2착.
+ * 규칙은 `/lab`(labMetrics.raceHits)과 같게 맞춘다 — 두 화면이 같은 말을 써야 한다.
+ */
 type MonthlyHitRate = {
   month: string; // 'YYYY-MM'
   total: number; // 유효 경주 수
-  win: number;   // 단승 적중 수
-  place: number; // 연승 (1~2위)
-  show: number;  // 복승 (1~3위)
+  win: number;   // 단승 — 1순위가 1착
+  in2: number;   // 1순위가 2착 안 (대응하는 KRA 베팅 용어 없음 — 중립 표기)
+  in3: number;   // 연승 — 1순위가 3착 안
+  quinella: number; // 복승 — 1·2순위 두 마리 모두 2착 안 (순서 무관)
 };
 
 /**
@@ -313,12 +320,18 @@ export function useMonthlyHitRate(monthsBack: number | null = 12) {
         const month = monthOf(first.race_date);
         const pred1 = horses.find((h) => h.predicted_rank === 1);
         if (!pred1 || pred1.actual_ord === null) continue;
+        const pred2 = horses.find((h) => h.predicted_rank === 2);
 
-        const m = byMonth.get(month) ?? { month, total: 0, win: 0, place: 0, show: 0 };
+        const m = byMonth.get(month) ?? { month, total: 0, win: 0, in2: 0, in3: 0, quinella: 0 };
         m.total++;
         if (pred1.actual_ord === 1) m.win++;
-        if (pred1.actual_ord <= 2) m.place++;
-        if (pred1.actual_ord <= 3) m.show++;
+        if (pred1.actual_ord <= 2) m.in2++;
+        if (pred1.actual_ord <= 3) m.in3++;
+        // 복승: 예측 1·2순위가 실제 1·2착을 차지(순서 무관). 2순위 예측이 없거나
+        // 착순이 없는 경주(취소·제외)는 적중이 아니다 — labMetrics.raceHits와 같은 규칙.
+        if (pred2 && pred2.actual_ord != null && pred1.actual_ord <= 2 && pred2.actual_ord <= 2) {
+          m.quinella++;
+        }
         byMonth.set(month, m);
       }
 

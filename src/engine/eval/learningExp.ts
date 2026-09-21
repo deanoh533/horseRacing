@@ -2,6 +2,10 @@
 import { rankHorses, type ScorableModel } from './score.js';
 import type { RaceRecord } from './types.js';
 
+/**
+ * 연승 적중률 — 1순위 픽이 **3착 안**. 이름의 `place`는 영어 경마 용어(2착 안)가
+ * 아니라 KRA 연승을 가리킨다(D-001). 계산은 `ord <= 3`이 정본.
+ */
 export function placeRate(m: ScorableModel, races: RaceRecord[]): number {
   if (races.length === 0) return 0;
   let hit = 0;
