@@ -607,8 +607,8 @@ function JockeyPanel({ entry, meet }: { entry: RaceEntry; meet: number }) {
               label="단승률"
               value={`${recentForm.wins}승 (${recentForm.total > 0 ? ((recentForm.wins / recentForm.total) * 100).toFixed(1) : 0}%)`}
             />
-            <KV label="연승(~2위)" value={`${recentForm.places}회`} />
-            <KV label="복승(~3위)" value={`${recentForm.shows}회`} />
+            <KV label="2착 이내" value={`${recentForm.places}회`} />
+            <KV label="3착 이내" value={`${recentForm.shows}회`} />
           </>
         )}
       </DetailCard>
@@ -624,8 +624,8 @@ function JockeyPanel({ entry, meet }: { entry: RaceEntry; meet: number }) {
               label="1위"
               value={`${combo.wins}승 (${combo.total > 0 ? ((combo.wins / combo.total) * 100).toFixed(1) : 0}%)`}
             />
-            <KV label="연승(~2위)" value={`${combo.places}회`} />
-            <KV label="복승(~3위)" value={`${combo.shows}회`} />
+            <KV label="2착 이내" value={`${combo.places}회`} />
+            <KV label="3착 이내" value={`${combo.shows}회`} />
           </>
         )}
       </DetailCard>
@@ -650,8 +650,8 @@ function TrainerPanel({ entry }: { entry: RaceEntry }) {
             <KV label="조교사" value={entry.trar_nm ?? '-'} />
             <KV label="출주" value={`${trainerStat.total}전`} />
             <KV label="1위" value={`${trainerStat.wins}승 (${trainerStat.total > 0 ? ((trainerStat.wins / trainerStat.total) * 100).toFixed(1) : 0}%)`} />
-            <KV label="연승(~2위)" value={`${trainerStat.places}회`} />
-            <KV label="복승(~3위)" value={`${trainerStat.shows}회`} />
+            <KV label="2착 이내" value={`${trainerStat.places}회`} />
+            <KV label="3착 이내" value={`${trainerStat.shows}회`} />
           </>
         )}
       </DetailCard>

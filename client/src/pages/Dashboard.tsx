@@ -31,7 +31,7 @@ const MEET_NAMES: Record<number, string> = {
   3: '부산경남',
 };
 
-const RECENT_WINDOW = 50; // 최근 N경주 복승권 적중률 표본
+const RECENT_WINDOW = 50; // 최근 N경주 연승(1순위 3착 안) 적중률 표본
 
 /** 순위 메달 — 예측 TOP3 타일(예측 순위)과 결과 줄(실제 착순)이 공유 */
 const MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -118,7 +118,7 @@ export function Dashboard() {
   }, [races]);
 
   // 현 활성 모델은 로지스틱 → weights={}, 계수는 artifact. 가중치 숫자 대신
-  // "최근 복승권 적중률 + 이번주 강추/주목 수"로 모델 상태를 요약한다.
+  // "최근 연승 적중률 + 이번주 강추/주목 수"로 모델 상태를 요약한다.
   const { data: archives } = useRecentArchives(RECENT_WINDOW);
   const { data: upcoming } = useWeeklyPicks();
 
@@ -208,7 +208,7 @@ export function Dashboard() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <ModelStat
-            label={`최근 ${recentShow?.n ?? RECENT_WINDOW}경주 복승권`}
+            label={`최근 ${recentShow?.n ?? RECENT_WINDOW}경주 연승`}
             value={recentShow ? recentShow.rate.toFixed(1) : '-'}
             unit={recentShow ? '%' : ''}
             color="cyan"

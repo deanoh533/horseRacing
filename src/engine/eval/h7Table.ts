@@ -20,8 +20,8 @@ export interface H7SqlRow {
   gapBucket: string;
   achieveBucket: string;
   starts: number;
-  winRate: number;   // 0~1
-  placeRate: number; // 0~1
+  winRate: number;   // 0~1 — 단승(1착)
+  placeRate: number; // 0~1 — 연승(3착 안). 영어 place(2착 안)가 아니다 (D-001)
 }
 
 export interface H7Cell {

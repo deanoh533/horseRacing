@@ -53,14 +53,17 @@ export function Statistics() {
     if (!monthlyHits || monthlyHits.length === 0) return null;
     const total = monthlyHits.reduce((s, m) => s + m.total, 0);
     const win = monthlyHits.reduce((s, m) => s + m.win, 0);
-    const place = monthlyHits.reduce((s, m) => s + m.place, 0);
-    const show = monthlyHits.reduce((s, m) => s + m.show, 0);
+    const in2 = monthlyHits.reduce((s, m) => s + m.in2, 0);
+    const in3 = monthlyHits.reduce((s, m) => s + m.in3, 0);
+    const quinella = monthlyHits.reduce((s, m) => s + m.quinella, 0);
     const winPct = (win / total) * 100;
-    const showPct = (show / total) * 100;
-    const placePct = (place / total) * 100;
-    const best = [...monthlyHits].sort((a, b) => b.show / b.total - a.show / a.total)[0]!;
-    const bestPct = (best.show / best.total) * 100;
-    return { total, winPct, placePct, showPct, bestMonth: best.month, bestPct };
+    const in2Pct = (in2 / total) * 100;
+    const in3Pct = (in3 / total) * 100;
+    const quinellaPct = (quinella / total) * 100;
+    // 대표 지표는 연승(1순위 3착 안) — 최고의 달도 이 기준으로 고른다
+    const best = [...monthlyHits].sort((a, b) => b.in3 / b.total - a.in3 / a.total)[0]!;
+    const bestPct = (best.in3 / best.total) * 100;
+    return { total, winPct, in2Pct, in3Pct, quinellaPct, bestMonth: best.month, bestPct };
   }, [monthlyHits]);
 
   return (
@@ -102,8 +105,8 @@ export function Statistics() {
                   labels: monthlyHits.map((m) => m.month),
                   datasets: [
                     {
-                      label: '복승 (1-3위)',
-                      data: monthlyHits.map((m) => Math.round((m.show / m.total) * 1000) / 10),
+                      label: '연승 (1순위 3착 안)',
+                      data: monthlyHits.map((m) => Math.round((m.in3 / m.total) * 1000) / 10),
                       borderColor: CHART_COLORS.cyan,
                       backgroundColor: `${CHART_COLORS.cyan}20`,
                       fill: true,
@@ -112,15 +115,23 @@ export function Statistics() {
                       pointRadius: 3,
                     },
                     {
-                      label: '연승 (1-2위)',
-                      data: monthlyHits.map((m) => Math.round((m.place / m.total) * 1000) / 10),
+                      label: '1순위 2착 안',
+                      data: monthlyHits.map((m) => Math.round((m.in2 / m.total) * 1000) / 10),
                       borderColor: CHART_COLORS.gold,
                       borderDash: [4, 4],
                       tension: 0.3,
                       pointRadius: 2,
                     },
                     {
-                      label: '단승 (1위)',
+                      label: '복승 (1·2순위 → 1·2착)',
+                      data: monthlyHits.map((m) => Math.round((m.quinella / m.total) * 1000) / 10),
+                      borderColor: CHART_COLORS.success,
+                      borderDash: [6, 3],
+                      tension: 0.3,
+                      pointRadius: 2,
+                    },
+                    {
+                      label: '단승 (1착)',
                       data: monthlyHits.map((m) => Math.round((m.win / m.total) * 1000) / 10),
                       borderColor: CHART_COLORS.pink,
                       borderDash: [2, 2],
@@ -149,11 +160,12 @@ export function Statistics() {
               />
             </div>
             {summary && (
-              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                 <Stat label="총 경주" value={`${summary.total.toLocaleString()}`} unit="" />
-                <Stat label="단승 적중률" value={summary.winPct.toFixed(1)} unit="%" color="pink" />
-                <Stat label="연승" value={summary.placePct.toFixed(1)} unit="%" color="gold" />
-                <Stat label="복승" value={summary.showPct.toFixed(1)} unit="%" color="cyan" />
+                <Stat label="단승 (1착)" value={summary.winPct.toFixed(1)} unit="%" color="pink" />
+                <Stat label="1순위 2착 안" value={summary.in2Pct.toFixed(1)} unit="%" color="gold" />
+                <Stat label="연승 (3착 안)" value={summary.in3Pct.toFixed(1)} unit="%" color="cyan" />
+                <Stat label="복승 (두 마리)" value={summary.quinellaPct.toFixed(1)} unit="%" color="cyan" />
               </div>
             )}
           </>
