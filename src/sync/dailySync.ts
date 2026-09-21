@@ -222,6 +222,9 @@ async function syncMeet(
                 rc_no: rcNo,
                 pthr_no: horse.chulNo,
                 hr_name: horse.hrName,
+                // 출마표를 받은 적이 없는 행이다. DB 기본값(NOW())에 맡기면
+                // "방금 출마표를 받았다"로 위조돼 신선도 판정이 거짓말을 한다.
+                fetched_at: null,
                 ag: horse.age ?? null,
                 gndr: horse.sex ?? null,
                 burd_wgt: horse.wgBudam ?? null,

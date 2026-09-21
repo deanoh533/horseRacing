@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { toTrainingRow, toRaceRow, toRaceRowFromEntrySheet, toRaceEntryResultRow } from './transformer.js';
+import {
+  toTrainingRow, toRaceRow, toRaceRowFromEntrySheet, toRaceEntryResultRow,
+  toRaceEntryRowFromEntrySheet,
+} from './transformer.js';
 
 // KRATrainingRecord 픽스처 (hrNo만 가변 — KRA가 문자열/숫자 혼재 반환)
 const rec = (hrNo: unknown) =>
@@ -69,6 +72,38 @@ describe('toRaceRowFromEntrySheet 발주시각', () => {
     expect(row.st_time).toBe('출발 :10:35');
     expect(row.chaksun4).toBe(200);
     expect(row.chaksun5).toBe(100);
+  });
+});
+
+// ============================================
+// fetched_at — 출마표 신선도
+// 회귀: DB 기본값(DEFAULT NOW(), migration 004)에만 맡기면 INSERT에만 찍혀
+// "최초 수집 시각"이 된다. 2026-09-17 출마표 잡이 전멸했는데도 9/18~20 행은
+// 전부 9/16 값 그대로였고(재실행은 UPDATE라 기본값이 안 먹음), 설정탭은 그 값을
+// "마지막 수집 시각"으로 보여주고 있었다. 매퍼가 매번 채워야 신선도가 보인다.
+// ============================================
+describe('toRaceEntryRowFromEntrySheet fetched_at (회귀: 재실행이 수집 시각을 안 남김)', () => {
+  const item = () =>
+    ({
+      rcDate: 20260919, meet: '서울', rcNo: 1, chulNo: 3, hrName: '천하무적',
+      hrNo: '0050860', jkNo: '080476', trNo: '070090', age: 4, sex: '수',
+      wgBudam: 55, rating: 0,
+    }) as any;
+
+  it('출마표 행에 수집 시각을 남긴다', () => {
+    const before = Date.now();
+    const row = toRaceEntryRowFromEntrySheet(item());
+    const t = Date.parse(row.fetched_at);
+    expect(Number.isNaN(t)).toBe(false);
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('재실행마다 갱신된다 (UPDATE 경로에서도 값이 실려야 함)', async () => {
+    const first = toRaceEntryRowFromEntrySheet(item()).fetched_at;
+    await new Promise((r) => setTimeout(r, 2));
+    const second = toRaceEntryRowFromEntrySheet(item()).fetched_at;
+    expect(Date.parse(second)).toBeGreaterThan(Date.parse(first));
   });
 });
 
