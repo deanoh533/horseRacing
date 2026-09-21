@@ -247,7 +247,7 @@ export function Dashboard() {
       {/* 경마장별 경주 목록 */}
       {races && races.length > 0 && (
         <>
-          {[1, 3].map((meet) => {
+          {MEET_CODES.map((meet) => {
             const meetRaces = racesByMeet[meet] ?? [];
             if (meetRaces.length === 0) return null;
             return (
