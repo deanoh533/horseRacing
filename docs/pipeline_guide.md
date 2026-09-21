@@ -375,6 +375,23 @@ npm run probe:v7-accuracy -- --from YYYYMMDD --to YYYYMMDD  # v7 라이브 판�
 `src/engine/eval/v7Accuracy.ts`(테스트: 동일 디렉터리 `.test.ts`), DB 조회·CLI 출력은
 `scripts/probe_v7_accuracy.ts`.
 
+
+### 경주 전 배당 관찰 (`npm run probe:live-odds`) — O-005
+
+```bash
+npm run probe:live-odds -- --date 20260925 --meet 1 --rc 1   # 발주 60분 전
+npm run probe:live-odds -- --date 20260925 --meet 1 --rc 1   # 발주 20분 전
+npm run probe:live-odds -- --date 20260925 --meet 1 --rc 1   # 발주 직후
+```
+
+**왜 필요한가:** `API160_1`이 아직 시행 안 된 경주에도 조합배당을 내려준 사례가 있다(2026-08-23).
+그게 **발매 중 실시간 배당**이면 배당 블렌드 후보가 "라이브 배당 API 없음"으로 보류된 전제가 깨진다
+(검증 당시 연승 +7~11.5%p 양성). 확정배당을 미리 노출한 것뿐이면 트랙은 종결.
+
+호출할 때마다 원본을 `data/live_odds/<date>_m<meet>_r<rc>/`에 저장하고(git 제외), 직전·최초 호출과
+pool별로 비교해 `변함 / 그대로 / 신규 / 사라짐` 건수와 바뀐 조합 예시를 찍는다. 마지막 줄이 판정이다.
+비교 로직은 `src/kra/oddsSnapshot.ts`(순수 함수, 테스트 11건), KRA 호출은 **사용자가 직접 실행**.
+
 ### sync 건전성 점검
 
 ```bash
@@ -463,3 +480,4 @@ npm run probe:sync-health -- --from 20260801 # 범위 지정
 | 2026-07-11 | `probe:v7-accuracy` 추가 (v7 라이브 적중률 판정, L-001 predictions 보존 전략과 함께 도입) |
 | 2026-07-12 | sync 자동화·predictions 스냅샷·재학습 동결 정책 섹션 추가 (L-002~005) |
 | 2026-09-18 | 섀도 실험실(`/lab`) 명령어 추가 — `shadow:leak-check`·`shadow:backfill`·`exp:learning`·`learn:logistic --shadow`. 마이그레이션 018 미적용 경고 (재학습 정책 절) |
+| 2026-09-21 | `probe:live-odds` 추가 — 경주 전 조합배당 실시간 여부 관찰(O-005) |
