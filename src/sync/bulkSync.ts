@@ -7,7 +7,7 @@
  */
 import { syncDay } from './dailySync.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
-import type { MeetCode } from '@app-types/index.js';
+import { SYNC_MEETS, type MeetCode } from '@app-types/index.js';
 
 interface BulkSyncOptions {
   fromDate: number;
@@ -20,7 +20,7 @@ interface BulkSyncOptions {
  */
 async function bulkSync(options: BulkSyncOptions) {
   const dates = generateDateRange(options.fromDate, options.toDate);
-  const meets = options.meets ?? [1, 3];
+  const meets = options.meets ?? [...SYNC_MEETS];
 
   console.log('='.repeat(60));
   console.log(`📅 Bulk Sync: ${options.fromDate} ~ ${options.toDate}`);

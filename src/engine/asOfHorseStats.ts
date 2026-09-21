@@ -9,7 +9,7 @@
  *    현재 경주가 자동 제외되어 누수가 사라진다.
  */
 import type { ReadClient } from '../db/localDb.js';
-import { parBucketKey, raceSpeedFigure, computeAbilityRaw } from './speedFigure.js';
+import { lookupParTime, raceSpeedFigure, computeAbilityRaw } from './speedFigure.js';
 import { SPEED_FIGURE_N } from './scoreItems/20_speed_figure.js';
 import { computePaceFormStats, labelPastRacePace, type PaceBucket, type PaceFormStats } from './features/paceForm.js';
 import { paceParKey, type PaceParMap } from './pacePar.js';
@@ -206,7 +206,7 @@ export async function fetchAsOfHorseStats(
   const figs: number[] = [];
   for (const r of past) {
     if (r.rc_time == null || r.rc_dist == null || r.track_type == null) continue;
-    const par = parMap.get(parBucketKey(r.meet, r.rc_dist, r.track_type));
+    const par = lookupParTime(parMap, r.meet, r.rc_dist, r.track_type);
     if (par == null) continue;
     const f = raceSpeedFigure(r.rc_time, par);
     if (f != null) figs.push(f);

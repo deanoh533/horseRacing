@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parBucketKey, raceSpeedFigure, computeAbilityRaw, figuresBeforeDate } from './speedFigure.js';
+import { parBucketKey, lookupParTime, raceSpeedFigure, computeAbilityRaw, figuresBeforeDate } from './speedFigure.js';
 
 describe('parBucketKey', () => {
   it('meet·거리·주로를 하나의 키로', () => {
@@ -44,5 +44,31 @@ describe('figuresBeforeDate (as-of 누수 차단)', () => {
   });
   it('과거가 없으면 빈 배열', () => {
     expect(figuresBeforeDate(timeline, 20250101)).toEqual([]);
+  });
+});
+
+describe('lookupParTime — 신설 경마장 대체', () => {
+  const map = new Map<string, number>([
+    ['3|1200|주로', 74.5],
+    ['4|1400|주로', 86.1],
+    ['1|1200|주로', 73.9],
+  ]);
+
+  // 영천(2026-09-13 개장)은 표본이 쌓일 때까지 자기 버킷이 없다
+  it('영천 버킷이 없으면 부경 값을 빌려 쓴다', () => {
+    expect(lookupParTime(map, 4, 1200, '주로')).toBe(74.5);
+  });
+
+  it('영천 버킷이 생기면 자기 값을 쓴다 (자동 전환)', () => {
+    expect(lookupParTime(map, 4, 1400, '주로')).toBe(86.1);
+  });
+
+  it('서울은 대체하지 않는다', () => {
+    expect(lookupParTime(map, 1, 1200, '주로')).toBe(73.9);
+    expect(lookupParTime(map, 1, 9999, '주로')).toBeUndefined();
+  });
+
+  it('부경 버킷도 없으면 undefined (억지로 만들지 않는다)', () => {
+    expect(lookupParTime(map, 4, 9999, '주로')).toBeUndefined();
   });
 });

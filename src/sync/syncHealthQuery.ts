@@ -64,13 +64,20 @@ export async function fetchRaceDateCounts(
 
   // 경주일 목록만 행으로 받는다 (경주일당 8~17행이라 페이지네이션으로 충분).
   // 휴장일은 races 행 자체가 없어 자동으로 빠진다.
+  // 경마장(meet)도 함께 받는다 — 경마장이 통째로 빠지는 변화를 보려면 필요하다
   const raceDates = new Set<number>();
+  const meetsByDate = new Map<number, Set<number>>();
   for (let page = 0; ; page++) {
     const { data, error: e } = await sb.from('races')
-      .select('race_date').gte('race_date', from)
+      .select('race_date,meet').gte('race_date', from)
       .order('race_date').range(page * 1000, page * 1000 + 999);
     if (e) throw e;
-    for (const r of (data ?? []) as Array<{ race_date: number }>) raceDates.add(r.race_date);
+    for (const r of (data ?? []) as Array<{ race_date: number; meet: number }>) {
+      raceDates.add(r.race_date);
+      const s = meetsByDate.get(r.race_date) ?? new Set<number>();
+      s.add(r.meet);
+      meetsByDate.set(r.race_date, s);
+    }
     if (!data || data.length < 1000) break;
   }
 
@@ -110,6 +117,7 @@ export async function fetchRaceDateCounts(
       stTimeFilled: await countOf('races', d, (q: any) => q.not('st_time', 'is', null)),
       comboRows: await countOf('combo_dividends', d),
       cardFetchedAt: await latestCardFetch(sb, d),
+      meets: [...(meetsByDate.get(d) ?? [])].sort(),
     });
   }
 

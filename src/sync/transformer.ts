@@ -1,7 +1,7 @@
 /**
  * KRA API 응답 → Supabase DB 행 변환
  */
-import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo } from '@app-types/index.js';
+import type { KRARaceResult, KRARaceDetail, KRAHorseInfo, KRABloodInfo, MeetCode } from '@app-types/index.js';
 import type { KRARaceCard, KRAEntrySheetItem, KRATrainingRecord, KRAJockeyStat, KRAComboDividend } from '@kra/client.js';
 import { parseWgHr, extractTrackType } from '@utils/parsers.js';
 
@@ -35,13 +35,20 @@ export interface RaceRow {
 }
 
 /**
- * "부경" / "서울" → meet 코드
+ * 경마장명 → meet 코드. **출마표(API26_2) 응답에만 쓴다** — 결과 API(API214_1)는
+ * 경마장에 따라 `meet` 필드를 안 주기 때문이다(2026-09-21 실측: 서울은 "서울"을
+ * 주지만 영천은 키 자체가 없다). 결과 경로는 우리가 호출할 때 쓴 코드를 그대로 쓴다.
+ *
+ * 모르는 이름은 **던진다**. 예전엔 0을 돌려줘서 `meet=0`으로 조용히 저장됐는데,
+ * PK가 (race_date, meet, rc_no, pthr_no)라 충돌도 안 나고 화면에도 안 뜨는 은폐 버그가 된다.
+ * 호출부(raceCardSync·dailySync)는 경주 단위 try/catch가 있어 에러로 세어진다.
  */
-function meetNameToCode(meetName: string): number {
-  if (meetName.includes('서울')) return 1;
-  if (meetName.includes('부경') || meetName.includes('부산')) return 3;
-  if (meetName.includes('제주')) return 2;
-  return 0; // unknown
+function meetNameToCode(meetName: string | null | undefined): MeetCode {
+  const name = meetName ?? '';
+  if (name.includes('서울')) return 1;
+  if (name.includes('부경') || name.includes('부산')) return 3;
+  if (name.includes('영천')) return 4;
+  throw new Error(`알 수 없는 경마장명: "${meetName}" — meetNameToCode에 추가 필요`);
 }
 
 /**
@@ -50,11 +57,14 @@ function meetNameToCode(meetName: string): number {
  * 같은 경주의 첫 번째 말 데이터를 사용 (모든 말이 동일 경주 정보).
  * 결과 API가 모르는 컬럼(발주시각·4·5착 상금)은 반환 객체에서 빼서
  * 출마표 sync가 채운 값이 살아남게 한다 — RaceRow 주석 참고.
+ *
+ * `meet`은 **호출자가 넘긴다**. 결과 응답의 경마장명은 믿을 수 없다 —
+ * 영천은 `meet` 키 자체가 없다(2026-09-21 실측). 어차피 호출할 때 쓴 코드가 정답이다.
  */
-export function toRaceRow(horse: KRARaceResult): RaceRow {
+export function toRaceRow(horse: KRARaceResult, meet: MeetCode): RaceRow {
   return {
     race_date: horse.rcDate,
-    meet: meetNameToCode(horse.meet),
+    meet,
     rc_no: horse.rcNo,
     rc_dist: horse.rcDist ?? null,
     rc_name: horse.rcName ?? null,
@@ -361,12 +371,14 @@ export function toRaceRowFromEntrySheet(item: KRAEntrySheetItem): RaceRow {
 
 /**
  * KRARaceResult → race_entries 결과 컬럼 (경기 후 UPDATE용)
+ *
+ * `meet`은 호출자가 넘긴다 — `toRaceRow`와 같은 이유(영천 응답엔 경마장명이 없다).
  */
-export function toRaceEntryResultRow(horse: KRARaceResult): RaceEntryResultRow {
+export function toRaceEntryResultRow(horse: KRARaceResult, meet: MeetCode): RaceEntryResultRow {
   const wgHrParsed = parseWgHr(horse.wgHr);
   return {
     race_date: horse.rcDate,
-    meet: meetNameToCode(horse.meet),
+    meet,
     rc_no: horse.rcNo,
     hr_name: horse.hrName,
     hr_no: horse.hrNo ?? null,

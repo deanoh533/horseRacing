@@ -65,7 +65,7 @@ async function main() {
       }
 
       for (const horse of horses) {
-        const row = toRaceEntryResultRow(horse);
+        const row = toRaceEntryResultRow(horse, meet);
         const { error: updErr } = await sb
           .from('race_entries')
           .update({

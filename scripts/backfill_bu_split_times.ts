@@ -46,7 +46,7 @@ async function main() {
       }
 
       for (const horse of horses) {
-        const row = toRaceEntryResultRow(horse);
+        const row = toRaceEntryResultRow(horse, 3);
         const { error: updErr } = await supabase
           .from('race_entries')
           .update({

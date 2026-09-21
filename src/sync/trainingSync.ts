@@ -13,7 +13,7 @@
 import { getKRAClient } from '@kra/client.js';
 import { getSupabaseAdmin } from '@db/supabase.js';
 import { toTrainingRow } from './transformer.js';
-import type { MeetCode } from '@app-types/index.js';
+import { SYNC_MEETS, type MeetCode } from '@app-types/index.js';
 
 export interface TrainingSyncResult {
   meet: MeetCode;
@@ -27,7 +27,7 @@ export async function syncTraining(options: {
   meets?: MeetCode[];
   hrNo?: string;
 }): Promise<TrainingSyncResult[]> {
-  const meets: MeetCode[] = options.meets ?? [1, 3];
+  const meets: MeetCode[] = options.meets ?? [...SYNC_MEETS];
   const results: TrainingSyncResult[] = [];
 
   console.log(`\n훈련 sync: ${options.trDate} (meets: ${meets.join(',')})`);
@@ -122,7 +122,7 @@ async function main() {
   let trDate = 0;
   let fromDate = 0;
   let toDate = 0;
-  let meets: MeetCode[] = [1, 3];
+  let meets: MeetCode[] = [...SYNC_MEETS];
   let hrNo: string | undefined;
 
   for (let i = 0; i < args.length; i++) {

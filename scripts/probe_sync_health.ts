@@ -20,6 +20,7 @@ import { fetchRaceDateCounts } from '../src/sync/syncHealthQuery.js';
 import { isCatchupTarget } from '../src/sync/catchupLogic.js';
 import {
   cardAgeDays, CARD_FETCH_TRACKED_SINCE, classifyRaceDate, ST_TIME_PRESERVED_SINCE,
+  venueChanges, weekdayOf,
   type SyncDateStatus,
 } from '../src/utils/syncHealth.js';
 
@@ -38,6 +39,10 @@ const LABEL: Record<SyncDateStatus, string> = {
   ok: '정상', pending: '결과 대기', partial: '조합배당 누락',
   gap: '경주 일부 구멍', hole: '결과 구멍',
 };
+
+/** 경마장 코드 → 이름 (probe 표시용) */
+const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부경', 4: '영천' };
+const DOW = '일월화수목금토';
 
 /**
  * 출마표 칸 — "경주 며칠 전 수집이 마지막인가". `D-3`처럼 찍는다.
@@ -58,7 +63,7 @@ async function main(): Promise<void> {
 
   const rows = await fetchRaceDateCounts(sb, from);
   console.log(`\n📋 sync 건전성 — ${from} ~ (오늘 ${today})\n`);
-  console.log('   경주일    출전  결과  결과경주  조합경주  조합배당  발주시각  출마표  상태');
+  console.log('   경주일    출전  결과  결과경주  조합경주  조합배당  발주시각  출마표  경마장   상태');
   const holes: number[] = [];
   for (const r of rows) {
     const st = classifyRaceDate(r, today);
@@ -69,8 +74,26 @@ async function main(): Promise<void> {
       `${String(r.racesWithResult + '/' + r.races).padStart(8)}  ` +
       `${String(r.racesWithCombo + '/' + r.racesWithResult).padStart(8)}  ` +
       `${String(r.comboRows).padStart(8)}  ${String(r.stTimeFilled + '/' + r.races).padStart(8)}  ` +
-      `${cardCell(r.cardFetchedAt, r.raceDate).padStart(6)}  ${LABEL[st]}`
+      `${cardCell(r.cardFetchedAt, r.raceDate).padStart(6)}  ` +
+      `${r.meets.map((m) => MEET_NAMES[m] ?? `?${m}`).join('+').padEnd(7)}  ${LABEL[st]}`
     );
+  }
+
+  // 경마장 구성 변화 — 2026-09-13 영천 개장으로 일요일 부경이 통째로 넘어갔는데
+  // races 행이 없으니 기존 판정엔 휴장일과 똑같이 보였다(2주치를 놓쳤다).
+  const changes = venueChanges(rows);
+  if (changes.length > 0) {
+    console.log('\n⚠️  경마장 구성이 바뀐 날 (같은 요일끼리 비교)');
+    for (const c of changes) {
+      const name = (m: number): string => MEET_NAMES[m] ?? `?${m}`;
+      const parts = [
+        c.missing.length ? `빠짐 ${c.missing.map(name).join(',')}` : '',
+        c.added.length ? `생김 ${c.added.map(name).join(',')}` : '',
+      ].filter(Boolean).join(' · ');
+      console.log(`   ${c.raceDate}(${DOW[weekdayOf(c.raceDate)]})  ${parts}   ← ${c.comparedTo} 대비`);
+    }
+    console.log('   경마장이 빠졌는데 이유를 모르면 `npx tsx scripts/probe_meet_codes.ts --date <경주일>`로');
+    console.log('   우리가 안 부르는 코드에 경주가 있는지 확인할 것.');
   }
 
   console.log('\n' + '='.repeat(82));

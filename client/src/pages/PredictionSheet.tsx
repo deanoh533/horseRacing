@@ -57,7 +57,7 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip);
 
 // ─── 상수 ────────────────────────────────────────────────────────────
 
-const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부경' };
+import { MEET_NAMES } from '../lib/meets';
 
 
 const PODIUM_STYLES = [

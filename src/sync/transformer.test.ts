@@ -38,7 +38,7 @@ const resultHorse = () =>
 
 describe('toRaceRow 컬럼 보존 (회귀: 결과 sync가 출마표 값을 NULL로 덮어씀)', () => {
   it('결과 API가 모르는 컬럼은 행에 아예 넣지 않는다 (upsert SET 절 제외 → 기존 값 보존)', () => {
-    const row = toRaceRow(resultHorse());
+    const row = toRaceRow(resultHorse(), 1);
     // 키 자체가 없어야 한다. `st_time: null`이면 upsert가 NULL로 덮어쓴다.
     expect('st_time' in row).toBe(false);
     expect('chaksun4' in row).toBe(false);
@@ -46,7 +46,7 @@ describe('toRaceRow 컬럼 보존 (회귀: 결과 sync가 출마표 값을 NULL�
   });
 
   it('결과 API가 주는 컬럼은 그대로 채운다', () => {
-    const row = toRaceRow(resultHorse());
+    const row = toRaceRow(resultHorse(), 1);
     expect(row.race_date).toBe(20260823);
     expect(row.meet).toBe(1);
     expect(row.rc_no).toBe(3);
@@ -123,18 +123,18 @@ const entryHorse = (ord: unknown) =>
 
 describe('toRaceEntryResultRow ord 가드 (회귀: 미시행 경주 0위 저장)', () => {
   it('ord=0(미시행·미확정)은 null — 저장하면 "0위" 표시 + 적중률 오염', () => {
-    expect(toRaceEntryResultRow(entryHorse(0)).ord).toBeNull();
+    expect(toRaceEntryResultRow(entryHorse(0), 1).ord).toBeNull();
   });
   it('ord=90+(실격·기권 코드)는 기존대로 null', () => {
-    expect(toRaceEntryResultRow(entryHorse(99)).ord).toBeNull();
+    expect(toRaceEntryResultRow(entryHorse(99), 1).ord).toBeNull();
   });
   it('ord=null은 null', () => {
-    expect(toRaceEntryResultRow(entryHorse(null)).ord).toBeNull();
+    expect(toRaceEntryResultRow(entryHorse(null), 1).ord).toBeNull();
   });
   it('정상 착순 1은 보존 (경계값 — 하한 가드가 1을 잡아먹으면 안 됨)', () => {
-    expect(toRaceEntryResultRow(entryHorse(1)).ord).toBe(1);
+    expect(toRaceEntryResultRow(entryHorse(1), 1).ord).toBe(1);
   });
   it('정상 착순 12는 보존', () => {
-    expect(toRaceEntryResultRow(entryHorse(12)).ord).toBe(12);
+    expect(toRaceEntryResultRow(entryHorse(12), 1).ord).toBe(12);
   });
 });

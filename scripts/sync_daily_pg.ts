@@ -165,7 +165,7 @@ async function syncDate(pg: Client, rcDate: number, meets: MeetCode[]): Promise<
 
       for (const [rcNo, horses] of racesByRcNo) {
         try {
-          const raceRow = toRaceRow(horses[0]!) as unknown as Record<string, unknown>;
+          const raceRow = toRaceRow(horses[0]!, meet) as unknown as Record<string, unknown>;
           await upsertRace(pg, raceRow);
 
           const popMap = calculatePopularities(horses);
@@ -173,7 +173,7 @@ async function syncDate(pg: Client, rcDate: number, meets: MeetCode[]): Promise<
           for (const horse of horses) {
             if (!horse.hrName) continue;
 
-            const resultRow = toRaceEntryResultRow(horse) as unknown as Record<string, unknown>;
+            const resultRow = toRaceEntryResultRow(horse, meet) as unknown as Record<string, unknown>;
             const popularity = popMap.get(horse.hrNo) ?? null;
 
             const { rows: existing } = await pg.query(

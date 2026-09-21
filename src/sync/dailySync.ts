@@ -34,7 +34,7 @@ import { predictRace } from '../engine/scorePredictor.js';
 import { updateShadowActualOrd } from './shadowWriter.js';
 import { yyyymmddOffset, emptySyncVerdict } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
-import type { MeetCode } from '@app-types/index.js';
+import { SYNC_MEETS, type MeetCode } from '@app-types/index.js';
 
 interface SyncOptions {
   rcDate: number;
@@ -53,7 +53,7 @@ interface SyncResult {
 }
 
 export async function syncDay(options: SyncOptions): Promise<SyncResult[]> {
-  const meets: MeetCode[] = options.meets ?? [1, 3];
+  const meets: MeetCode[] = options.meets ?? [...SYNC_MEETS];
   const results: SyncResult[] = [];
 
   console.log(`\n🔄 ${options.rcDate} 동기화 시작 (meets: ${meets.join(',')})`);
@@ -117,7 +117,7 @@ async function syncMeet(
         }
 
         // 1. races upsert (거리/주로/날씨 채움)
-        const raceRow = toRaceRow(horses[0]!);
+        const raceRow = toRaceRow(horses[0]!, meet);
         const { error: raceError } = await supabase
           .from('races')
           .upsert(raceRow, { onConflict: 'race_date,meet,rc_no' });
@@ -136,7 +136,7 @@ async function syncMeet(
             console.warn(`    [meet=${meet}, rcNo=${rcNo}] hrName 없는 항목 스킵 (chulNo=${horse.chulNo})`);
             continue;
           }
-          const resultRow = toRaceEntryResultRow(horse);
+          const resultRow = toRaceEntryResultRow(horse, meet);
           resultRow.popularity = popMap.get(horse.hrNo) ?? null;
           resultOrds.push({ hrName: horse.hrName, ord: resultRow.ord });
 
@@ -428,7 +428,7 @@ async function syncMeet(
 async function main() {
   const args = process.argv.slice(2);
   let rcDate = 0;
-  let meets: MeetCode[] = [1, 3];
+  let meets: MeetCode[] = [...SYNC_MEETS];
   let failOnEmpty = false;
 
   for (let i = 0; i < args.length; i++) {

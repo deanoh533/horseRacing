@@ -29,6 +29,7 @@
     "probe:v7-accuracy": "tsx scripts/probe_v7_accuracy.ts",
     "probe:sync-health": "tsx scripts/probe_sync_health.ts",
     "probe:sync-runs": "tsx scripts/probe_sync_runs.ts",
+    "probe:meets": "tsx scripts/probe_meet_codes.ts",
     "probe:picks": "tsx scripts/probe_selective_picks.ts",
     "probe:picks:roi": "tsx scripts/probe_picks_roi.ts",
     "probe:picks:oos": "tsx scripts/probe_picks_oos.ts",

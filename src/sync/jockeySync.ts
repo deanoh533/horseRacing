@@ -32,6 +32,8 @@ export async function syncJockeys(
   const sb = getSupabaseAdmin();
   const kra = getKRAClient();
 
+  // 기수 통산은 KRA가 **소속 본부**별로 집계한다. 영천(4)은 개최지일 뿐 소속이 아니라
+  // 그 코드로 부르면 없는 집계를 만들거나 부경 통산이 중복 행으로 들어온다 → 제외.
   const meetsToSync: MeetCode[] = options.meet ? [options.meet] : [1, 3];
 
   for (const meet of meetsToSync) {
