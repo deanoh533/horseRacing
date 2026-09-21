@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronDown, Sparkles, Bot, Loader2 } from 'lucide-react';
-import { useHorsesByRace, usePredictionsByRace, useGradeWinnerStats } from '../lib/queries';
+import { useHorsesByRace, usePredictionsByRace } from '../lib/queries';
 import { RaceInfoBlock } from '../components/RaceInfoBlock';
 import { fmtScore } from '../lib/sectional';
 import { supabase, type RaceEntry, type Race, type Prediction, formatActualOrd, isCancelled } from '../lib/supabase';
@@ -39,7 +39,6 @@ export function RaceDetail() {
   const { data: race } = useRaceMeta(rcDate, meet, rcNo);
   const { data: horses, isLoading, error } = useHorsesByRace(rcDate, meet, rcNo);
   const { data: predictions } = usePredictionsByRace(rcDate, meet, rcNo);
-  const { data: gradeStats } = useGradeWinnerStats(race?.prize_cond ?? null, race?.rc_dist ?? null);
 
   // hr_name → Prediction 맵
   const predictionMap = useMemo(() => {
@@ -83,7 +82,6 @@ export function RaceDetail() {
         rcNo={rcNo}
         race={race}
         horses={horses}
-        gradeStats={gradeStats}
       />
 
       {/* AI 요약 (placeholder - Phase 2) */}
