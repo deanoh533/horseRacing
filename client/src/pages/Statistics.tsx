@@ -35,7 +35,7 @@ const PERIODS = [
   { label: '전체', months: null as number | null },
 ] as const;
 
-const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부산경남' };
+import { MEET_NAMES } from '../lib/meets';
 
 export function Statistics() {
   const [periodIdx, setPeriodIdx] = useState(2); // 기본 1년

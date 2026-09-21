@@ -44,6 +44,82 @@ export interface RaceDateCounts {
    * 재실행이 실제로 무엇을 갱신하는지 실측한 뒤 판정에 넣을지 정한다(TODO O-008).
    */
   cardFetchedAt: string | null;
+  /**
+   * 그날 경주가 있었던 경마장 코드들. 구멍 판정에는 안 쓰고 **경마장이 통째로
+   * 빠지는 변화**를 보려고 갖고 있는다 — 2026-09-13 영천 개장으로 일요일 부경 경주가
+   * 영천으로 넘어갔는데, 우리가 meet=4를 안 불러서 2주치를 통째로 놓쳤다.
+   * `races` 행이 아예 없으니 기존 판정에는 휴장일과 똑같이 보였다.
+   */
+  meets: number[];
+}
+
+/**
+ * 이 예측이 **경주 전에** 만들어졌나 — 라이브 적중률에 넣어도 되는지의 기준.
+ *
+ * 백필로 만든 예측은 사전 모드(ord NULL)로 계산돼도 라이브가 아니다. `race_entries`의
+ * 누적 필드(수득상금·통산성적)가 말 단위 **현재 스냅샷**이라, 경주가 끝난 뒤에 받으면
+ * 그 경주 결과가 이미 섞여 있다([[reference_earnings_asof_leak]]). 2026-09-22 영천
+ * 12경주를 백필하면서 실제로 이 경로가 생겼다.
+ *
+ * `createdAt`(ISO)을 KST 날짜로 읽어 경주일 이하이면 라이브로 본다.
+ */
+export function isLivePrediction(createdAt: string | null | undefined, raceDate: number): boolean {
+  if (!createdAt) return false; // 생성 시각을 모르면 라이브라고 우길 수 없다
+  const t = Date.parse(createdAt);
+  if (Number.isNaN(t)) return false;
+  const kst = new Date(t + 9 * 3600_000);
+  const made = Number(kst.toISOString().slice(0, 10).replace(/-/g, ''));
+  return made <= raceDate;
+}
+
+/** YYYYMMDD → 요일 (0=일) */
+export function weekdayOf(raceDate: number): number {
+  return new Date(Date.UTC(
+    Math.floor(raceDate / 10000),
+    Math.floor((raceDate % 10000) / 100) - 1,
+    raceDate % 100
+  )).getUTCDay();
+}
+
+/** 경마장 구성이 바뀐 날 */
+export interface VenueChange {
+  raceDate: number;
+  /** 직전 같은 요일엔 있었는데 이번엔 없는 경마장 */
+  missing: number[];
+  /** 직전 같은 요일엔 없었는데 새로 생긴 경마장 */
+  added: number[];
+  comparedTo: number;
+}
+
+/**
+ * **같은 요일끼리** 비교해 경마장 구성이 바뀐 날을 찾는다.
+ *
+ * "금=부경·토=서울·일=서울+영천" 같은 일정표를 코드에 박으면 다음 개편 때 또 못 잡는다
+ * — 이번에 놓친 이유가 정확히 그거다. 그래서 일정표 대신 **직전 같은 요일과의 차이**만 본다.
+ * 개편은 한 번만 경고하고 새 구성이 기준이 된다.
+ */
+export function venueChanges(
+  dates: Array<{ raceDate: number; meets: number[] }>
+): VenueChange[] {
+  const sorted = [...dates].sort((a, b) => a.raceDate - b.raceDate);
+  const lastByWeekday = new Map<number, { raceDate: number; meets: number[] }>();
+  const out: VenueChange[] = [];
+
+  for (const d of sorted) {
+    const wd = weekdayOf(d.raceDate);
+    const prev = lastByWeekday.get(wd);
+    if (prev) {
+      const now = new Set(d.meets);
+      const before = new Set(prev.meets);
+      const missing = [...before].filter((m) => !now.has(m)).sort();
+      const added = [...now].filter((m) => !before.has(m)).sort();
+      if (missing.length > 0 || added.length > 0) {
+        out.push({ raceDate: d.raceDate, missing, added, comparedTo: prev.raceDate });
+      }
+    }
+    lastByWeekday.set(wd, d);
+  }
+  return out;
 }
 
 /**

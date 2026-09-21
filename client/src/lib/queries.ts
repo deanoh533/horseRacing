@@ -18,6 +18,7 @@ import {
   type ComboDividend,
 } from './supabase';
 import { pickConfig } from './selectivePicks';
+import { meetGroup, jockeyStatsMeet } from './meets';
 import { weekRange } from './week';
 import { dedupeRows, type LabRow } from './labMetrics';
 
@@ -827,7 +828,9 @@ export function useJockeyStatsBatch(jckyNos: string[], meet: number) {
         .from('jockey_stats')
         .select('*')
         .in('jcky_no', jckyNos)
-        .eq('meet', meet);
+        // 기수 통산은 KRA가 **소속 본부**로 집계한다 — 영천(4)은 개최지일 뿐
+        // 소속이 아니라서 그 코드의 행이 없다. 부경(3) 행을 본다.
+        .eq('meet', jockeyStatsMeet(meet));
       if (error) throw error;
       const map = new Map<string, JockeyStat>();
       (data ?? []).forEach((s) => map.set(s.jcky_no, s));
@@ -856,7 +859,7 @@ export function useJockeyRecentForm(
         .from('race_entries')
         .select('ord')
         .eq('jcky_no', jckyNo)
-        .eq('meet', meet)
+        .in('meet', meetGroup(meet))
         .gte('race_date', cutoff)
         .not('ord', 'is', null);
       if (error) throw error;

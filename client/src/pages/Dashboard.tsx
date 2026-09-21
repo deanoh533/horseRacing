@@ -26,10 +26,7 @@ import { classifyPick } from '../lib/selectivePicks';
 import { fmtScore } from '../lib/sectional';
 import { isCancelled } from '../lib/supabase';
 
-const MEET_NAMES: Record<number, string> = {
-  1: '서울',
-  3: '부산경남',
-};
+import { MEET_NAMES, MEET_CODES } from '../lib/meets';
 
 const RECENT_WINDOW = 50; // 최근 N경주 연승(1순위 3착 안) 적중률 표본
 
@@ -109,7 +106,9 @@ export function Dashboard() {
   };
 
   const racesByMeet = useMemo(() => {
-    const groups: Record<number, typeof races> = { 1: [], 3: [] };
+    const groups: Record<number, typeof races> = Object.fromEntries(
+      MEET_CODES.map((m) => [m, []])
+    );
     (races ?? []).forEach((r) => {
       if (!groups[r.meet]) groups[r.meet] = [];
       groups[r.meet]!.push(r);

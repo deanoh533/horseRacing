@@ -12,7 +12,7 @@ import { buildScoreboard, buildRaceComparisons } from '../lib/labMetrics';
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const ymd = (d: Date) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 const daysAgo = (n: number) => ymd(new Date(Date.now() - n * 86400_000));
-const MEET_NAME: Record<number, string> = { 1: '서울', 3: '부경' };
+import { MEET_NAMES as MEET_NAME } from '../lib/meets';
 
 type SourceFilter = 'all' | 'live' | 'backfill';
 

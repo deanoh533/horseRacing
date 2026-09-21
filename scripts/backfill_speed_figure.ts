@@ -6,7 +6,7 @@
  */
 import 'dotenv/config';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
-import { parBucketKey, raceSpeedFigure, computeAbilityRaw, figuresBeforeDate, loadParMap } from '../src/engine/speedFigure.js';
+import { lookupParTime, raceSpeedFigure, computeAbilityRaw, figuresBeforeDate, loadParMap } from '../src/engine/speedFigure.js';
 import { calculateSpeedFigureScore, SPEED_FIGURE_N } from '../src/engine/scoreItems/20_speed_figure.js';
 import { ITEM_NAMES } from '../src/types/index.js';
 
@@ -33,7 +33,7 @@ async function main() {
   const byHorse = new Map<string, { date: number; fig: number }[]>();
   for (const r of reRows) {
     if (r.rc_time == null || r.rc_dist == null || r.track_type == null) continue;
-    const par = parMap.get(parBucketKey(r.meet, r.rc_dist, r.track_type));
+    const par = lookupParTime(parMap, r.meet, r.rc_dist, r.track_type);
     if (par == null) continue;
     const f = raceSpeedFigure(r.rc_time, par);
     if (f == null) continue;

@@ -21,7 +21,7 @@ import { getShadowModelVersions, type ShadowModelVersion } from '../engine/model
 import { writeShadowPredictions } from './shadowWriter.js';
 import { upcomingCardDates, emptySyncVerdict } from '../utils/syncCli.js';
 import type { ReadClient } from '../db/localDb.js';
-import type { MeetCode } from '@app-types/index.js';
+import { SYNC_MEETS, type MeetCode } from '@app-types/index.js';
 
 export interface RaceCardSyncResult {
   meet: MeetCode;
@@ -35,7 +35,7 @@ export async function syncRaceCards(options: {
   rcDate: number;
   meets?: MeetCode[];
 }): Promise<RaceCardSyncResult[]> {
-  const meets: MeetCode[] = options.meets ?? [1, 3];
+  const meets: MeetCode[] = options.meets ?? [...SYNC_MEETS];
   const results: RaceCardSyncResult[] = [];
 
   console.log(`\n🎫 출주표 sync: ${options.rcDate} (meets: ${meets.join(',')})`);
@@ -242,7 +242,7 @@ async function syncEquipAndMedical(
 async function main() {
   const args = process.argv.slice(2);
   let rcDate = 0;
-  let meets: MeetCode[] = [1, 3];
+  let meets: MeetCode[] = [...SYNC_MEETS];
   let failOnEmpty = false;
 
   for (let i = 0; i < args.length; i++) {
@@ -256,7 +256,7 @@ async function main() {
       meets = args[i + 1]!
         .split(',')
         .map((s) => parseInt(s, 10) as MeetCode)
-        .filter((m) => m === 1 || m === 3);
+        .filter((m): m is MeetCode => SYNC_MEETS.includes(m as MeetCode));
     } else if (args[i] === '--fail-on-empty') {
       failOnEmpty = true;
     }

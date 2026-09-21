@@ -9,7 +9,7 @@
 import { useMemo } from 'react';
 import type { Race, RaceEntry } from '../lib/supabase';
 
-const MEET_NAMES: Record<number, string> = { 1: '서울', 3: '부경' };
+import { MEET_NAMES } from '../lib/meets';
 
 function formatErng(v: number | null | undefined): string {
   if (v == null || v === 0) return '-';

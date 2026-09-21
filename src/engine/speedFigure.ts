@@ -15,6 +15,29 @@ export function parBucketKey(meet: number, rcDist: number, trackType: string): s
   return `${meet}|${rcDist}|${trackType}`;
 }
 
+/**
+ * 기준기록 조회 — 버킷이 없으면 같은 권역의 기존 경마장으로 대체한다.
+ *
+ * 버킷을 개최지(meet)로 나누는 건 물리적으로 옳다(주로가 다르면 완주시간이 다르다).
+ * 문제는 **신설 경마장은 표본 0에서 시작**한다는 것 — 영천(4)은 2026-09-13 개장이라
+ * `PAR_MIN_WINS`(10승)를 채울 때까지 버킷이 안 생기고, 그동안 속도능력지수가 통째로 빈다.
+ *
+ * 그래서 영천 버킷이 없으면 부경(3) 값을 빌려 쓴다. 표본이 쌓여 영천 버킷이 생기면
+ * **저절로 자기 기준기록으로 갈아탄다** — 지금 "합칠까 나눌까"를 정할 필요가 없다.
+ * 두 주로의 완주시간 분포가 실제로 다른지는 몇 주 뒤 데이터로 확인한다.
+ */
+export function lookupParTime(
+  parMap: Map<string, number>,
+  meet: number,
+  rcDist: number,
+  trackType: string
+): number | undefined {
+  const own = parMap.get(parBucketKey(meet, rcDist, trackType));
+  if (own !== undefined) return own;
+  if (meet === 4) return parMap.get(parBucketKey(3, rcDist, trackType));
+  return undefined;
+}
+
 /** 한 경주 figure = par_time / rc_time. 유효하지 않으면 null */
 export function raceSpeedFigure(rcTime: number, parTime: number): number | null {
   if (!(rcTime > 0) || !(parTime > 0)) return null;

@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { cardAgeDays, classifyRaceDate, type RaceDateCounts } from './syncHealth.js';
+import {
+  cardAgeDays, classifyRaceDate, isLivePrediction, venueChanges, weekdayOf,
+  type RaceDateCounts,
+} from './syncHealth.js';
 
 const c = (over: Partial<RaceDateCounts>): RaceDateCounts => ({
   raceDate: 20260815, entries: 100, ordFilled: 98,
   races: 10, racesWithResult: 10, racesWithCombo: 10, stTimeFilled: 10, comboRows: 9000,
-  cardFetchedAt: '2026-08-12T06:00:00.000Z', ...over,
+  cardFetchedAt: '2026-08-12T06:00:00.000Z', meets: [1, 3], ...over,
 });
 
 describe('classifyRaceDate', () => {
@@ -131,5 +134,79 @@ describe('cardAgeDays', () => {
   it('값이 없거나 못 읽으면 null', () => {
     expect(cardAgeDays(null, 20260919)).toBeNull();
     expect(cardAgeDays('아무말', 20260919)).toBeNull();
+  });
+});
+
+describe('venueChanges — 경마장이 통째로 빠지는 변화', () => {
+  // 2026-09-13 영천 개장: 일요일 부경 경주가 영천으로 넘어갔다.
+  // races 행이 아예 안 생겨서 기존 판정엔 휴장일과 똑같이 보였고 2주치를 놓쳤다.
+  it('같은 요일 직전 대비 빠진 경마장을 잡는다', () => {
+    const c = venueChanges([
+      { raceDate: 20260906, meets: [1, 3] }, // 일
+      { raceDate: 20260913, meets: [1] },    // 일 — 부경 사라짐
+    ]);
+    expect(c).toHaveLength(1);
+    expect(c[0]!.raceDate).toBe(20260913);
+    expect(c[0]!.missing).toEqual([3]);
+    expect(c[0]!.comparedTo).toBe(20260906);
+  });
+
+  it('개편은 한 번만 경고하고 새 구성이 기준이 된다', () => {
+    const c = venueChanges([
+      { raceDate: 20260906, meets: [1, 3] },
+      { raceDate: 20260913, meets: [1] },
+      { raceDate: 20260920, meets: [1] },
+    ]);
+    expect(c).toHaveLength(1);
+  });
+
+  it('요일이 다르면 비교하지 않는다 (금=부경 / 토=서울은 원래 다름)', () => {
+    const c = venueChanges([
+      { raceDate: 20260918, meets: [3] }, // 금
+      { raceDate: 20260919, meets: [1] }, // 토
+    ]);
+    expect(c).toEqual([]);
+  });
+
+  it('새 경마장이 생긴 것도 알린다', () => {
+    const c = venueChanges([
+      { raceDate: 20260913, meets: [1] },
+      { raceDate: 20260920, meets: [1, 4] },
+    ]);
+    expect(c[0]!.added).toEqual([4]);
+    expect(c[0]!.missing).toEqual([]);
+  });
+});
+
+describe('weekdayOf', () => {
+  it('YYYYMMDD의 요일을 준다 (0=일)', () => {
+    expect(weekdayOf(20260920)).toBe(0); // 일요일
+    expect(weekdayOf(20260918)).toBe(5); // 금요일
+  });
+});
+
+describe('isLivePrediction — 백필 예측 걸러내기', () => {
+  // 2026-09-22에 영천 9/13 경주를 백필하면서 실제로 생긴 경로.
+  // 사전 모드(ord NULL)로 계산돼도, race_entries 누적 필드가 경주 후 스냅샷이라 라이브가 아니다.
+  it('경주 뒤에 만든 예측은 라이브가 아니다', () => {
+    expect(isLivePrediction('2026-09-22T01:00:00.000Z', 20260913)).toBe(false);
+  });
+
+  it('경주 전에 만든 예측은 라이브', () => {
+    expect(isLivePrediction('2026-09-16T10:22:00.000Z', 20260919)).toBe(true);
+  });
+
+  it('경주 당일 생성도 라이브 (발주 전 사전 예측)', () => {
+    expect(isLivePrediction('2026-09-19T01:00:00.000Z', 20260919)).toBe(true);
+  });
+
+  // KST 9/20 01:00은 UTC로는 아직 9/19 — 날짜 경계에서 밀리면 안 된다
+  it('KST 날짜로 판정한다', () => {
+    expect(isLivePrediction('2026-09-19T16:00:00.000Z', 20260919)).toBe(false);
+  });
+
+  it('생성 시각을 모르면 라이브로 치지 않는다', () => {
+    expect(isLivePrediction(null, 20260919)).toBe(false);
+    expect(isLivePrediction('아무말', 20260919)).toBe(false);
   });
 });
