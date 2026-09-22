@@ -16,6 +16,7 @@
  *   npm run sync:poll -- --dry-run  # KRA 호출 없이 판정 결과만 확인
  */
 import 'dotenv/config';
+import { SYNC_MEETS } from '../src/types/index.js';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { hasDueUnsyncedRace, type RaceTimingStatus } from '../src/sync/resultsPollLogic.js';
 import { yyyymmddOffset } from '../src/utils/syncCli.js';
@@ -75,7 +76,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const results = await syncDay({ rcDate, meets: [1, 3] });
+  const results = await syncDay({ rcDate, meets: [...SYNC_MEETS] });
   for (const r of results) {
     console.log(`  meet=${r.meet}: ${r.racesSynced} 경주 / ${r.horsesSynced} 두 / 스킵 ${r.racesSkipped} / 에러 ${r.errors.length}`);
   }

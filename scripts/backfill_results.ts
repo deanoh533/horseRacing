@@ -11,6 +11,7 @@
  *   npm run backfill:results -- --from 20220101 --to 20240523
  */
 import 'dotenv/config';
+import { SYNC_MEETS } from '../src/types/index.js';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { syncDay } from '../src/sync/dailySync.js';
 
@@ -64,7 +65,7 @@ async function main() {
   for (let date = fromDate; date <= toDate; date = nextDay(date)) {
     if (existing.has(date)) continue;
     try {
-      const results = await syncDay({ rcDate: date, meets: [1, 3], skipPredictions: true });
+      const results = await syncDay({ rcDate: date, meets: [...SYNC_MEETS], skipPredictions: true });
       const races = results.reduce((s, r) => s + r.racesSynced, 0);
       const horses = results.reduce((s, r) => s + r.horsesSynced, 0);
       const errors = results.flatMap((r) => r.errors);

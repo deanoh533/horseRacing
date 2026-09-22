@@ -25,6 +25,7 @@
  *   npm run sync:catchup -- --dry-run   # KRA 호출 없이 대상 날짜만 확인
  */
 import 'dotenv/config';
+import { SYNC_MEETS } from '../src/types/index.js';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { fetchRaceDateCounts } from '../src/sync/syncHealthQuery.js';
 import { classifyRaceDate } from '../src/utils/syncHealth.js';
@@ -64,7 +65,7 @@ async function main(): Promise<void> {
   for (const rcDate of targets) {
     console.log(`\n🔄 ${rcDate} 재싱크 시도`);
     try {
-      const results = await syncDay({ rcDate, meets: [1, 3] });
+      const results = await syncDay({ rcDate, meets: [...SYNC_MEETS] });
       for (const r of results) {
         console.log(`  meet=${r.meet}: ${r.racesSynced} 경주 / ${r.horsesSynced} 두 / 스킵 ${r.racesSkipped} / 에러 ${r.errors.length}`);
       }
