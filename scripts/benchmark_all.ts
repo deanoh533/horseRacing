@@ -134,6 +134,7 @@ async function main(): Promise<void> {
     overall: overall.get(m)!,
   }));
   printRollingTable(rows, quarters);
+  printRollingTable(rows, quarters, 'win');
 
   console.log('\n=== 시장 깊은 진단 (챔피언 vs 시장, 전체 test) ===');
   printMarketDiag(marketDiagnostics(allTest, champ.model));
