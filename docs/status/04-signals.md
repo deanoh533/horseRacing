@@ -1,5 +1,19 @@
 # 신호발굴 — 진행 상황
-> 마지막 업데이트: 2026-07-15 · 관련 메모리: [[project_feature_gate_findings]], [[project_training_signals]], [[project_gate_multimetric]], [[project_medical_signals]], [[feedback_no_human_compression]], [[project_race_shape_track]]
+> 마지막 업데이트: 2026-09-22 · 관련 메모리: [[project_win_rate_baseline]], [[project_feature_gate_findings]], [[project_training_signals]], [[project_gate_multimetric]], [[project_medical_signals]], [[feedback_no_human_compression]], [[project_race_shape_track]]
+
+## 당일 마체중 — 누수이지만 효과도 없음 ❌ (2026-09-22, 통제 A/B)
+`body_weight`·`body_weight_minus_field_mean`은 그날 `wg_hr`(라이브 미가용)인데 학습·벤치마크에는 들어 있었다 = 조용한 train/serve 불일치. `--exclude-feature`(신설: 항목이 아닌 피처 단위 제외, 02_weight_change 안의 마체중 *변화*는 유지)로 통제 A/B, `--no-gate` 양쪽 동일, 6분기.
+
+| 모델 | 단승 ON→OFF | 연승 ON→OFF |
+|---|---|---|
+| Logistic(t1) | 30.5 → 30.3 (−0.2%p) | 61.2 → 61.0 (−0.2%p) |
+| Logistic(t2) | 31.3 → 30.6 (−0.7%p) | 61.8 → 61.7 (−0.1%p) |
+| Logistic(t3) | 30.2 → 30.2 (0.0%p) | 61.4 → 61.5 (+0.1%p) |
+
+- **분기 변동폭(±2%p) 안 = 효과 없음.** 벤치마크 점수는 이 누수로 부풀지 않았고, 라이브도 결측이 0(=상대 마체중 평균)으로 채워져 순위 왜곡 없음.
+- **계수 순위 ≠ 중요도**: v7 계수 9위(0.10)인데 빼도 무변화 — 닮은 피처끼리 공을 나눠 가진 것. 해석은 계수 + 단변량 상관 함께(`probe:features`).
+- 아래 "⏸ 마체중 게이트B +7.2%p 보류"는 **통제 A/B에서 재현되지 않음** — 경주 전 마체중을 수집해도 모델 기여는 작을 전망(수집 자체는 사용자 예정).
+- 로그: 스크래치패드 `bw_on.log`·`bw_off.log`.
 
 ## 페이스 조건부 성적 (pace_fit·pace_sens·pace_fit_n) — ❌ 기각 (2026-07-15)
 환경(예상 페이스)이 변할 때 말의 과거 전적을 페이스 버킷별로 직접 쪼갠 조작화(⑲ 성향×페이스 간접추정과 다른 각도). 스펙 [2026-07-15](../superpowers/specs/2026-07-15-pace-conditional-form-design.md).
@@ -53,7 +67,7 @@ probe H1~H9([[project_race_shape_track]])에서 발굴한 전개 피처 2종(`sh
 
 ## 다음 후보·남음
 - 🔲 조교 *다른* 조작화 (강도·간격 등 recent_form이 못 담는 각도) — 단 흡수 입증 후라 기대↓
-- 🔲 마체중 직전수집 (D1) — `wg_hr` 경기후수집=라이브누수 회피할 사전수집 경로 필요
+- 🔲 마체중 직전수집 (D1) — 모델 기여는 통제 A/B에서 ~0으로 판명(상단 섹션). UI 표시·다른 조작화 용도로만 가치 검토
 - 🔲 전개 트랙 잔여 후보 (스펙 §7 범위 밖, [2026-07-08 스펙](../superpowers/specs/2026-07-08-race-shape-features-design.md)):
   - 초반 위치그룹(선두권/추격권/후미권) 피처 — H1·H2 실측이 "격차가 위치를 대체"라 해서 밀림, 흡수 가능성 높아 기대↓
   - 페이스 모델(출마표 도주마 수 → 접전 예측) = TODO F-001. 경주 단위 컨텍스트 — shape 역전능력과 상호작용 잠재력
@@ -66,7 +80,7 @@ probe H1~H9([[project_race_shape_track]])에서 발굴한 전개 피처 2종(`sh
 - ❌ 의료 신호 기각 (2026-06-15) — 출혈·피로치료 게이트B 한계기여 ~0. [[project_medical_signals]]
 - ❌ shape_d6_best 기각 (2026-07-14) — 종반 피크 능력, 게이트B Δ−0.2%p·1/5분기. 레이팅·속도지수에 흡수 (상단 섹션).
 - ❌ z-score·구간6·경쟁강도3·장구·기수변경·class_dropped 탈락 (2026-06-10).
-- ⏸ 마체중 게이트B +7.2%p 보류 — `wg_hr` 라이브 누수.
+- ❌ 마체중 게이트B +7.2%p → 통제 A/B 무효 (2026-09-22, 상단 섹션). 종전 "⏸ 보류(`wg_hr` 라이브 누수)"를 대체.
 
 ## 참고
 - 문서: [feature_hypotheses.md](../feature_hypotheses.md) (가설 카탈로그)
