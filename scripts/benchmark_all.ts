@@ -39,6 +39,10 @@ async function main(): Promise<void> {
   const forceInclude = inclIdx >= 0 ? args[inclIdx + 1] : undefined;
   const exclIdx = args.indexOf('--exclude');
   const forceExclude = exclIdx >= 0 ? args[exclIdx + 1] : undefined;
+  // 항목이 아니라 피처 이름 단위 제외 (반복 가능). 예: --exclude-feature body_weight
+  const excludeFeatures = new Set<string>(
+    args.flatMap((a, i) => (a === '--exclude-feature' && args[i + 1] ? [args[i + 1]!] : []))
+  );
   const ftIdx = args.indexOf('--first-test');
   const firstTest = ftIdx >= 0 ? parseYearQuarter(args[ftIdx + 1] ?? '') : DEFAULT_FIRST_TEST;
   const fromIdx = args.indexOf('--from');
@@ -73,6 +77,7 @@ async function main(): Promise<void> {
   }
   if (forceInclude) { approved.add(forceInclude); console.log(`  ⚡ 강제 포함: ${forceInclude}`); }
   if (forceExclude) { approved.delete(forceExclude); console.log(`  ⚡ 강제 제외: ${forceExclude}`); }
+  if (excludeFeatures.size) console.log(`  ⚡ 피처 제외: ${[...excludeFeatures].join(', ')}`);
   if (gateOnly) return;
 
   const champ = await loadVersion(db, championId !== undefined ? { id: championId } : {});
@@ -92,7 +97,7 @@ async function main(): Promise<void> {
 
   for (const block of blocks) {
     console.log(`  [${block.key}] train=${block.train.length} test=${block.test.length} 학습중...`);
-    const tm = trainAllModels(block.train, approved);
+    const tm = trainAllModels(block.train, approved, excludeFeatures);
     const scorers: Map<Method, ScorableModel> = new Map([
       ['챔피언', champ.model],
       ['Spearman', { kind: 'weights', weights: tm.spearmanWeights } as ScorableModel],
@@ -134,6 +139,7 @@ async function main(): Promise<void> {
     overall: overall.get(m)!,
   }));
   printRollingTable(rows, quarters);
+  printRollingTable(rows, quarters, 'win');
 
   console.log('\n=== 시장 깊은 진단 (챔피언 vs 시장, 전체 test) ===');
   printMarketDiag(marketDiagnostics(allTest, champ.model));

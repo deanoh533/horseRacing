@@ -71,10 +71,14 @@ export function printMarketDiag(d: MarketDiag): void {
   if (d.model.n && d.market.n) {
     const diff = ((d.model.show / d.model.n) - (d.market.show / d.market.n)) * 100;
     console.log(`  → 모델 연승 − 시장 연승 = ${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%p`);
+    console.log(`[모델] 1순위 — 연승 ${pct(d.model.show, d.model.n)} / 단승 ${pct(d.model.win, d.model.n)}  (n=${d.model.n})`);
+    const winDiff = ((d.model.win / d.model.n) - (d.market.win / d.market.n)) * 100;
+    console.log(`  → 모델 단승 − 시장 단승 = ${winDiff >= 0 ? '+' : ''}${winDiff.toFixed(1)}%p`);
   }
   console.log(`[불일치] 모델1순위≠인기1위: ${d.disModel.n}건`);
   if (d.disModel.n) {
     console.log(`  모델픽 연승 ${pct(d.disModel.show, d.disModel.n)} / 인기픽 연승 ${pct(d.disFav.show, d.disFav.n)}`);
+    console.log(`  모델픽 단승 ${pct(d.disModel.win, d.disModel.n)} / 인기픽 단승 ${pct(d.disFav.win, d.disFav.n)}`);
     const edge = ((d.disModel.show / d.disModel.n) - (d.disFav.show / d.disFav.n)) * 100;
     console.log(`  → 엇갈릴 때 우위 ${edge >= 0 ? '+' : ''}${edge.toFixed(1)}%p ${edge >= 0 ? '(부가가치 O)' : '(부가가치 X)'}`);
   }

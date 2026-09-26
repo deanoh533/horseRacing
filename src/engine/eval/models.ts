@@ -82,17 +82,34 @@ export interface TrainedModels {
   featureSchema: string[];
 }
 
+/**
+ * 학습에 쓸 피처 목록. 항목(게이트 단위) 승인 + `__missing` 제외가 기본이고,
+ * excludeFeatures는 항목이 아니라 **피처 이름 하나씩** 빼는 통제 실험용 손잡이다.
+ * (예: 마체중 변화는 두고 당일 마체중만 빼기)
+ */
+export function selectSchema(
+  fullSchema: string[],
+  approvedItems: Set<string>,
+  excludeFeatures: Set<string> = new Set()
+): string[] {
+  return fullSchema.filter(
+    (name) =>
+      approvedItems.has(featureToItem(name)) &&
+      !name.endsWith('__missing') &&
+      !excludeFeatures.has(name)
+  );
+}
+
 export function trainAllModels(
   races: RaceRecord[],
-  approvedItems: Set<string>
+  approvedItems: Set<string>,
+  excludeFeatures: Set<string> = new Set()
 ): TrainedModels {
   console.log('\n학습 중...');
 
   const allRaceFeatures = races.flatMap((r) => r.horses.map((h) => h.features));
   const fullSchema = buildSchema(allRaceFeatures);
-  const featureSchema = fullSchema.filter(
-    (name) => approvedItems.has(featureToItem(name)) && !name.endsWith('__missing')
-  );
+  const featureSchema = selectSchema(fullSchema, approvedItems, excludeFeatures);
 
   const X = races.flatMap((r) =>
     r.horses.map((h) => toVector(h.features, featureSchema))
