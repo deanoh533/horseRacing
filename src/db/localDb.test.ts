@@ -240,6 +240,49 @@ describe('getLocalDb 싱글턴 — 동시 호출 (2026-09-27 회귀)', () => {
   });
 });
 
+describe('시각 컬럼 — supabase-js처럼 ISO 문자열로 나온다 (2026-09-27 회귀)', () => {
+  // 버그: TIMESTAMP가 DuckDBTimestampValue{micros} 객체로 새어 나와 Date.parse가 NaN.
+  // 터진 곳: isLivePrediction(created_at, race_date)이 전부 false → probe:v7-accuracy가
+  // 예측 43,940건을 통째로 "백필"로 제외해 O-004 판정이 0행으로 나왔다.
+  it('TIMESTAMP를 Date.parse 가능한 문자열로 준다', async () => {
+    await conn.run(`CREATE TABLE ts_t (id INTEGER, created_at TIMESTAMP)`);
+    await conn.run(`INSERT INTO ts_t VALUES (1, TIMESTAMP '2026-06-19 00:26:29.749')`);
+
+    const { data, error } = await client.from('ts_t').select('*').eq('id', 1).single();
+    expect(error).toBeNull();
+    const c = (data as any).created_at;
+    expect(typeof c).toBe('string');
+    expect(Date.parse(c)).toBe(Date.parse('2026-06-19T00:26:29.749Z')); // UTC로 보존
+  });
+
+  it('STRUCT 안에 중첩된 TIMESTAMP도 문자열 (artifact.calibration.fitMeta.fitAt 경로)', async () => {
+    await conn.run(`CREATE TABLE ts_nested (id INTEGER, meta STRUCT(fitAt TIMESTAMP, rows BIGINT))`);
+    await conn.run(`INSERT INTO ts_nested VALUES (1, {'fitAt': TIMESTAMP '2026-07-10 12:00:00', 'rows': 500})`);
+
+    const { data } = await client.from('ts_nested').select('*').eq('id', 1).single();
+    const m = (data as any).meta;
+    expect(typeof m.fitAt).toBe('string');
+    expect(Date.parse(m.fitAt)).toBe(Date.parse('2026-07-10T12:00:00Z'));
+    expect(m.rows).toBe(500);      // BigInt 변환은 그대로 유지
+  });
+
+  it('DATE는 YYYY-MM-DD', async () => {
+    await conn.run(`CREATE TABLE d_t (id INTEGER, d DATE)`);
+    await conn.run(`INSERT INTO d_t VALUES (1, DATE '2026-09-27')`);
+
+    const { data } = await client.from('d_t').select('*').eq('id', 1).single();
+    expect((data as any).d).toBe('2026-09-27');
+  });
+
+  it('NULL 시각은 null 그대로', async () => {
+    await conn.run(`CREATE TABLE ts_null (id INTEGER, created_at TIMESTAMP)`);
+    await conn.run(`INSERT INTO ts_null VALUES (1, NULL)`);
+
+    const { data } = await client.from('ts_null').select('*').eq('id', 1).single();
+    expect((data as any).created_at).toBeNull();
+  });
+});
+
 describe('unwrapDuck — DuckDB 래퍼 → supabase-js 호환 평범한 JS 값', () => {
   it('스칼라/BigInt', () => {
     expect(unwrapDuck(3)).toBe(3);

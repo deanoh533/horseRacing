@@ -30,6 +30,24 @@ export function unwrapDuck(v: unknown): unknown {
     case 'DuckDBListValue':
     case 'DuckDBArrayValue':
       return (v as { items: unknown[] }).items.map(unwrapDuck);
+
+    // 시각 값은 supabase-js REST와 같게 **ISO 문자열**로 돌려준다.
+    // 안 하면 DuckDBTimestampValue{micros} 객체가 그대로 새어 나가 Date.parse가 NaN이 된다.
+    // 2026-09-27 실제 사고: isLivePrediction(created_at, …)이 전부 false가 되어
+    // probe:v7-accuracy가 예측 43,940건을 통째로 "백필"로 제외했다(판정 0행).
+    // db:pull이 JSON을 거치며 TIMESTAMPTZ가 TIMESTAMP로 굳지만 값은 UTC라 Z를 붙인다.
+    case 'DuckDBTimestampValue':
+    case 'DuckDBTimestampMicrosecondsValue':
+    case 'DuckDBTimestampTZValue':
+      return new Date(Number((v as { micros: bigint }).micros / 1000n)).toISOString();
+    case 'DuckDBTimestampMillisecondsValue':
+      return new Date(Number((v as { millis: bigint }).millis)).toISOString();
+    case 'DuckDBTimestampSecondsValue':
+      return new Date(Number((v as { seconds: bigint }) .seconds) * 1000).toISOString();
+    case 'DuckDBTimestampNanosecondsValue':
+      return new Date(Number((v as { nanos: bigint }).nanos / 1_000_000n)).toISOString();
+    case 'DuckDBDateValue':
+      return new Date((v as { days: number }).days * 86_400_000).toISOString().slice(0, 10);
   }
   if (Array.isArray(v)) return v.map(unwrapDuck);
   const out: Record<string, unknown> = {};
