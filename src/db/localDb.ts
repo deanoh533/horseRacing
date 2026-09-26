@@ -158,18 +158,29 @@ export function makeLocalClient(conn: any): ReadClient {
 }
 
 // ── 싱글턴 연결 ──────────────────────────────────────────────────
-let _instance: any = null;
-let _conn: any = null;
+// **연결이 아니라 "여는 중인 Promise"를 캐시한다.** 연결(_conn)만 캐시하면 확인과
+// 대입 사이가 await로 벌어져, 동시에 부른 둘이 모두 "아직 없다"를 보고 둘 다
+// DuckDBInstance.create(같은 파일)를 실행한다 → 두 번째가 **자기 프로세스**를 가리키며
+// "다른 프로세스가 파일을 사용 중"으로 죽는다(DuckDB는 writer가 하나뿐).
+// 2026-09-27 실제 사고: probe_v7_accuracy가 예측·결과를 Promise.all로 동시 로드 →
+// O-004 판정 자체가 불가. 열기 실패 시 캐시를 비워 다음 호출이 다시 시도하게 둔다.
+let _clientPromise: Promise<ReadClient> | null = null;
 const DB_PATH = 'data/local.duckdb';
 
 export async function getLocalDb(): Promise<ReadClient> {
-  if (_conn) return makeLocalClient(_conn);
-  if (!existsSync(DB_PATH)) {
-    throw new Error(`${DB_PATH} 없음 — npm run db:pull 먼저 실행하세요`);
+  if (!_clientPromise) {
+    _clientPromise = (async () => {
+      if (!existsSync(DB_PATH)) {
+        throw new Error(`${DB_PATH} 없음 — npm run db:pull 먼저 실행하세요`);
+      }
+      const instance = await DuckDBInstance.create(DB_PATH);
+      return makeLocalClient(await instance.connect());
+    })().catch((e) => {
+      _clientPromise = null;
+      throw e;
+    });
   }
-  _instance = await DuckDBInstance.create(DB_PATH);
-  _conn = await _instance.connect();
-  return makeLocalClient(_conn);
+  return _clientPromise;
 }
 
 export async function getReadClient(): Promise<ReadClient> {

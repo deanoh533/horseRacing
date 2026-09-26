@@ -221,6 +221,25 @@ describe('getLocalDb 에러', () => {
   });
 });
 
+describe('getLocalDb 싱글턴 — 동시 호출 (2026-09-27 회귀)', () => {
+  // 버그: `if (_conn)` 확인과 `_conn` 대입 사이가 await로 벌어져 있어, 동시에 부르면
+  // 둘 다 "아직 없다"를 보고 둘 다 DuckDBInstance.create(같은 파일)를 실행했다.
+  // 두 번째가 **자기 프로세스**를 가리키며 "다른 프로세스가 파일을 사용 중"으로 죽는다.
+  // 실제로 터진 곳: scripts/probe_v7_accuracy.ts가 예측·결과를 Promise.all로 동시 로드 →
+  // O-004 판정을 아예 못 돌렸다. 고침 = 연결이 아니라 "연결하는 중인 Promise"를 캐시.
+  it.skipIf(!existsSync('data/local.duckdb'))('동시 호출해도 한 번만 열고 둘 다 쓸 수 있다', async () => {
+    const [a, b] = await Promise.all([getLocalDb(), getLocalDb()]);
+
+    for (const c of [a, b]) {
+      const { error } = await c.from('races').select('race_date').limit(1);
+      expect(error).toBeNull();
+    }
+    // 뒤이은 호출도 같은 연결에 올라탄다 (재오픈 시도 없음)
+    const { error: later } = await (await getLocalDb()).from('races').select('race_date').limit(1);
+    expect(later).toBeNull();
+  });
+});
+
 describe('unwrapDuck — DuckDB 래퍼 → supabase-js 호환 평범한 JS 값', () => {
   it('스칼라/BigInt', () => {
     expect(unwrapDuck(3)).toBe(3);
