@@ -185,20 +185,62 @@ export function makeLocalClient(conn: any): ReadClient {
 let _clientPromise: Promise<ReadClient> | null = null;
 const DB_PATH = 'data/local.duckdb';
 
+/**
+ * 잠금 IO 에러를 원인 설명으로 감싼다.
+ * ⚠️ 범인이 남이 아닐 수 있다 — 2026-09-27에 두 번 다 자기 자신이었다
+ * (동시 호출 경쟁 / db:pull이 "완료" 출력 뒤에도 잠깐 쥐고 있음).
+ */
+export function explainOpenError(e: Error): string {
+  if (!/already open|사용 중/.test(e.message)) return e.message;
+  const pid = e.message.match(/PID (\d+)/)?.[1];
+  return [
+    `미러 파일을 열 수 없습니다 — 다른 프로세스가 쥐고 있습니다${pid ? ` (PID ${pid})` : ''}.`,
+    'DuckDB는 동시에 하나만 열 수 있습니다. 흔한 원인 세 가지:',
+    '  1) 방금 끝난 db:pull — "완료" 출력 뒤에도 잠깐 파일을 쥡니다. 몇 초 뒤 다시 실행하세요.',
+    '  2) 자기 자신 — PID가 실행마다 달라지면 남이 아니라 이 프로세스입니다.',
+    '  3) 다른 워크트리·세션에서 미러를 쓰는 중.',
+    `원본: ${e.message}`,
+  ].join('\n');
+}
+
 export async function getLocalDb(): Promise<ReadClient> {
   if (!_clientPromise) {
     _clientPromise = (async () => {
       if (!existsSync(DB_PATH)) {
         throw new Error(`${DB_PATH} 없음 — npm run db:pull 먼저 실행하세요`);
       }
-      const instance = await DuckDBInstance.create(DB_PATH);
-      return makeLocalClient(await instance.connect());
+      let conn: any;
+      try {
+        const instance = await DuckDBInstance.create(DB_PATH);
+        conn = await instance.connect();
+      } catch (e) {
+        throw new Error(explainOpenError(e as Error));
+      }
+      await warnIfStale(conn);
+      return makeLocalClient(conn);
     })().catch((e) => {
       _clientPromise = null;
       throw e;
     });
   }
   return _clientPromise;
+}
+
+/**
+ * 미러가 묵었으면 경고만 한다(막지 않는다) — 백테스트·게이트 실험은 일부러 과거
+ * 미러로 돌리는 일이 많다. 2026-09-27에 79일 묵은 미러로 O-004를 판정할 뻔했다.
+ * `MIRROR_STALE_WARN=off`로 끌 수 있고, `_sync_state`가 없는 구 미러면 조용히 넘어간다.
+ */
+async function warnIfStale(conn: any): Promise<void> {
+  if (process.env.MIRROR_STALE_WARN === 'off') return;
+  try {
+    const { readLastSyncedAt, mirrorAgeDays, staleWarning } = await import('./mirror/syncState.js');
+    const last = await readLastSyncedAt(conn);
+    const warn = staleWarning(mirrorAgeDays(last, new Date()), last);
+    if (warn) console.warn(warn);
+  } catch {
+    // 신선도 확인 실패가 읽기를 막으면 안 된다 — 조용히 넘어간다
+  }
 }
 
 export async function getReadClient(): Promise<ReadClient> {
