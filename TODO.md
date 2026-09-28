@@ -66,7 +66,7 @@
 
 - [ ] **T-009 적중률 분리 (출전마수·경마장·등급별)**
 - [ ] **T-013 외부 데이터 출처 검토** (조교상태·마필가격·복기평·경주로 빠르기)
-- [ ] **T-014 db:pull 증분 동기화** — 설계 ①②③ 합의 완료, **spec 미작성**(2026-09-27 중단 지점)
+- [ ] **T-014 db:pull 증분 동기화** — **spec 작성 완료 2026-09-29** → [2026-09-29-db-pull-incremental-design.md](docs/superpowers/specs/2026-09-29-db-pull-incremental-design.md) (사용자 검토 대기 · 브랜치 `feat/db-pull-incremental`). 아래는 요약.
   - 문제: 매 pull이 53만 행을 통째로 다시 받는다. 게다가 직결 경로가 REST용 `LIMIT/OFFSET`
     페이징을 그대로 물려받아 `training_logs`(376k)를 1000행씩 377회 왕복 —
     `OFFSET` 재스캔 누적 약 **7,100만 행**(실제 필요 37.6만). 돈 문제는 아니다
