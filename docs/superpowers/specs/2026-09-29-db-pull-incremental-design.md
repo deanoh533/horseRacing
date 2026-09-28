@@ -55,8 +55,12 @@
 | | `predictions` | `race_date` | `meet, rc_no, hr_name, model_version` |
 | | `combo_dividends` ⭐신규 | `race_date` | `meet, rc_no, pool, leg1, leg2, leg3` |
 | | `shadow_predictions` ⭐신규 | `race_date` | `meet, rc_no, hr_name, model_version` |
-| **전량** | `races`(8,214) · `horses`(2,864) · `race_sectional_stats`(8,201) · `jockey_stats`(59) · `race_par_times`(87) · `weight_history`(8) · `model_versions`(7) | — | 작아서 증분 이득 0 |
-| **전량(불가피)** | 뷰 2개 `horse_sectional_ability` · `horse_running_style_by_distance` | — | 말 단위 집계라 날짜 키 없음 |
+| **전량** | `races`(8,214) · `horses`(2,864) · `jockey_stats`(59) · `race_par_times`(87) · `weight_history`(8) · `model_versions`(7) | — | 작아서 증분 이득 0 |
+| **전량(불가피)** | 뷰 3개 `race_sectional_stats`(8,201) · `horse_sectional_ability`(6,306) · `horse_running_style_by_distance`(10,784) | — | 원천이 바뀌면 전체가 바뀌는 집계 뷰 |
+
+> ⚠️ `race_sectional_stats`는 **뷰**다(`007_sectional_views.sql:66`). 현재 `sync_local_db.ts`는
+> 이걸 `TABLES` 배열에 넣어뒀는데, 두 경로 모두 `SELECT *`라 동작은 같고 **라벨만 틀렸다**.
+> 이번에 `VIEWS` 쪽으로 옮겨 바로잡는다(동작 변화 없음).
 
 ⭐ `combo_dividends`·`shadow_predictions`는 지금 복사 목록에 아예 없다. 추가하면서 바로 증분 대상.
 
@@ -140,7 +144,8 @@ CREATE TABLE IF NOT EXISTS _sync_state (
 
 1. 미러에 그 테이블이 없음 (첫 실행)
 2. `_sync_state`에 그 테이블 지문이 하나도 없음
-3. **바뀜 ∪ 사라짐 날짜 수가 원천 날짜 수의 절반 초과** — 날짜별 지우고 넣기보다 통째가 빠름
+3. **바뀜 ∪ 사라짐 날짜 수가 원천 날짜 수의 절반 초과**(`FULL_RELOAD_RATIO = 0.5`) — 날짜별
+   지우고 넣기보다 통째가 빠름
 4. `--full` 플래그
 5. `DATABASE_URL` 없음(REST 폴백) — 해시 집계가 SQL이라 지문 자체를 못 받음
 
@@ -180,7 +185,11 @@ scripts/sync_local_db.ts   CLI 껍데기: 연결·계획 실행·출력
 ### 7.1 미러 신선도 경고
 
 `getLocalDb()`(`src/db/localDb.ts`)가 지금은 "파일 없으면 에러"만 본다. `_sync_state`의
-`max(synced_at)`을 읽어 임계(**기본 7일**) 초과면 **stderr 경고만** 낸다.
+`max(synced_at)`을 읽어 임계(**기본 3일**) 초과면 **stderr 경고만** 낸다.
+
+> **왜 3일인가:** 경마가 금·토·일 중심이라 7일로 잡으면 *주말 하나를 통째로 놓쳐도 조용하다.*
+> 3일이면 일요일 경주 뒤 수요일에는 반드시 경고가 뜬다. 상수 하나(`MIRROR_STALE_DAYS`)로
+> 두고, 실사용에서 시끄러우면 올린다.
 
 ```
 ⚠️ 미러가 79일 묵었습니다 (마지막 db:pull: 2026-07-10)
