@@ -41,23 +41,47 @@ DuckDB     ─────────  (안 씀)      ◀── 모든 분석·
 ### DuckDB — Supabase 복사본, 오프라인 분석 전용
 
 ```bash
-npm run db:pull               # 전체 테이블 복사 (Supabase → data/local.duckdb)
+npm run db:pull               # 전체 (증분 — 바뀐 날짜만)
 npm run db:pull -- --table X  # 단일 테이블만
+npm run db:pull -- --full     # 증분 무시하고 전량
 ```
 
 - **파일:** `data/local.duckdb` (로컬 전용, git 제외)
 - **어댑터:** `src/db/localDb.ts` — supabase-js API를 그대로 흉내냄
 - `ReadClient` 인터페이스를 공유해서 코드 변경 없이 Supabase ↔ DuckDB 교체 가능
 
+**증분 동기화 (2026-09-29~)** — 설계 `docs/superpowers/specs/2026-09-29-db-pull-incremental-design.md`
+
+원천에서 **날짜별 내용 해시**(`md5(string_agg(t::text ORDER BY PK))`)를 한 줄씩 받아
+미러 안 `_sync_state`에 저장된 지난 지문과 비교하고, **해시가 달라진 날짜만** 한 트랜잭션으로
+`DELETE → INSERT BY NAME → 지문 갱신` 한다. 실측: `race_entries` 88,593행이 전량 6.9초 →
+안 바뀌었으면 **0.7초·0행 수신**, 2일 바뀌면 294행만 수신.
+
+- ⚠️ **미러에서 해시를 재계산하면 안 된다** — Postgres와 DuckDB의 행 문자열 표기가 달라
+  전부 "바뀜"이 된다. 비교 축은 **"원천 지금 vs 원천 그때"**.
+- **전량으로 되돌아가는 경우:** 첫 실행 · 지문 없음 · 바뀐 날짜가 절반 초과 · `--full` ·
+  `DATABASE_URL` 없음(REST 폴백은 지문 SQL을 못 돌림). 원천에 **컬럼이 추가되면** `t::text`가
+  바뀌어 전 날짜 해시가 달라지므로 자동으로 전량이 된다.
+- **증분 적재가 실패하면** 조용히 넘어가지 않고 경고 후 전량으로 폴백한다.
+- **미러 신선도 경고** — 마지막 동기화가 3일(`MIRROR_STALE_DAYS`)을 넘으면 미러를 읽을 때
+  stderr 경고가 뜬다. **막지는 않는다**(백테스트는 일부러 과거 미러로 돌린다).
+  끄려면 `MIRROR_STALE_WARN=off`.
+- ⚠️ **`db:pull`은 "완료" 출력 뒤에도 잠깐 파일을 쥔다**(`close()` 미지원 → GC).
+  직후 다른 명령을 이어 돌리면 잠금 에러가 날 수 있다 — 몇 초 뒤 재시도.
+  잠금 에러의 PID는 **자기 자신일 수 있다**(PID가 실행마다 다르면 남이 아니다).
+
 ```typescript
 // 자동 분기: DB_SOURCE=supabase면 Supabase, 없으면 DuckDB
 export async function getReadClient(): Promise<ReadClient>
 ```
 
-**db:pull이 복사하는 테이블:**
-`race_entries`, `races`, `predictions`, `horses`, `model_versions`, `weight_history`,
-`jockey_stats`, `training_logs`, `race_sectional_stats`, `race_par_times`,
-`horse_sectional_ability`(뷰), `horse_running_style_by_distance`(뷰)
+**db:pull이 복사하는 대상 14개** (전략 SSOT: `src/db/mirror/tableSpecs.ts`)
+
+| 전략 | 대상 |
+|---|---|
+| **증분** (날짜 키가 PK 앞자리) | `race_entries` · `predictions` · `training_logs` · `combo_dividends` · `shadow_predictions` |
+| **전량** (작아서 이득 0) | `races` · `horses` · `jockey_stats` · `race_par_times` · `weight_history` · `model_versions` |
+| **전량**(뷰 — 날짜 키 없음) | `race_sectional_stats` · `horse_sectional_ability` · `horse_running_style_by_distance` |
 
 ### 매트릭스 — JSONL 파일, 모델 학습 입력
 

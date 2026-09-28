@@ -4,7 +4,7 @@ import {
   DuckDBInstance,
   DuckDBStructValue, DuckDBListValue, DuckDBArrayValue, DuckDBMapValue,
 } from '@duckdb/node-api';
-import { makeLocalClient, getLocalDb, unwrapDuck } from './localDb.js';
+import { makeLocalClient, getLocalDb, unwrapDuck, explainOpenError } from './localDb.js';
 
 let instance: any;
 let conn: any;
@@ -280,6 +280,29 @@ describe('시각 컬럼 — supabase-js처럼 ISO 문자열로 나온다 (2026-0
 
     const { data } = await client.from('ts_null').select('*').eq('id', 1).single();
     expect((data as any).created_at).toBeNull();
+  });
+});
+
+describe('explainOpenError — 잠금 에러 원인 안내 (2026-09-27)', () => {
+  it('IO 잠금 에러를 원인 설명으로 감싼다 — PID가 자기 자신일 수 있다고 알려준다', () => {
+    const msg = explainOpenError(new Error(
+      'IO Error: Cannot open file "data/local.duckdb": 다른 프로세스가 파일을 사용 중입니다.\n' +
+      'File is already open in node.exe (PID 12345)'
+    ));
+    expect(msg).toContain('PID 12345');
+    expect(msg).toContain('자기 자신');   // 동시 호출 경쟁
+    expect(msg).toContain('db:pull');     // 방금 끝난 pull이 아직 쥐고 있음
+    expect(msg).toContain('워크트리');
+  });
+
+  it('PID가 없는 잠금 에러도 안내는 한다', () => {
+    const msg = explainOpenError(new Error('IO Error: file is already open'));
+    expect(msg).toContain('DuckDB는 동시에 하나만');
+  });
+
+  it('잠금과 무관한 에러는 원문 그대로', () => {
+    const e = new Error('something else entirely');
+    expect(explainOpenError(e)).toBe('something else entirely');
   });
 });
 
