@@ -37,6 +37,12 @@
 - 코드 정리: `buildFeatures.ts`의 pace_fit/pace_sens/pace_fit_n 노출 라인(add 3줄+missingFlag 2줄) 제거, `buildFeatures.test.ts` 해당 케이스 제거. **`paceForm.ts`·`pacePar.ts`·`asOfHorseStats` 집계는 유지**(다음 조작화 재사용, 재학습 오염 없음).
 - 로그: `.superpowers/sdd/pace_off.log`·`pace_on.log`.
 
+## 전개 피처 주로 상태 보정 — ❌ 기각 (2026-09-30, 1단계 사전점검 미통과)
+포화·불량 주로 시간을 동결 계수(2024 이전 추정)로 건조 환산해 par·말별 편차에 반영하는 가설(스펙 `docs/superpowers/specs/2026-09-30-shape-track-state-adjust-design.md`).
+- **1단계(다음 경주 초반·종반 시간 예측 RMSE, 2024~2026 연도별): 상대 감소 초반 −0.36/+0.45/+0.61%·종반 −0.03/+0.23/+0.36% — 통과선(1%) 0/3.** 사전등록 규칙대로 배선·통제 A/B 없이 종결.
+- 원인 해석: 상태 효과는 실재하나 말별 편차가 이력 전체 평균이라 혼합 편향이 희석됨. 재제안 금지(신설 경마장 par 대체 용도만 예외).
+- 코드 자산: `trackStateAdjust.ts`(미사용)·`shapeStatePrecheck.ts`·`npm run probe:shape-state`.
+
 ## shape_d6_best (종반 600m 역대 최고) — ❌ 기각 (2026-07-14)
 7/10 부경 6R 분석에서 발굴한 후보(우승마 투혼파이터: 종반 평균은 들쭉날쭉하나 피크는 필드 1위 — 평균에 묻히는 "한 방" 능력 가설).
 - 구현: `horseShapeStats.bestD6`(par 대비 d6 최솟값) → `shape_d6_best` 피처. 행렬 46,203행 재추출.

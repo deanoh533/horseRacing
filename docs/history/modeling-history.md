@@ -23,6 +23,7 @@
 |---|---|---|
 | 등급이동 class_move | ✅ 채택 | 다분기 +3.9%p, 라이브 클린 |
 | 전개 shape_signal (pred_gap·p_achieve) | ✅ 채택·승격 (2026-07-09~10) | t2 Δ+0.2%p 미달 → t3 사전등록 재검증: 2024H2 신선 구간(백필 확보) Logistic(t3) Δ+2.1%p·2분기 모두 양수·전 모델 방향 일치 → v7-shape(id=7, 학습 2022~) 승격·Platt 재적합 완료 [[project_race_shape_track]] |
+| 전개 주로상태 보정 | ❌ 기각 (2026-09-30) | 1단계 예측 RMSE 상대감소 ≤0.6%(통과선 1%, 0/3) — 혼합 이력 편향이 평균에 희석 [[project_track_condition_effect]] |
 | 조교 train_signal | ❌ 흡수 | 통제 A/B Δ−0.12% [[project_training_signals]] |
 | 의료(출혈·피로) | ❌ 기각 | 게이트B 한계기여 ~0 [[project_medical_signals]] |
 | 마체중 | ⏸ 보류 | wg_hr 라이브 누수 |
