@@ -27,6 +27,7 @@
     "calib:fit-live": "tsx scripts/fit_live_calibration.ts",
     "probe:shape": "tsx scripts/probe_race_shape.ts",
     "probe:shape-state": "tsx scripts/probe_shape_state_precheck.ts",
+    "probe:train-window": "tsx scripts/probe_train_window.ts",
     "probe:v7-accuracy": "tsx scripts/probe_v7_accuracy.ts",
     "probe:sync-health": "tsx scripts/probe_sync_health.ts",
     "probe:sync-runs": "tsx scripts/probe_sync_runs.ts",
