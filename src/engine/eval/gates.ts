@@ -2,6 +2,7 @@ import { featureToItem } from '../features/featureItemMap.js';
 import { buildSchema, toVector } from '../features/alignFeatures.js';
 import { fitLogistic } from '../models/logistic.js';
 import type { RaceRecord } from './types.js';
+import { quarterStart, quarterEnd, type YearQuarter } from './rolling.js';
 import { scoreHoldout, placeHitRate, fadeHitRate, quinellaHitRate } from './gateMetrics.js';
 
 // ── 게이트 A: 피처 상관계수 ───────────────────────────────────────
@@ -79,8 +80,20 @@ export function printGateA(warnings: GateAWarning[]): void {
 
 // ── 게이트 B: 연승률 개선량 ───────────────────────────────────────
 
-export const GATE_B_HOLDOUT_START = 20251001;
-export const GATE_B_HOLDOUT_END   = 20251231;
+export interface GateHoldout { start: number; end: number; }
+
+/**
+ * 기본 holdout = 첫 시험 분기의 바로 앞 분기. 피처 선택이 시험 분기를 엿보지 않게 한다.
+ * (2026-10-04 이전 기본값은 고정 2025Q4 — 기본 시험 구간 안이었다. TODO W-005)
+ */
+export function gateHoldoutBefore(firstTest: YearQuarter): GateHoldout {
+  const prev = firstTest.q === 1 ? { year: firstTest.year - 1, q: 4 } : { year: firstTest.year, q: firstTest.q - 1 };
+  return { start: quarterStart(prev.year, prev.q), end: quarterEnd(prev.year, prev.q) };
+}
+
+export function holdoutOverlapsTest(holdout: GateHoldout, firstTestStart: number): boolean {
+  return holdout.end >= firstTestStart;
+}
 
 export interface GateBResult {
   itemId: string;
@@ -94,9 +107,10 @@ export interface GateBResult {
 
 export function runGateB(
   races: RaceRecord[],
-  holdout: { start: number; end: number } = { start: GATE_B_HOLDOUT_START, end: GATE_B_HOLDOUT_END },
+  holdout: GateHoldout,
 ): GateBResult[] {
   const gateTrain = races.filter((r) => r.raceDate < holdout.start);
+  console.log(`  게이트 B 학습 ${gateTrain.length}경주 · holdout ${holdout.start}~${holdout.end}`);
   const gateHoldout = races.filter(
     (r) => r.raceDate >= holdout.start && r.raceDate <= holdout.end
   );
