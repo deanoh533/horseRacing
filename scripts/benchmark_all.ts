@@ -15,8 +15,8 @@ import { rollingBlocks, parseYearQuarter, quarterStart, quarterEnd } from '../sr
 import { marketDiagnostics, printMarketDiag, emptyTally, addTally } from '../src/engine/eval/market.js';
 import type { Tally } from '../src/engine/eval/market.js';
 import { rankHorses, type ScorableModel } from '../src/engine/eval/score.js';
-import { loadVersion } from '../src/engine/eval/champion.js';
-import { printRollingTable, type RollingRow } from '../src/engine/eval/report.js';
+import { loadVersion, trainBound } from '../src/engine/eval/champion.js';
+import { printRollingTable, inSampleQuarters, type RollingRow } from '../src/engine/eval/report.js';
 
 const DEFAULT_FIRST_TEST = { year: 2025, q: 1 };
 const DEFAULT_FROM = 20240101;
@@ -86,6 +86,11 @@ async function main(): Promise<void> {
 
   const blocks = rollingBlocks(races, firstTest);
   const quarters = blocks.map((b) => b.key);
+  const bound = trainBound(champ.row);
+  const champInSample = inSampleQuarters(blocks, bound?.date ?? null);
+  if (!bound) console.log('  ⚠️  챔피언 학습 종료일·생성일 모두 미기록 — in-sample 여부 판정 불가');
+  else if (bound.source === 'created_at') console.log(`  학습 종료일 미기록 → 생성일 ${bound.date}을 상한으로 판정(보수적)`);
+  if (champInSample.size) console.log(`  ⚠️  챔피언이 학습에 쓴 분기 ${champInSample.size}/${blocks.length}개 — 표에 * 표시(참고용)`);
 
   const tallies = new Map<Method, Map<string, Tally>>(
     METHODS.map((m) => [m, new Map<string, Tally>()])
@@ -137,11 +142,12 @@ async function main(): Promise<void> {
     method: m,
     byQuarter: tallies.get(m)!,
     overall: overall.get(m)!,
+    ...(m === '챔피언' && champInSample.size ? { inSample: champInSample } : {}),
   }));
   printRollingTable(rows, quarters);
   printRollingTable(rows, quarters, 'win');
 
-  console.log('\n=== 시장 깊은 진단 (챔피언 vs 시장, 전체 test) ===');
+  console.log(`\n=== 시장 깊은 진단 (챔피언 vs 시장, 전체 test)${champInSample.size ? ' ⚠️ 챔피언 in-sample 분기 포함 — 참고용' : ''} ===`);
   printMarketDiag(marketDiagnostics(allTest, champ.model));
 }
 
