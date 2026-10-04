@@ -5,6 +5,7 @@
 import { parseGateRound, parseGateList, type GateClient, type GateListEntry, type GateTestRow } from '../kra/gateTest.js';
 
 export interface GateStore {
+  /** 저장된 말 행 1개당 요소 1개(회차 단위 아님) — 최근분의 편성두수 비교가 이 개수에 의존한다. */
   existing(from: number, to: number): Promise<Array<{ test_date: number; meet: number; trno: number }>>;
   upsert(rows: GateTestRow[]): Promise<void>;
 }

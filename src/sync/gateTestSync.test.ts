@@ -110,4 +110,15 @@ describe('syncRecentGateTests', () => {
     const rep = await syncRecentGateTests(client, fakeStore().store, { meets: [1, 3] });
     expect(rep.failures).toEqual(['목록 m1', '목록 m3']);
   });
+
+  it('existing은 행 단위 — 같은 회차 2행이면 요청 없이 편성 2와 일치, 3이면 shortfall', async () => {
+    const two = [{ test_date: 20261001, meet: 1, trno: 1 }, { test_date: 20261001, meet: 1, trno: 1 }];
+    const a = fakeClient({}, { 1: listHtml([{ date: 20261001, trnos: [1], entries: 2 }]) });
+    const repA = await syncRecentGateTests(a.client, fakeStore(two).store, { meets: [1] });
+    expect(a.calls).toEqual(['list1']);
+    expect(repA.shortfalls).toEqual([]);
+    const b = fakeClient({}, { 1: listHtml([{ date: 20261001, trnos: [1], entries: 3 }]) });
+    const repB = await syncRecentGateTests(b.client, fakeStore(two).store, { meets: [1] });
+    expect(repB.shortfalls).toEqual(['m1 20261001 저장 2/편성 3']);
+  });
 });
