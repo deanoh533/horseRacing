@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eachDate, backfillGateTests, syncRecentGateTests, MAX_TRNO, type GateStore } from './gateTestSync.js';
+import { eachDate, backfillGateTests, syncRecentGateTests, MAX_TRNO, MAX_CONSECUTIVE_FAILURES, type GateStore } from './gateTestSync.js';
 import type { GateClient, GateTestRow } from '../kra/gateTest.js';
 
 // 테스트용 HTML 생성기 — 실제 페이지와 같은 구조(caption·tbody·16칸·goPage1)
@@ -12,13 +12,14 @@ const listHtml = (rows: Array<{ date: number; trnos: number[]; entries: number }
   `<tr><td>${i + 1}</td><td>결과표</td><td>x</td><td>${r.trnos.map((t) => `<a onclick='goPage1("${t}","${r.date}")'>${t}</a>`).join('')}</td>` +
   `<td>${r.entries}</td><td>0</td><td>0</td></tr>`).join('')}</tbody>`;
 
-function fakeClient(rounds: Record<string, string[] | 'fail'>, lists: Record<number, string | 'fail'> = {}) {
+function fakeClient(rounds: Record<string, string[] | 'fail' | { raw: string }>, lists: Record<number, string | 'fail'> = {}) {
   const calls: string[] = [];
   const client: GateClient = {
     async fetchRound(meet, date, trno) {
       const k = `${meet}|${date}|${trno}`; calls.push(k);
       const v = rounds[k];
       if (v === 'fail') throw new Error('boom');
+      if (v && !Array.isArray(v)) return v.raw;
       return v ? roundHtml(v) : EMPTY;
     },
     async fetchList(meet) {
@@ -70,8 +71,37 @@ describe('backfillGateTests', () => {
     const { client } = fakeClient({ '1|20240104|1': 'fail', '1|20240105|1': ['0000005'] });
     const { store, saved } = fakeStore();
     const rep = await backfillGateTests(client, store, 20240104, 20240105, { meets: [1] });
-    expect(rep.failures).toEqual(['m1 20240104 회차1']);
+    expect(rep.failures).toEqual(['m1 20240104 회차1: boom']);
     expect(saved.map((r) => r.hr_no)).toEqual(['0000005']);
+  });
+
+  it('캡션 없는 페이지(점검·오류)는 실패로 기록, 저장 없이 다음 날짜로 계속', async () => {
+    const { client } = fakeClient({ '1|20240104|1': { raw: '<html>점검 중</html>' }, '1|20240105|1': ['0000005'] });
+    const { store, saved } = fakeStore();
+    const rep = await backfillGateTests(client, store, 20240104, 20240105, { meets: [1] });
+    expect(rep.failures).toEqual(['m1 20240104 회차1: 결과표 없음(점검·오류 페이지?)']);
+    expect(saved.map((r) => r.hr_no)).toEqual(['0000005']);
+  });
+
+  it('캡션은 있으나 행이 전부 깨졌으면 실패로 기록', async () => {
+    const raw = '<caption>주행심사결과를 순위</caption><tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody>';
+    const { client } = fakeClient({ '1|20240104|1': { raw } });
+    const { store, saved } = fakeStore();
+    const rep = await backfillGateTests(client, store, 20240104, 20240104, { meets: [1] });
+    expect(rep.failures).toEqual(['m1 20240104 회차1: 행 파싱 실패 1행(마크업 변경?)']);
+    expect(saved).toEqual([]);
+  });
+
+  it('연속 실패가 MAX_CONSECUTIVE_FAILURES에 닿으면 중단', async () => {
+    const calls: string[] = [];
+    const client: GateClient = {
+      async fetchRound(m, d, t) { calls.push(`${m}|${d}|${t}`); throw new Error('boom'); },
+      async fetchList() { return ''; },
+    };
+    const rep = await backfillGateTests(client, fakeStore().store, 20240101, 20240130, { meets: [1] });
+    expect(calls).toHaveLength(MAX_CONSECUTIVE_FAILURES);
+    expect(rep.failures).toHaveLength(MAX_CONSECUTIVE_FAILURES + 1);
+    expect(rep.failures.at(-1)).toBe(`연속 실패 ${MAX_CONSECUTIVE_FAILURES}회 — 사이트 차단·장애 의심, 중단(다시 실행하면 이어받음)`);
   });
 
   it('빈 표가 끝내 안 나와도 MAX_TRNO에서 멈춘다', async () => {
@@ -108,7 +138,7 @@ describe('syncRecentGateTests', () => {
   it('목록이 비었거나(점검 페이지) 실패하면 failures에 남긴다 — 조용히 0건 금지', async () => {
     const { client } = fakeClient({}, { 1: '<html>점검</html>', 3: 'fail' });
     const rep = await syncRecentGateTests(client, fakeStore().store, { meets: [1, 3] });
-    expect(rep.failures).toEqual(['목록 m1', '목록 m3']);
+    expect(rep.failures).toEqual(['목록 m1', '목록 m3: boom']);
   });
 
   it('existing은 행 단위 — 같은 회차 2행이면 요청 없이 편성 2와 일치, 3이면 shortfall', async () => {

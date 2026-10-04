@@ -36,15 +36,28 @@ function supabaseStore(): GateStore {
   };
 }
 
+const USAGE = '사용: npm run sync:gate  (최근분) | npm run sync:gate -- --from YYYYMMDD --to YYYYMMDD  (백필)';
+
+/** --from/--to는 한 쌍(둘 다 YYYYMMDD, from ≤ to). 없으면 최근분. 잘못되면 네트워크 접근 전에 종료. */
+function parseRange(): { from: number; to: number } | null {
+  const f = arg('--from'), t = arg('--to');
+  if (f === undefined && t === undefined) return null;
+  if (f === undefined || t === undefined || !/^d{8}$/.test(f) || !/^d{8}$/.test(t) || Number(f) > Number(t)) {
+    console.error(USAGE);
+    process.exit(2);
+  }
+  return { from: Number(f), to: Number(t) };
+}
+
 async function main(): Promise<void> {
+  const range = parseRange();
   const client = createGateClient();
   const store = supabaseStore();
-  const from = arg('--from');
   const t0 = Date.now();
-  const rep = from
-    ? await backfillGateTests(client, store, Number(from), Number(arg('--to') ?? from), { log: console.log })
+  const rep = range
+    ? await backfillGateTests(client, store, range.from, range.to, { log: console.log })
     : await syncRecentGateTests(client, store, { log: console.log });
-  console.log(`\n주행심사 ${from ? '백필' : '최근분'}: ${rep.rounds}회차 ${rep.rows}행 저장 · 파싱 제외 ${rep.skippedRows}행 · ${((Date.now() - t0) / 1000).toFixed(0)}초`);
+  console.log(`\n주행심사 ${range ? '백필' : '최근분'}: ${rep.rounds}회차 ${rep.rows}행 저장 · 파싱 제외 ${rep.skippedRows}행 · ${((Date.now() - t0) / 1000).toFixed(0)}초`);
   if (rep.shortfalls.length) console.warn(`⚠️ 편성두수 대비 누락 ${rep.shortfalls.length}건:\n  ${rep.shortfalls.join('\n  ')}`);
   if (rep.failures.length) {
     console.error(`❌ 실패 ${rep.failures.length}건 (다시 실행하면 이어서 받음):\n  ${rep.failures.join('\n  ')}`);

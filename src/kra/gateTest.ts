@@ -30,9 +30,10 @@ const text = (s: string): string | null => strip(s) || null;
 const int = (s: string): number | null => { const v = Number(strip(s)); return strip(s) !== '' && Number.isFinite(v) ? v : null; };
 const cells = (tr: string): string[] => tr.split(/<td[^>]*>/).slice(1).map((x) => x.split('</td>')[0]!);
 
-export function parseGateRound(html: string, meet: number, date: number, trno: number): { rows: GateTestRow[]; skipped: number } {
+/** found = 결과표 캡션 존재 여부(없으면 점검·오류 페이지 등 — 호출자가 빈 회차와 구분해야 한다). */
+export function parseGateRound(html: string, meet: number, date: number, trno: number): { rows: GateTestRow[]; skipped: number; found: boolean } {
   const tbl = html.split('<caption>주행심사결과를')[1];
-  if (!tbl) return { rows: [], skipped: 0 };
+  if (!tbl) return { rows: [], skipped: 0, found: false };
   const body = tbl.split('<tbody>')[1]?.split('</tbody>')[0] ?? '';
   const track = /주로상태\s*:\s*([^<]+)/.exec(html)?.[1]?.trim() ?? null;
   const rows: GateTestRow[] = [];
@@ -52,7 +53,7 @@ export function parseGateRound(html: string, meet: number, date: number, trno: n
       verdict_reason: text(c[15]!), track_cond: track,
     });
   }
-  return { rows, skipped };
+  return { rows, skipped, found: true };
 }
 
 export function parseGateList(html: string): GateListEntry[] {

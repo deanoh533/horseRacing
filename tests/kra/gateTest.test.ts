@@ -18,11 +18,12 @@ describe('toSeconds', () => {
 });
 
 describe('parseGateRound', () => {
-  const { rows, skipped } = parseGateRound(fx('gate_round_20261001_m1_t1.html'), 1, 20261001, 1);
+  const { rows, skipped, found } = parseGateRound(fx('gate_round_20261001_m1_t1.html'), 1, 20261001, 1);
 
   it('정상 회차: 12행, 건너뛴 행 0', () => {
     expect(rows).toHaveLength(12);
     expect(skipped).toBe(0);
+    expect(found).toBe(true);
   });
 
   it('첫 행 전 필드', () => {
@@ -48,11 +49,20 @@ describe('parseGateRound', () => {
   });
 
   it('빈 표(심사 없는 날짜·회차) → 0행', () => {
-    expect(parseGateRound(fx('gate_round_empty.html'), 1, 20251002, 9)).toEqual({ rows: [], skipped: 0 });
+    expect(parseGateRound(fx('gate_round_empty.html'), 1, 20251002, 9)).toEqual({ rows: [], skipped: 0, found: true });
   });
 
   it('표가 아예 없는 페이지(점검·오류) → 0행', () => {
-    expect(parseGateRound('<html><body>점검 중</body></html>', 1, 20251002, 1)).toEqual({ rows: [], skipped: 0 });
+    expect(parseGateRound('<html><body>점검 중</body></html>', 1, 20251002, 1)).toEqual({ rows: [], skipped: 0, found: false });
+  });
+
+  it('캡션은 있고 짧은 깨진 행 1개 + 정상 행 1개 → rows 1, skipped 1', () => {
+    const good = fx('gate_round_20261001_m1_t1.html').split('<tr>').slice(1).find((t) => t.includes('goPage1'))!;
+    const html = `<caption>주행심사결과를 순위</caption><tbody><tr><td>1</td><td>2</td><td>3</td></tr><tr>${good.split('</tbody>')[0]}</tbody>`;
+    const r = parseGateRound(html, 1, 20261001, 1);
+    expect(r.rows).toHaveLength(1);
+    expect(r.skipped).toBe(1);
+    expect(r.found).toBe(true);
   });
 });
 
