@@ -16,6 +16,13 @@ export const MAX_TRNO = 20;
 export const MAX_CONSECUTIVE_FAILURES = 10;
 const DEFAULT_MEETS = [1, 3];
 
+/** CLI --from/--to 해석. 둘 다 없으면 'recent', 한 쌍(YYYYMMDD, from ≤ to)이면 범위, 그 외 null(사용법 오류). */
+export function parseBackfillRange(from: string | undefined, to: string | undefined): { from: number; to: number } | 'recent' | null {
+  if (from === undefined && to === undefined) return 'recent';
+  if (from === undefined || to === undefined || !/^\d{8}$/.test(from) || !/^\d{8}$/.test(to) || Number(from) > Number(to)) return null;
+  return { from: Number(from), to: Number(to) };
+}
+
 export function eachDate(from: number, to: number): number[] {
   const out: number[] = [];
   const d = new Date(Date.UTC(Math.floor(from / 10000), Math.floor(from / 100) % 100 - 1, from % 100));

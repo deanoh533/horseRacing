@@ -7,7 +7,7 @@
 import 'dotenv/config';
 import { getSupabaseAdmin } from '../src/db/supabase.js';
 import { createGateClient, type GateTestRow } from '../src/kra/gateTest.js';
-import { backfillGateTests, syncRecentGateTests, type GateStore } from '../src/sync/gateTestSync.js';
+import { backfillGateTests, parseBackfillRange, syncRecentGateTests, type GateStore } from '../src/sync/gateTestSync.js';
 
 const args = process.argv.slice(2);
 const arg = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
@@ -38,19 +38,13 @@ function supabaseStore(): GateStore {
 
 const USAGE = '사용: npm run sync:gate  (최근분) | npm run sync:gate -- --from YYYYMMDD --to YYYYMMDD  (백필)';
 
-/** --from/--to는 한 쌍(둘 다 YYYYMMDD, from ≤ to). 없으면 최근분. 잘못되면 네트워크 접근 전에 종료. */
-function parseRange(): { from: number; to: number } | null {
-  const f = arg('--from'), t = arg('--to');
-  if (f === undefined && t === undefined) return null;
-  if (f === undefined || t === undefined || !/^d{8}$/.test(f) || !/^d{8}$/.test(t) || Number(f) > Number(t)) {
+async function main(): Promise<void> {
+  const parsed = parseBackfillRange(arg('--from'), arg('--to'));
+  if (parsed === null) {
     console.error(USAGE);
     process.exit(2);
   }
-  return { from: Number(f), to: Number(t) };
-}
-
-async function main(): Promise<void> {
-  const range = parseRange();
+  const range = parsed === 'recent' ? null : parsed;
   const client = createGateClient();
   const store = supabaseStore();
   const t0 = Date.now();

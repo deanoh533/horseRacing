@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eachDate, backfillGateTests, syncRecentGateTests, MAX_TRNO, MAX_CONSECUTIVE_FAILURES, type GateStore } from './gateTestSync.js';
+import { eachDate, backfillGateTests, syncRecentGateTests, MAX_TRNO, MAX_CONSECUTIVE_FAILURES, parseBackfillRange, type GateStore } from './gateTestSync.js';
 import type { GateClient, GateTestRow } from '../kra/gateTest.js';
 
 // 테스트용 HTML 생성기 — 실제 페이지와 같은 구조(caption·tbody·16칸·goPage1)
@@ -151,4 +151,13 @@ describe('syncRecentGateTests', () => {
     const repB = await syncRecentGateTests(b.client, fakeStore(two).store, { meets: [1] });
     expect(repB.shortfalls).toEqual(['m1 20261001 저장 2/편성 3']);
   });
+});
+
+describe('parseBackfillRange', () => {
+  it('둘 다 없으면 recent', () => { expect(parseBackfillRange(undefined, undefined)).toBe('recent'); });
+  it('정상 쌍', () => { expect(parseBackfillRange('20220101', '20261004')).toEqual({ from: 20220101, to: 20261004 }); });
+  it.each([
+    ['20220101', undefined], [undefined, '20220101'], ['2022', '20220101'],
+    ['20220102', '20220101'], ['2022010a', '20220101'],
+  ])('잘못된 입력 %s, %s → null', (f, t) => { expect(parseBackfillRange(f, t)).toBeNull(); });
 });
