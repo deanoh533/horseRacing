@@ -2,7 +2,7 @@
  * Rolling Benchmark — 분기 확장윈도우로 9모델 + 챔피언 + 시장 진단.
  * 사용: npm run benchmark  [-- --gate-only | --no-gate | --champion <id>]
  *              [--first-test YYYYQn] [--from YYYYMMDD] [--to YYYYMMDD] [--gate-holdout YYYYQn]
- * 기간 플래그 미지정 시 기존 기본값(2025Q1 / 20240101 / 무제한) 그대로.
+ * 기간 플래그 미지정 시 기본값 2025Q1 / 20220101(2026-10-04~, 이전 20240101) / 무제한.
  * 게이트 B holdout 기본값 = 첫 시험 분기 직전 분기(2026-10-04~, 이전엔 고정 2025Q4 — TODO W-005).
  * par cutoff는 첫 테스트 분기 시작일로 유도 (t3 사전등록: 2026-07-09-race-shape-t3-prereg.md).
  */
@@ -20,7 +20,7 @@ import { loadVersion, trainBound } from '../src/engine/eval/champion.js';
 import { printRollingTable, inSampleQuarters, type RollingRow } from '../src/engine/eval/report.js';
 
 const DEFAULT_FIRST_TEST = { year: 2025, q: 1 };
-const DEFAULT_FROM = 20240101;
+const DEFAULT_FROM = 20220101; // 2026-10-04 W-005: 게이트 B 학습량 확보(holdout 2024Q4 앞 ~4,500경주)
 
 const METHODS = [
   '시장', '챔피언', 'Spearman',

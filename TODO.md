@@ -30,7 +30,11 @@
   - `body_weight`·`body_weight_minus_field_mean`은 라이브 미가용인데 학습에 있었다. **통제 A/B에서 효과 0**이라 성적 영향은 없지만, "없는 정보에 기대지 않는다"는 정리 대상.
   - 재학습이 필요해서 동결 해제 후 사이클에 함께. 확인 명령: `npm run benchmark -- --no-gate --exclude-feature body_weight --exclude-feature body_weight_minus_field_mean`
 
-- [ ] **W-005 게이트B holdout이 시험 구간 안에 있다 (약한 선택 누수)**
+- [x] **W-005 게이트B holdout이 시험 구간 안에 있다 (약한 선택 누수)** — ✅ **완료 2026-10-04**
+  - 기본 holdout = **첫 시험 분기 직전 분기**(`gateHoldoutBefore`, 기본 2024Q4). `--gate-holdout`이 시험 구간과 겹치면 경고.
+  - 그 결과 게이트 B 학습이 1,305경주로 줄어 **기본 `--from`을 20220101로** 변경 → 4,720경주. 벤치 실행 시간은 늘어남.
+  - ⚠️ **연속성**: 2026-10-04 이전 기본 benchmark 수치(holdout 2025Q4·from 2024)와 직접 비교 금지. 이전 실험 재현은 `--from 20240101 --gate-holdout 2025Q4`.
+  - 관찰: 학습량만 바꿔도 채택 항목이 크게 바뀜(양쪽 공통 포함 = shape_signal·race_interval·late_position·med_bleed). **게이트 B 단독 판정은 노이즈 민감** — 채택은 지금처럼 통제 A/B로.
   - 기본 holdout 2025Q4(`GATE_B_HOLDOUT_START/END`)가 롤링 시험 구간(2025Q1~2026Q2) 안 → 피처 선택 단계가 시험 분기를 엿본다. 가중치 자체는 정직.
   - 선택지: holdout을 시험 구간 앞으로 이동 / 기본 시험 구간을 뒤로 이동. 판정 수치 비교 가능성이 있어 **바꾸면 과거 판정과의 연속성 메모 필요**.
 
