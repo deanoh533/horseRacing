@@ -100,3 +100,8 @@ jobs:
       - run: npm ci
       - name: catchupSync
         run: npm run sync:catchup
+      # 주행심사 최근분(마사회 홈페이지) — 실패해도 결과 캐치업 잡은 성공 처리.
+      # 목록이 약 6개월치를 보여주므로 며칠 연속 실패해도 다음 성공 때 메워진다.
+      - name: gateTestSync (주행심사 최근분)
+        continue-on-error: true
+        run: npm run sync:gate
