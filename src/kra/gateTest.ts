@@ -67,3 +67,51 @@ export function parseGateList(html: string): GateListEntry[] {
   }
   return out;
 }
+
+export interface GateClient {
+  fetchRound(meet: number, date: number, trno: number): Promise<string>;
+  fetchList(meet: number, pageIndex?: number): Promise<string>;
+}
+
+const ROUND_URL = 'https://race.kra.co.kr/referee/RacingTrainCheckScoreTable.do';
+const LIST_URL = (meet: number) => `https://race.kra.co.kr/referee/RacingTrainCheckList.do?Act=07&Sub=8&meet=${meet}`;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export function createGateClient(opts: {
+  fetchImpl?: typeof fetch; delayMs?: number; retryDelayMs?: number; timeoutMs?: number; maxAttempts?: number;
+} = {}): GateClient {
+  const f = opts.fetchImpl ?? fetch;
+  const delayMs = opts.delayMs ?? 2000;
+  const retryDelayMs = opts.retryDelayMs ?? 5000;
+  const timeoutMs = opts.timeoutMs ?? 30000;
+  const maxAttempts = opts.maxAttempts ?? 3;
+  let last = 0;
+
+  async function post(url: string, body: string, label: string): Promise<string> {
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const wait = last + delayMs - Date.now();
+      if (wait > 0) await sleep(wait);
+      last = Date.now();
+      try {
+        const res = await f(url, {
+          method: 'POST', body,
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/x-www-form-urlencoded' },
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return decodeEucKr(await res.arrayBuffer());
+      } catch (e) {
+        lastErr = e;
+        if (attempt < maxAttempts) await sleep(retryDelayMs);
+      }
+    }
+    throw new Error(`주행심사 요청 실패 ${label}: ${String(lastErr)}`);
+  }
+
+  return {
+    fetchRound: (meet, date, trno) =>
+      post(ROUND_URL, `trno=${trno}&date=${date}&meet=${meet}&Act=07&Sub=8`, `m${meet} ${date} 회차${trno}`),
+    fetchList: (meet, pageIndex = 1) => post(LIST_URL(meet), `pageIndex=${pageIndex}`, `목록 m${meet} p${pageIndex}`),
+  };
+}
