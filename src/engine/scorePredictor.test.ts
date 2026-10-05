@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { attachCalibratedProbs, scoreRaceRows, LINEAR_MODEL_TYPES, type RaceInputRow } from './scorePredictor.js';
+import { attachCalibratedProbs, scoreRaceRows, LINEAR_MODEL_TYPES, pickJockeyCareer, type RaceInputRow } from './scorePredictor.js';
 import type { CalibratedArtifact } from './eval/calibratedProbs.js';
 import type { ActiveModelVersion } from './modelVersion.js';
 
@@ -56,5 +56,36 @@ describe('scoreRaceRows', () => {
     const v: ActiveModelVersion = { id: 9, label: 'p', model_type: 'pl-top3', weights: {}, artifact: { ...linear(1), intercept: 0 } };
     const out = scoreRaceRows(rows, v, 20260912, 1, 3);
     expect(out.every((r) => typeof r.total_score === 'number')).toBe(true);
+  });
+});
+
+// T-017: jockey_stats는 소속 본부(1·3)별 통산이라 개최지(meet)로 조회하면 영천(4)·원정 기수가 전부 비었다.
+describe('pickJockeyCareer', () => {
+  const row = (jcky_no: string, meet: number, qu: number, cnt = 100) => ({ jcky_no, meet, win_rate_t: qu / 3, qu_rate_t: qu, race_cnt_t: cnt });
+
+  it('개최지 본부 행을 쓴다', () => {
+    const m = pickJockeyCareer([row('A', 1, 30), row('A', 3, 20)], 1);
+    expect(m.get('A')?.qu_rate_t).toBe(30);
+  });
+
+  it('영천(4)은 부경(3) 행을 쓴다', () => {
+    const m = pickJockeyCareer([row('A', 1, 30), row('A', 3, 20)], 4);
+    expect(m.get('A')?.qu_rate_t).toBe(20);
+  });
+
+  it('개최지 본부 행이 없으면(원정) 다른 본부 행을 쓴다', () => {
+    const m = pickJockeyCareer([row('B', 3, 25)], 1);
+    expect(m.get('B')?.qu_rate_t).toBe(25);
+  });
+
+  it('원정 행이 여럿이면 출주가 많은 행', () => {
+    const m = pickJockeyCareer([row('C', 1, 10, 5), row('C', 3, 40, 500)], 4 as number);
+    expect(m.get('C')?.qu_rate_t).toBe(40); // 영천→부경 행 우선
+    const n = pickJockeyCareer([row('D', 1, 10, 5), row('D', 2, 40, 500)], 3);
+    expect(n.get('D')?.qu_rate_t).toBe(40); // 부경 행 없음 → 출주 많은 행
+  });
+
+  it('행이 없는 기수는 맵에 없다', () => {
+    expect(pickJockeyCareer([row('A', 1, 30)], 1).has('Z')).toBe(false);
   });
 });
