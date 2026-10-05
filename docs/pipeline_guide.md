@@ -296,6 +296,7 @@ npm run sync:cards -- --date YYYYMMDD   # 출전표 (API26_2)
 npm run sync -- --date YYYYMMDD         # 경기 결과 (API214_1)
 npm run sync:training                   # 조교 기록 (API18_1)
 npm run sync:jockey                     # 기수 통산성적 (jkpresult)
+npm run sync:gate                       # 주행심사 결과(홈페이지) 최근분 / --from --to 백필
 ```
 
 ### 로컬 미러 (Supabase → DuckDB)

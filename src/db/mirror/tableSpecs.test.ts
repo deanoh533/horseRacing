@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { TABLE_SPECS, ALL_TARGETS, isIncremental } from './tableSpecs.js';
 
 describe('TABLE_SPECS', () => {
-  it('증분 대상은 spec §4의 5개', () => {
+  it('증분 대상 6개', () => {
     const inc = Object.entries(TABLE_SPECS)
       .filter(([, s]) => s.mode === 'incremental')
       .map(([t]) => t)
       .sort();
     expect(inc).toEqual([
-      'combo_dividends', 'predictions', 'race_entries',
+      'combo_dividends', 'gate_tests', 'predictions', 'race_entries',
       'shadow_predictions', 'training_logs',
     ]);
   });
@@ -28,11 +28,12 @@ describe('TABLE_SPECS', () => {
     }
   });
 
-  it('ALL_TARGETS는 기존 12개 + 신규 2개 = 14개, 중복 없음', () => {
-    expect(ALL_TARGETS).toHaveLength(14);
-    expect(new Set(ALL_TARGETS).size).toBe(14);
+  it('ALL_TARGETS는 기존 12개 + 신규 3개 = 15개, 중복 없음', () => {
+    expect(ALL_TARGETS).toHaveLength(15);
+    expect(new Set(ALL_TARGETS).size).toBe(15);
     expect(ALL_TARGETS).toContain('combo_dividends');
     expect(ALL_TARGETS).toContain('shadow_predictions');
+    expect(ALL_TARGETS).toContain('gate_tests');
   });
 
   it('ALL_TARGETS의 모든 이름이 TABLE_SPECS에 있다', () => {

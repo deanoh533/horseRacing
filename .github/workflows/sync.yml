@@ -87,8 +87,8 @@ jobs:
   resultsCatchup:
     name: 결과 캐치업 (최근 7일 구멍)
     # 최악은 7일치가 전부 구멍인 경우 — 하루당 무응답 ~4분이면 ~28분.
-    # 실측은 2일치 재싱크에 3m30s(2026-08-30). 그 최악을 덮되 무한정 걸리진 않게.
-    timeout-minutes: 35
+    # 실측은 2일치 재싱크에 3m30s(2026-08-30). 그 최악을 덮되 무한정 걸리진 않게. (+ 주행심사 단계 예산 ~8분)
+    timeout-minutes: 45
     if: github.event.schedule == '0 22 * * *' || (github.event_name == 'workflow_dispatch' && inputs.target == 'resultsCatchup')
     runs-on: ubuntu-latest
     steps:
@@ -100,3 +100,10 @@ jobs:
       - run: npm ci
       - name: catchupSync
         run: npm run sync:catchup
+      # 주행심사 최근분(마사회 홈페이지) — 실패해도 결과 캐치업 잡은 성공 처리.
+      # 목록이 약 6개월치를 보여주므로 며칠 연속 실패해도 다음 성공 때 메워진다.
+      - name: gateTestSync (주행심사 최근분)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        continue-on-error: true
+        run: npm run sync:gate

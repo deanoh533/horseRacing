@@ -62,6 +62,7 @@
     "sync:training": "tsx src/sync/trainingSync.ts",
     "training:upload": "tsx scripts/upload_training_logs.ts",
     "sync:jockey": "tsx src/sync/jockeySync.ts",
+    "sync:gate": "tsx scripts/gateTestSync.ts",
     "extract:matrix": "tsx scripts/extract_training_matrix.ts",
     "backtest:value": "tsx scripts/backtest_value_betting.ts",
     "collect:combo": "tsx scripts/collect_combo_dividends.ts",

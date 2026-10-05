@@ -398,6 +398,20 @@
 
 > ⚠️ **Quirk:** `pool` 입력 필터가 API에 전달돼도 무시됨 — 전체 pool을 받아 호출부에서 필터. 단승/연승은 이미 `race_entries`에 있어 여기서는 저장하지 않음.
 
+### 1.11 주행심사 결과 — 마사회 홈페이지 (공공 API 없음)
+
+| 항목 | 값 |
+|---|---|
+| 용도 | 데뷔 전·휴양 복귀 전 주행심사 회차별 결과 → `gate_tests` |
+| 상세 | `POST https://race.kra.co.kr/referee/RacingTrainCheckScoreTable.do` body `trno, date(YYYYMMDD), meet, Act=07, Sub=8` |
+| 목록 | `POST https://race.kra.co.kr/referee/RacingTrainCheckList.do?Act=07&Sub=8&meet={1|3}` body `pageIndex` (최근 약 6개월, 10일/페이지) |
+| 인코딩 | EUC-KR |
+| 수집 | `npm run sync:gate` (최근분, 매일 캐치업 잡) / `-- --from --to` (백필) |
+
+> ⚠️ **Quirk:** 심사 요일이 고정이 아님(서울 2022~23 금 → 2024~ 목, 부경 ~2024 토 → 이후 목·금). 목록에 없는 과거도 날짜 직접 지정 시 열림(2022-01 확인). 빈 날짜·회차 = 빈 표(~31KB). 영천(meet=4) 목록은 비어 있음(부경에서 심사). 마번은 마명 링크 `goPage1('0056500', …)`에만 있다. 시간제한 없는 요청이 무한 대기한 적 있음 → 30초 제한.
+
+---
+
 ---
 
 ## 2. Supabase API (데이터베이스)
@@ -623,6 +637,38 @@ PK: `(race_date, meet, rc_no, hr_name, model_version)`
 > 라이브 `predictions`와 완전 분리(섞지 않음, `item_scores`는 저장 안 함 — YAGNI, egress 절약). RLS는 `combo_dividends`와 동일(anon 읽기 / service_role 쓰기). `raceCardSync`가 라이브 INSERT 직후, `dailySync`가 라이브 `actual_ord` UPDATE 직후 각각 격리된 try/catch로 기록한다(실패해도 라이브 무영향). 상세: `docs/superpowers/specs/2026-09-18-shadow-lab-design.md` §3~4.
 
 > **`model_versions` 컬럼 확장 (같은 migration):** `is_shadow BOOLEAN NOT NULL DEFAULT false`(실험 버전 표시, `is_active`와 동시 불가 CHECK) · `train_until INT`(학습 데이터 마지막 경주일 YYYYMMDD — 과거 채우기 하한 근거, `learn:logistic -- --shadow` 실행 시 기록). `model_versions` 전체 컬럼은 이 문서에 없음 — 개요는 [pipeline_guide.md §6](pipeline_guide.md#6-모델-버전-관리-model_versions) 참고 (모델 버전 관리 절).
+
+
+#### `gate_tests` — 주행심사 결과 (migration 019, 2026-10-05 작성 · Supabase 적용은 사용자)
+
+PK: `(test_date, meet, trno, hr_no)`
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `test_date` | number | 심사일 YYYYMMDD (PK) |
+| `meet` | number | 경마장 코드: 1=서울, 3=부산경남 (PK) |
+| `trno` | number | 그날 회차 번호 (PK) |
+| `hr_no` | string | 마번, race_entries.hr_no와 같은 형식 (PK) |
+| `hr_name` | string | 말 이름 |
+| `rank` | number|null | 순위 |
+| `gate_no` | number|null | 게이트 번호 |
+| `reason` | string|null | 심사사유 ('주행미합(신)', '장기휴양(재)' 등) |
+| `origin` | string|null | 산지 |
+| `sex` | string|null | 성별 |
+| `age` | number|null | 연령 |
+| `burden` | string|null | 부담중량 (원문 보존) |
+| `jockey` | string|null | 기수 |
+| `trainer` | string|null | 조교사 |
+| `owner` | string|null | 마주 |
+| `body_weight` | number|null | 마체중 |
+| `time_sec` | number|null | 주파기록(초), '1:03.4' → 63.4 |
+| `margin` | string|null | 도착차 (원문 보존) |
+| `verdict` | string | 판정: 합격·불합격·출전제외·출전취소·연습주행·연습취소 |
+| `verdict_reason` | string|null | 판정 사유 |
+| `track_cond` | string|null | 주로상태 (원문 보존) |
+| `fetched_at` | string | 수집 시각 (기본 now()) |
+
+> 마사회 홈페이지 스크래핑(§1.11)을 `scripts/gateTestSync.ts`가 멱등 upsert. 값은 원문 보존, 해석은 피처 단계. RLS는 `combo_dividends`와 동일(anon 읽기 / service_role 쓰기). 미러 증분 대상.
 
 ---
 
