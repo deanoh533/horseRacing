@@ -2,24 +2,25 @@
  * Rolling Benchmark — 분기 확장윈도우로 9모델 + 챔피언 + 시장 진단.
  * 사용: npm run benchmark  [-- --gate-only | --no-gate | --champion <id>]
  *              [--first-test YYYYQn] [--from YYYYMMDD] [--to YYYYMMDD] [--gate-holdout YYYYQn]
- * 기간 플래그 미지정 시 기존 기본값(2025Q1 / 20240101 / 무제한) 그대로.
+ * 기간 플래그 미지정 시 기본값 2025Q1 / 20220101(2026-10-04~, 이전 20240101) / 무제한.
+ * 게이트 B holdout 기본값 = 첫 시험 분기 직전 분기(2026-10-04~, 이전엔 고정 2025Q4 — TODO W-005).
  * par cutoff는 첫 테스트 분기 시작일로 유도 (t3 사전등록: 2026-07-09-race-shape-t3-prereg.md).
  */
 import 'dotenv/config';
 import { pathToFileURL } from 'node:url';
 import { getLocalDb } from '../src/db/localDb.js';
 import { collectRaces } from '../src/engine/eval/collect.js';
-import { runGateA, printGateA, runGateB, printGateB } from '../src/engine/eval/gates.js';
+import { runGateA, printGateA, runGateB, printGateB, gateHoldoutBefore, holdoutOverlapsTest } from '../src/engine/eval/gates.js';
 import { trainAllModels } from '../src/engine/eval/models.js';
 import { rollingBlocks, parseYearQuarter, quarterStart, quarterEnd } from '../src/engine/eval/rolling.js';
 import { marketDiagnostics, printMarketDiag, emptyTally, addTally } from '../src/engine/eval/market.js';
 import type { Tally } from '../src/engine/eval/market.js';
 import { rankHorses, type ScorableModel } from '../src/engine/eval/score.js';
-import { loadVersion } from '../src/engine/eval/champion.js';
-import { printRollingTable, type RollingRow } from '../src/engine/eval/report.js';
+import { loadVersion, trainBound } from '../src/engine/eval/champion.js';
+import { printRollingTable, inSampleQuarters, type RollingRow } from '../src/engine/eval/report.js';
 
 const DEFAULT_FIRST_TEST = { year: 2025, q: 1 };
-const DEFAULT_FROM = 20240101;
+const DEFAULT_FROM = 20220101; // 2026-10-04 W-005: 게이트 B 학습량 확보(holdout 2024Q4 앞 ~4,500경주)
 
 const METHODS = [
   '시장', '챔피언', 'Spearman',
@@ -70,8 +71,12 @@ async function main(): Promise<void> {
   } else {
     console.log('\n[게이트 A]'); printGateA(runGateA(races));
     console.log('\n[게이트 B]');
-    if (gateHoldout) console.log(`  holdout ${gateHoldout.start}~${gateHoldout.end} (--gate-holdout)`);
-    const gb = gateHoldout ? runGateB(races, gateHoldout) : runGateB(races);
+    const holdout = gateHoldout ?? gateHoldoutBefore(firstTest);
+    console.log(`  holdout ${holdout.start}~${holdout.end} (${gateHoldout ? '--gate-holdout' : '첫 시험 분기 직전 분기, 기본'})`);
+    if (holdoutOverlapsTest(holdout, SHAPE_PAR_CUTOFF)) {
+      console.log('  ⚠️  holdout이 시험 구간과 겹친다 — 피처 선택이 시험 분기를 엿봄(약한 선택 누수)');
+    }
+    const gb = runGateB(races, holdout);
     printGateB(gb);
     approved = new Set(gb.filter((g) => g.include).map((g) => g.itemId));
   }
@@ -86,6 +91,11 @@ async function main(): Promise<void> {
 
   const blocks = rollingBlocks(races, firstTest);
   const quarters = blocks.map((b) => b.key);
+  const bound = trainBound(champ.row);
+  const champInSample = inSampleQuarters(blocks, bound?.date ?? null);
+  if (!bound) console.log('  ⚠️  챔피언 학습 종료일·생성일 모두 미기록 — in-sample 여부 판정 불가');
+  else if (bound.source === 'created_at') console.log(`  학습 종료일 미기록 → 생성일 ${bound.date}을 상한으로 판정(보수적)`);
+  if (champInSample.size) console.log(`  ⚠️  챔피언이 학습에 쓴 분기 ${champInSample.size}/${blocks.length}개 — 표에 * 표시(참고용)`);
 
   const tallies = new Map<Method, Map<string, Tally>>(
     METHODS.map((m) => [m, new Map<string, Tally>()])
@@ -137,11 +147,12 @@ async function main(): Promise<void> {
     method: m,
     byQuarter: tallies.get(m)!,
     overall: overall.get(m)!,
+    ...(m === '챔피언' && champInSample.size ? { inSample: champInSample } : {}),
   }));
   printRollingTable(rows, quarters);
   printRollingTable(rows, quarters, 'win');
 
-  console.log('\n=== 시장 깊은 진단 (챔피언 vs 시장, 전체 test) ===');
+  console.log(`\n=== 시장 깊은 진단 (챔피언 vs 시장, 전체 test)${champInSample.size ? ' ⚠️ 챔피언 in-sample 분기 포함 — 참고용' : ''} ===`);
   printMarketDiag(marketDiagnostics(allTest, champ.model));
 }
 

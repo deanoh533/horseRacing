@@ -18,6 +18,7 @@ import { toVector } from './features/alignFeatures.js';
 import { horseShapeStats, raceShapeSignals } from './features/shapeSignals.js';
 import { shapeParMapAsOf } from './shapePar.js';
 import { paceParMapAsOf, type PaceParMap } from './pacePar.js';
+import { YEONGNAM_MEETS, type MeetCode } from '../types/index.js';
 
 interface EntryRow {
   race_date: number;
@@ -225,7 +226,7 @@ export async function gatherRaceInputs(
   for (const [, h] of histByHorse) if (h[0]) lastDates.add(h[0].race_date);
   await Promise.all([
     (async () => { if (hrNosU.length === 0) return; const { data } = await sb.from('horses').select('hr_no, dsa_bri_vl, dsa_clc_vl, dsa_ier_vl, dsa_prf_vl, dsidx_vl').in('hr_no', hrNosU); for (const r of (data ?? []) as Record<string, number | null>[]) pedigreeMap.set(r.hr_no as unknown as string, r); })(),
-    (async () => { if (jockeyNos.length === 0) return; const { data } = await sb.from('jockey_stats').select('jcky_no, win_rate_t, qu_rate_t').in('jcky_no', jockeyNos).eq('meet', meet); for (const r of (data ?? []) as { jcky_no: string; win_rate_t: number | null; qu_rate_t: number | null }[]) jockeyCareerMap.set(r.jcky_no, { win_rate_t: r.win_rate_t, qu_rate_t: r.qu_rate_t }); })(),
+    (async () => { if (jockeyNos.length === 0) return; const { data } = await sb.from('jockey_stats').select('jcky_no, meet, win_rate_t, qu_rate_t, race_cnt_t').in('jcky_no', jockeyNos); for (const [k, v] of pickJockeyCareer((data ?? []) as JockeyStatRow[], meet)) jockeyCareerMap.set(k, v); })(),
     (async () => { if (trainerNos.length === 0) return; for (let off = 0; ; off += 1000) { const { data, error } = await sb.from('race_entries').select('trar_no, ord').in('trar_no', trainerNos).gte('race_date', sixtyAgo).lt('race_date', rcDate).not('ord', 'is', null).order('race_date').order('meet').order('rc_no').order('trar_no').range(off, off + 999); if (error) throw error; if (!data || data.length === 0) break; for (const r of data as { trar_no: string; ord: number }[]) { const a = trainer60Map.get(r.trar_no); if (a) a.push(r.ord); else trainer60Map.set(r.trar_no, [r.ord]); } if (data.length < 1000) break; } })(),
     (async () => { if (lastDates.size === 0) return; const { data } = await sb.from('races').select('race_date, meet, rc_no, prize_cond').in('race_date', [...lastDates]); for (const r of (data ?? []) as { race_date: number; meet: number; rc_no: number; prize_cond: string | null }[]) racePrizeCondMap.set(`${r.race_date}-${r.meet}-${r.rc_no}`, r.prize_cond ?? null); })(),
   ]);
@@ -312,6 +313,28 @@ export function attachCalibratedProbs(
 ): { p_win: number | null; p_top3: number | null }[] {
   const { pWin, pTop3 } = calibratedRaceProbs(artifact, vectors);
   return vectors.map((_, i) => ({ p_win: pWin[i]!, p_top3: pTop3[i]! }));
+}
+
+export interface JockeyStatRow { jcky_no: string; meet: number; win_rate_t: number | null; qu_rate_t: number | null; race_cnt_t: number | null }
+
+/**
+ * 기수 통산(jockey_stats) 행 고르기. 통산은 KRA가 **소속 본부(1=서울·3=부경)** 별로 집계하므로
+ * 개최지 meet로 바로 조회하면 영천(4)은 전원, 원정 기수는 개인이 비었다(T-017).
+ * 규칙: 개최지가 속한 본부 행(영천→부경) 우선 → 없으면(원정) 출주가 가장 많은 다른 행.
+ */
+export function pickJockeyCareer(
+  rows: JockeyStatRow[], venueMeet: number,
+): Map<string, { win_rate_t: number | null; qu_rate_t: number | null }> {
+  const home = YEONGNAM_MEETS.includes(venueMeet as MeetCode) ? 3 : venueMeet;
+  const best = new Map<string, JockeyStatRow>();
+  for (const r of rows) {
+    const cur = best.get(r.jcky_no);
+    const better = !cur
+      || (r.meet === home && cur.meet !== home)
+      || (r.meet !== home && cur.meet !== home && (r.race_cnt_t ?? 0) > (cur.race_cnt_t ?? 0));
+    if (better) best.set(r.jcky_no, r);
+  }
+  return new Map([...best].map(([k, r]) => [k, { win_rate_t: r.win_rate_t, qu_rate_t: r.qu_rate_t }]));
 }
 
 /** 선형 채점 경로(logisticScorer)를 타는 모델 유형. */

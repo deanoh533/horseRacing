@@ -171,7 +171,7 @@ DuckDB → collectRaces()
   ↓
 Gate A: 피처 간 Pearson r 경고 (|r|>0.5)
   ↓
-Gate B: holdout(2025-Q4) 연승률 개선량으로 항목 포함/탈락  (1회, 롤링과 분리)
+Gate B: holdout(첫 시험 분기 직전 분기, 기본 2024-Q4) 연승률 개선량으로 항목 포함/탈락  (1회, 롤링과 분리) — 2026-10-04 W-005, 기본 --from 20220101
   ↓
 rollingBlocks() — 분기 확장윈도우 (2024 부트스트랩, 2025-Q1부터 테스트)
   ↓ 분기마다 trainAllModels() 재학습 (spearman·logistic·gbdt·pl)
@@ -296,6 +296,7 @@ npm run sync:cards -- --date YYYYMMDD   # 출전표 (API26_2)
 npm run sync -- --date YYYYMMDD         # 경기 결과 (API214_1)
 npm run sync:training                   # 조교 기록 (API18_1)
 npm run sync:jockey                     # 기수 통산성적 (jkpresult)
+npm run sync:gate                       # 주행심사 결과(홈페이지) 최근분 / --from --to 백필
 ```
 
 ### 로컬 미러 (Supabase → DuckDB)

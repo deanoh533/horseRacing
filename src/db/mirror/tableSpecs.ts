@@ -30,6 +30,7 @@ export const TABLE_SPECS: Record<string, TableSpec> = {
   training_logs:      { mode: 'incremental', dateCol: 'train_date', orderCols: ['meet', 'hr_no', 'part'] },
   combo_dividends:    { mode: 'incremental', dateCol: 'race_date',  orderCols: ['meet', 'rc_no', 'pool', 'leg1', 'leg2', 'leg3'] },
   shadow_predictions: { mode: 'incremental', dateCol: 'race_date',  orderCols: ['meet', 'rc_no', 'hr_name', 'model_version'] },
+  gate_tests:         { mode: 'incremental', dateCol: 'test_date',  orderCols: ['meet', 'trno', 'hr_no'] },
 
   // ── 전량 (작아서 증분 이득 0) ──
   races:          { mode: 'full' },

@@ -2,6 +2,7 @@
 > 마지막 업데이트: 2026-09-29 (db:pull 증분 T-014) · 관련 메모리: [[project_duckdb_local_mirror]], [[feedback_local_first_over_db]], [[reference_pipeline_guide]], [[reference_api_spec_doc]], [[reference_kra_dividend_api]], [[reference_earnings_asof_leak]], [[reference_db_schema_gotchas]]
 
 ## 현재 상태
+- **주행심사 gate_tests(019)** — 홈페이지 수집, 2022-01~ 백필 완료(2026-10-06, 17,244행·1,624회차·실패 1건=심사 미시행 회차 2022-01-21 m1 R1), 매일 캐치업 잡 단계(continue-on-error·timeout 8분). 스펙 2026-10-05-gate-test-collection-design.md
 - **DuckDB 로컬 미러** 배포 — Supabase egress 영구 탈출, 오프라인 분석 전용(benchmark·backtest·probe 전부). `npm run db:pull`로 동기화.
 - **db:pull 증분 (2026-09-29, T-014)** — 날짜별 내용 해시를 `_sync_state`에 저장해 **바뀐 날짜만** 재적재. 직결 경로의 `LIMIT/OFFSET` 페이징도 제거(`OFFSET` 재스캔 누적 7,100만 행이었다). 복사 대상 12→**14**(`combo_dividends` 369,568행·`shadow_predictions` 추가). 실측: 증분 대상 4개 878k행이 안 바뀌었으면 **0행 수신**. ⚠️ **미러에서 해시를 재계산하면 안 된다**(Postgres/DuckDB 행 표기가 달라 전부 "바뀜") — 비교 축은 "원천 지금 vs 원천 그때". **미러 신선도 경고**(3일 초과 시 stderr, 막지는 않음) 동반. 설계 [spec](../superpowers/specs/2026-09-29-db-pull-incremental-design.md).
 - **Supabase egress** — REST/웹앱만 영향. `DATABASE_URL` Postgres 직결(db:pull·SQL·upsert)은 egress 무관.
