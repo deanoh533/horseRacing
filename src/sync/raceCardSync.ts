@@ -266,7 +266,7 @@ async function main() {
   // (출마표는 수요일에 3일치 동시 발표 → 각 실행이 남은 주말을 다 긁어 조기 노출 + 임박 갱신)
   const dates = rcDate ? [rcDate] : upcomingCardDates();
   if (!rcDate) {
-    console.log(`📅 날짜 인자 없음 → 이번 주말 대상 [${dates.join(', ')}] (발표일+2 ~ 일요일)`);
+    console.log(`📅 날짜 인자 없음 → 이번 주말 대상 [${dates.join(', ')}] (내일 ~ 일요일)`);
   }
 
   const results: RaceCardSyncResult[] = [];

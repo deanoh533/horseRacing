@@ -15,15 +15,20 @@ export function yyyymmddOffset(offsetDays: number, now: Date = new Date()): numb
 /**
  * 자동(--date 미지정) 출마표 sync 대상 날짜 목록 — 이번 주말의 남은 경주(금·토·일).
  *
- * 출마표는 수요일에 금·토·일 3일치가 한 번에 발표되므로(docs/data_lifecycle.md),
- * 각 실행일에 "발표일+2 ~ 이번 주 일요일" 범위의 경주일(금·토·일)을 모두 반환한다:
- *   수(발표일): [금, 토, 일]  ·  목: [토, 일]  ·  금: [일]
+ * 출마표는 수요일에 금·토·일 3일치가 한 번에 발표되므로,
+ * 각 실행일에 "내일 ~ 이번 주 일요일" 범위의 경주일(금·토·일)을 모두 반환한다:
+ *   수(발표일): [금, 토, 일]  ·  목: [금, 토, 일]  ·  금: [토, 일]
  * → 수요일에 주말 전체가 채워지고(조기 노출), 목·금 재실행이 남은 경주의
  *   임박 변경(제외마·기수교체)을 갱신한다(raceCardSync upsert 멱등).
- * 주말이 아닌 요일에 수동 실행되면 발표일+2 단일 날짜로 폴백(기존 동작 보존).
+ * 경주일마다 받을 기회가 금 2번·토 3번·일 3번 — 한 번 실패해도 다음 실행이 메운다
+ * (2026-09-30 수요일 잡이 KRA 타임아웃으로 실패해 금요일이 통째로 빠졌었다, O-008).
+ * 경주 당일은 넣지 않는다: 경주 종료~결과 도착 사이에 다시 받으면 사전 예측이
+ * 경주 뒤에 만든 예측으로 바뀐다(결과 도착 후엔 raceCardSync 가드가 막지만 그 틈은 못 막음).
+ * 주말이 아닌 요일에 수동 실행되면 오늘+2 단일 날짜로 폴백(기존 동작 보존).
  */
 export function upcomingCardDates(now: Date = new Date()): number[] {
-  const FLOOR_OFFSET = 2; // 발표일+2 = 가장 이른 경주(금)
+  const FLOOR_OFFSET = 1; // 내일부터 — 경주 당일 제외
+  const FALLBACK_OFFSET = 2; // 주말 밖 수동 실행 폴백 (기존 동작)
   const RACE_DOWS = new Set([5, 6, 0]); // 금·토·일 (0=일)
   const toYmd = (d: Date): number =>
     d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -40,7 +45,7 @@ export function upcomingCardDates(now: Date = new Date()): number[] {
     if (RACE_DOWS.has(cur.getDay())) dates.push(toYmd(cur));
     cur.setDate(cur.getDate() + 1);
   }
-  return dates.length > 0 ? dates : [yyyymmddOffset(FLOOR_OFFSET, now)];
+  return dates.length > 0 ? dates : [yyyymmddOffset(FALLBACK_OFFSET, now)];
 }
 
 /** 전 meet의 동기화 경주 합계가 0건인지 (--fail-on-empty 판정) */
