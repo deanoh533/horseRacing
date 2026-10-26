@@ -64,3 +64,43 @@ export function winningComboPayouts(combos: ComboDividend[], gates: number[]): W
   }
   return out;
 }
+
+/** 박스 구매 결과 한 pool분 (조합당 100원 기준). 미적중이면 payout 0·profit −cost, 적중인데 배당 미수집이면 null. */
+export interface BoxPool {
+  combos: number;
+  cost: number;
+  hit: boolean;
+  odds: number | null;
+  payout: number | null;
+  profit: number | null;
+}
+
+export const BOX_SIZE = 4;
+const BET_UNIT = 100;
+
+/**
+ * 예측 상위 4두 박스의 복승(6조합)·삼복승(4조합) 결과.
+ * boxGates = 예측 순위순 마번(앞 4두만 사용), podiumGates = 실제 착순순 마번.
+ * 박스 4두 미만·착순 2두 미만이면 null. 착순 2두뿐이면 삼복승은 null.
+ */
+export function boxResults(
+  boxGates: number[], podiumGates: number[], combos: ComboDividend[],
+): { quinella: BoxPool; trio: BoxPool | null } | null {
+  const box = new Set(boxGates.slice(0, BOX_SIZE));
+  if (box.size < BOX_SIZE || podiumGates.length < 2) return null;
+  const payouts = winningComboPayouts(combos, podiumGates.slice(0, 3));
+
+  const pool = (name: string, need: number, nCombos: number): BoxPool => {
+    const cost = nCombos * BET_UNIT;
+    const hit = podiumGates.slice(0, need).every((g) => box.has(g));
+    if (!hit) return { combos: nCombos, cost, hit, odds: null, payout: 0, profit: -cost };
+    const odds = payouts.find((p) => p.pool === name)?.odds ?? null;
+    const payout = odds == null ? null : Math.round(odds * BET_UNIT);
+    return { combos: nCombos, cost, hit, odds, payout, profit: payout == null ? null : payout - cost };
+  };
+
+  return {
+    quinella: pool('복승식', 2, 6),
+    trio: podiumGates.length >= 3 ? pool('삼복승식', 3, 4) : null,
+  };
+}
