@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { winningComboPayouts, boxResults } from './combos';
+import { winningComboPayouts, boxResults, sumBoxPools, type BoxPool } from './combos';
 import type { ComboDividend } from './supabase';
 
 function c(pool: string, leg1: number, leg2: number, leg3: number, odds: number): ComboDividend {
@@ -99,5 +99,22 @@ describe('boxResults (예측 상위 4두 박스)', () => {
   it('5두 이상이 들어와도 앞 4두만 박스', () => {
     const r = boxResults([2, 4, 5, 6, 3], [3, 7, 1], combos)!;
     expect(r.quinella.hit).toBe(false);
+  });
+});
+
+describe('sumBoxPools (하루 결산)', () => {
+  const p = (hit: boolean, cost: number, payout: number | null): BoxPool =>
+    ({ combos: cost / 100, cost, hit, odds: payout == null ? null : payout / 100, payout: hit ? payout : 0, profit: payout == null && hit ? null : (hit ? payout! : 0) - cost });
+
+  it('구입·환급·수익·회수율 합산, null(판정 불가) 제외', () => {
+    const s = sumBoxPools([p(true, 600, 1230), p(false, 600, 0), null, p(true, 600, 840)]);
+    expect(s).toEqual({ n: 3, hits: 2, pending: 0, cost: 1800, payout: 2070, profit: 270, roi: 2070 / 1800 });
+  });
+  it('적중했지만 배당 대기인 경주는 적중 수엔 넣고 금액 합계에선 뺀다', () => {
+    const s = sumBoxPools([p(true, 400, null), p(false, 400, 0)]);
+    expect(s).toEqual({ n: 2, hits: 1, pending: 1, cost: 400, payout: 0, profit: -400, roi: 0 });
+  });
+  it('대상이 없으면 n 0, 회수율 null', () => {
+    expect(sumBoxPools([null, null])).toEqual({ n: 0, hits: 0, pending: 0, cost: 0, payout: 0, profit: 0, roi: null });
   });
 });

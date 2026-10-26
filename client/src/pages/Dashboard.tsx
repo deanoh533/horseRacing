@@ -9,6 +9,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useQueries } from '@tanstack/react-query';
 import {
   useRacesByDate,
   useAvailableDates,
@@ -18,10 +19,11 @@ import {
   useWeeklyPicks,
   useRaceEntriesByDate,
   useComboDividends,
+  comboDividendsQuery,
   type PredictionPreview,
   type RaceEntryLite,
 } from '../lib/queries';
-import { winningComboPayouts, boxResults, BOX_SIZE, type BoxPool } from '../lib/combos';
+import { winningComboPayouts, boxResults, sumBoxPools, BOX_SIZE, type BoxPool } from '../lib/combos';
 import { classifyPick } from '../lib/selectivePicks';
 import { fmtScore } from '../lib/sectional';
 import { isCancelled } from '../lib/supabase';
@@ -256,6 +258,12 @@ export function Dashboard() {
                   <span>🏟️</span>
                   {MEET_NAMES[meet]} 경마 ({meetRaces.length}경주)
                 </h2>
+                <MeetBoxSummary
+                  meetRaces={meetRaces}
+                  predictionsByRace={predictionsByRace}
+                  pthrMap={pthrMap}
+                  podiumByRace={podiumByRace}
+                />
                 <div className="space-y-3">
                   {meetRaces.map((race) => (
                     <RaceCard
@@ -272,6 +280,97 @@ export function Dashboard() {
           })}
         </>
       )}
+    </div>
+  );
+}
+
+/** 예측 순위순 상위 4두의 마번 (마번 모르는 말은 빠짐 → 4두 미만이면 boxResults가 null) */
+function boxGatesOf(
+  predictions: PredictionPreview[], pthrMap: Map<string, number> | undefined, meet: number, rcNo: number,
+): number[] {
+  return predictions
+    .slice(0, BOX_SIZE)
+    .map((p) => pthrMap?.get(`${meet}-${rcNo}-${p.hr_name}`))
+    .filter((g): g is number => g != null);
+}
+
+interface MeetBoxSummaryProps {
+  meetRaces: RaceCardProps['race'][];
+  predictionsByRace: Map<string, PredictionPreview[]>;
+  pthrMap: Map<string, number> | undefined;
+  podiumByRace: Map<string, RaceEntryLite[]>;
+}
+
+/**
+ * 경마장별 하루 결산 — 결과 나온 경주마다 4두 박스(복승 600원·삼복승 400원)를 샀다면.
+ * 조합배당은 카드와 같은 쿼리 키(comboDividendsQuery)라 캐시 재사용, 추가 조회 0.
+ */
+function MeetBoxSummary({ meetRaces, predictionsByRace, pthrMap, podiumByRace }: MeetBoxSummaryProps) {
+  const items = meetRaces.map((r) => {
+    const key = `${r.meet}-${r.rc_no}`;
+    return {
+      race: r,
+      gates: (podiumByRace.get(key) ?? []).map((p) => p.pthr_no),
+      boxGates: boxGatesOf(predictionsByRace.get(key) ?? [], pthrMap, r.meet, r.rc_no),
+    };
+  });
+  const comboQueries = useQueries({
+    queries: items.map((it) => comboDividendsQuery(it.race.race_date, it.race.meet, it.race.rc_no, it.gates)),
+  });
+  // 배당 로딩 중엔 적중이 "배당 대기"로 잠깐 잘못 보이므로 다 받은 뒤에 그린다
+  if (comboQueries.some((q) => q.isLoading)) return null;
+
+  const boxes = items.map((it, i) => boxResults(it.boxGates, it.gates, comboQueries[i]?.data ?? []));
+  const judged = boxes.filter((b) => b != null).length;
+  if (judged === 0) return null;
+
+  const q = sumBoxPools(boxes.map((b) => b?.quinella ?? null));
+  const t = sumBoxPools(boxes.map((b) => b?.trio ?? null));
+  const cost = q.cost + t.cost;
+  const payout = q.payout + t.payout;
+  const pending = boxes.filter((b) => b?.quinella.payout === null || b?.trio?.payout === null).length;
+
+  const won = (n: number) => n.toLocaleString();
+  const signed = (n: number) => (
+    <span className={n >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-accent-pink)]'}>
+      {n > 0 ? '+' : ''}{n.toLocaleString()}
+    </span>
+  );
+  const pct = (roi: number | null) => (roi == null ? '—' : `${Math.round(roi * 100)}%`);
+  const row = (label: string, hits: string, c: number, p: number, roi: number | null, bold = false) => (
+    <tr className={bold ? 'font-semibold border-t border-[var(--color-bg-elevated)]' : ''}>
+      <td className="py-0.5 text-left">{label}</td>
+      <td className="py-0.5 text-right">{hits}</td>
+      <td className="py-0.5 text-right">{won(c)}</td>
+      <td className="py-0.5 text-right">{won(p)}</td>
+      <td className="py-0.5 text-right">{signed(p - c)}</td>
+      <td className="py-0.5 text-right">{pct(roi)}</td>
+    </tr>
+  );
+
+  return (
+    <div className="mb-3 rounded-lg border border-[var(--color-bg-elevated)] bg-[var(--color-bg-surface)] p-3 text-xs font-mono-num">
+      <div className="mb-1.5 text-[var(--color-text-secondary)]">
+        🎯 4두 박스 하루 결산 · 결과 {judged}/{meetRaces.length}경주
+        {pending > 0 && <span className="text-[var(--color-text-disabled)]"> · 배당 대기 {pending}경주(금액 제외)</span>}
+      </div>
+      <table className="w-full">
+        <thead className="text-[var(--color-text-disabled)]">
+          <tr>
+            <th className="font-normal text-left"></th>
+            <th className="font-normal text-right">적중</th>
+            <th className="font-normal text-right">구입</th>
+            <th className="font-normal text-right">환급</th>
+            <th className="font-normal text-right">수익</th>
+            <th className="font-normal text-right">회수율</th>
+          </tr>
+        </thead>
+        <tbody>
+          {row('복승', `${q.hits}/${q.n}`, q.cost, q.payout, q.roi)}
+          {t.n > 0 && row('삼복승', `${t.hits}/${t.n}`, t.cost, t.payout, t.roi)}
+          {row('합계', '', cost, payout, cost > 0 ? payout / cost : null, true)}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -312,13 +411,10 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
   const trio = payouts.find((p) => p.pool === '삼복승식');
 
   // 예측 상위 4두 박스 — 복승 6조합·삼복승 4조합 적중·수익 (배당은 위 combos 재사용, 추가 조회 없음)
-  const box = useMemo(() => {
-    const boxGates = top5
-      .slice(0, BOX_SIZE)
-      .map((p) => pthrMap?.get(`${race.meet}-${race.rc_no}-${p.hr_name}`))
-      .filter((g): g is number => g != null);
-    return boxResults(boxGates, gates, combos ?? []);
-  }, [top5, pthrMap, race.meet, race.rc_no, gates, combos]);
+  const box = useMemo(
+    () => boxResults(boxGatesOf(predictions, pthrMap, race.meet, race.rc_no), gates, combos ?? []),
+    [predictions, pthrMap, race.meet, race.rc_no, gates, combos]
+  );
 
   return (
     <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors">
