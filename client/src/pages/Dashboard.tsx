@@ -21,7 +21,7 @@ import {
   type PredictionPreview,
   type RaceEntryLite,
 } from '../lib/queries';
-import { winningComboPayouts } from '../lib/combos';
+import { winningComboPayouts, boxResults, BOX_SIZE, type BoxPool } from '../lib/combos';
 import { classifyPick } from '../lib/selectivePicks';
 import { fmtScore } from '../lib/sectional';
 import { isCancelled } from '../lib/supabase';
@@ -311,6 +311,15 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
   const quinella = payouts.find((p) => p.pool === '복승식');
   const trio = payouts.find((p) => p.pool === '삼복승식');
 
+  // 예측 상위 4두 박스 — 복승 6조합·삼복승 4조합 적중·수익 (배당은 위 combos 재사용, 추가 조회 없음)
+  const box = useMemo(() => {
+    const boxGates = top5
+      .slice(0, BOX_SIZE)
+      .map((p) => pthrMap?.get(`${race.meet}-${race.rc_no}-${p.hr_name}`))
+      .filter((g): g is number => g != null);
+    return boxResults(boxGates, gates, combos ?? []);
+  }, [top5, pthrMap, race.meet, race.rc_no, gates, combos]);
+
   return (
     <div className="bg-[var(--color-bg-surface)] rounded-xl p-4 border border-[var(--color-bg-elevated)] hover:border-[var(--color-accent-cyan)]/40 transition-colors">
       {/* 경주 헤더 */}
@@ -340,20 +349,23 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
               {race.track}
             </span>
           )}
+          {/* 4두 박스 적중 배지 — 적중한 pool만 */}
+          {box?.quinella.hit && <BoxBadge label="복승" />}
+          {box?.trio?.hit && <BoxBadge label="삼복승" />}
         </div>
       </div>
 
-      {/* 예측 상위 (Score Engine 결과) — 모바일 3열/TOP3, 넓은 화면 5열/TOP5 */}
+      {/* 예측 상위 (Score Engine 결과) — 모바일 2×2/TOP4(박스 4두), 넓은 화면 5열/TOP5 */}
       {top5.length > 0 ? (
         <>
           <div className="text-[12px] uppercase tracking-wider text-[var(--color-accent-gold)] mb-1.5 font-semibold">
-            ⭐ 예측 TOP <span className="md:hidden">3</span><span className="hidden md:inline">5</span>
+            ⭐ 예측 TOP <span className="md:hidden">4</span><span className="hidden md:inline">5</span>
           </div>
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-2 font-mono-num text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 font-mono-num text-sm">
             {[1, 2, 3, 4, 5].map((rank) => {
               const p = top5[rank - 1];
-              // 4·5위는 좁은 화면에서 숨김 (모바일은 3열 한 줄 유지)
-              const hideOnMobile = rank > 3;
+              // 5위는 좁은 화면에서 숨김 (모바일은 박스 4두를 2×2로)
+              const hideOnMobile = rank > BOX_SIZE;
               if (!p) return <div key={rank} className={hideOnMobile ? 'hidden md:block' : ''} />;
               return (
                 <PredictionTile
@@ -402,6 +414,15 @@ function RaceCard({ race, predictions, pthrMap, podium }: RaceCardProps) {
               <span>삼복승 <span className="text-[var(--color-text-primary)]">{trio.odds.toFixed(1)}</span></span>
             )}
           </span>
+        </div>
+      )}
+
+      {/* 4두 박스 줄 — 예측 1~4순위를 박스로 샀다면 (조합당 100원) */}
+      {box && (
+        <div className="mt-1.5 flex items-center gap-x-3 gap-y-1 text-xs flex-wrap font-mono-num">
+          <span className="text-[var(--color-text-secondary)] whitespace-nowrap">🎯 4두 박스</span>
+          <BoxPoolText label="복승" pool={box.quinella} />
+          {box.trio && <BoxPoolText label="삼복승" pool={box.trio} />}
         </div>
       )}
 
@@ -454,7 +475,8 @@ const TILE_COLOR_FALLBACK = 'text-[var(--color-text-disabled)] border-[var(--col
 function PredictionTile({
   rank, hideOnMobile = false, hrName, pthrNo, totalScore, actualOrd, hasResult,
 }: PredictionTileProps) {
-  const isHit = actualOrd === rank;
+  // 적중 = 3착 안 (연승 기준 — 상단 "최근 연승 적중률"·/picks ✅와 같은 기준)
+  const isHit = !isCancelled(actualOrd) && actualOrd != null && actualOrd >= 1 && actualOrd <= 3;
 
   // 경주 전(hasResult=false): 착순 표시 없음
   // 경주 후 + null: 실제 출주 취소
@@ -465,40 +487,84 @@ function PredictionTile({
       ? '취소'
       : `${actualOrd}위${isHit ? ' ✓' : ''}`;
 
+  // 모바일(2×2): 가로 배치 [메달 이름] / [점수 착순]. md 이상(5열): 세로 가운데 정렬(기존).
   return (
     <div
-      className={`flex flex-col items-center justify-center p-2 rounded border ${
+      className={`flex flex-col gap-0.5 md:gap-0 md:items-center md:justify-center p-2 rounded border ${
         TILE_COLORS[rank] ?? TILE_COLOR_FALLBACK
       } bg-[var(--color-bg-primary)]/50 ${hideOnMobile ? 'hidden md:flex' : ''}`}
     >
-      <div className="text-lg leading-none">
-        {MEDALS[rank] ?? (
-          <span className="text-xs font-mono-num text-[var(--color-text-disabled)]">{rank}위</span>
-        )}
-      </div>
-      <div className="font-semibold w-full text-center mt-1 text-[13px] leading-tight break-keep">
-        {pthrNo != null && (
-          <span className="text-[var(--color-text-disabled)] font-mono-num">{pthrNo}.</span>
-        )}
-        {hrName}
-      </div>
-      <div className="text-xs text-[var(--color-accent-cyan)] mt-0.5">
-        {fmtScore(totalScore)}점
-      </div>
-      {resultLabel !== null && (
-        <div
-          className={`text-[12px] mt-0.5 ${
-            isCancelled(actualOrd)
-              ? 'text-[var(--color-accent-pink)]'
-              : isHit
-                ? 'text-[var(--color-success)] font-bold'
-                : 'text-[var(--color-text-disabled)]'
-          }`}
-        >
-          {resultLabel}
+      <div className="flex items-center gap-1.5 md:flex-col md:gap-0 md:w-full min-w-0">
+        <div className="text-lg leading-none shrink-0">
+          {MEDALS[rank] ?? (
+            <span className="text-xs font-mono-num text-[var(--color-text-disabled)]">{rank}위</span>
+          )}
         </div>
-      )}
+        <div className="font-semibold min-w-0 md:w-full md:text-center md:mt-1 text-[13px] leading-tight break-all md:break-keep">
+          {pthrNo != null && (
+            <span className="text-[var(--color-text-disabled)] font-mono-num">{pthrNo}.</span>
+          )}
+          {hrName}
+        </div>
+      </div>
+      <div className="flex items-baseline justify-between gap-1 md:flex-col md:items-center md:gap-0">
+        <div className="text-xs text-[var(--color-accent-cyan)] md:mt-0.5">
+          {fmtScore(totalScore)}점
+        </div>
+        {resultLabel !== null && (
+          <div
+            className={`text-[12px] md:mt-0.5 ${
+              isCancelled(actualOrd)
+                ? 'text-[var(--color-accent-pink)]'
+                : isHit
+                  ? 'text-[var(--color-success)] font-bold'
+                  : 'text-[var(--color-text-disabled)]'
+            }`}
+          >
+            {resultLabel}
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+/** 카드 헤더의 4두 박스 적중 배지 (적중한 pool만 렌더) */
+function BoxBadge({ label }: { label: string }) {
+  return (
+    <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--color-success)]/15 text-[var(--color-success)] font-semibold whitespace-nowrap">
+      {label} ✅
+    </span>
+  );
+}
+
+/** 박스 줄의 pool 한 칸: 적중 → 배당·구입→환급(수익), 미적중 → 구입액 손해 */
+function BoxPoolText({ label, pool }: { label: string; pool: BoxPool }) {
+  const won = (n: number) => `${n.toLocaleString()}원`;
+  if (!pool.hit) {
+    return (
+      <span className="whitespace-nowrap text-[var(--color-text-disabled)]">
+        {label} ❌ {won(pool.cost)}
+      </span>
+    );
+  }
+  if (pool.odds == null || pool.payout == null || pool.profit == null) {
+    return (
+      <span className="whitespace-nowrap text-[var(--color-success)]">
+        {label} ✅ <span className="text-[var(--color-text-disabled)]">(배당 대기)</span>
+      </span>
+    );
+  }
+  return (
+    <span className="whitespace-nowrap">
+      <span className="text-[var(--color-success)] font-semibold">{label} ✅ {pool.odds.toFixed(1)}배</span>
+      <span className="text-[var(--color-text-secondary)]">
+        {' '}· {won(pool.cost)} → {won(pool.payout)}{' '}
+        <span className={pool.profit >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-accent-pink)]'}>
+          ({pool.profit >= 0 ? '+' : ''}{pool.profit.toLocaleString()})
+        </span>
+      </span>
+    </span>
   );
 }
 

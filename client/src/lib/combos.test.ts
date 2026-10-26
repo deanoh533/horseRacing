@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { winningComboPayouts } from './combos';
+import { winningComboPayouts, boxResults } from './combos';
 import type { ComboDividend } from './supabase';
 
 function c(pool: string, leg1: number, leg2: number, leg3: number, odds: number): ComboDividend {
@@ -62,5 +62,42 @@ describe('winningComboPayouts', () => {
     const only = [c('복승식', 3, 7, 0, 20.5)];
     const r = winningComboPayouts(only, [3, 7, 1]);
     expect(r.map((x) => x.pool)).toEqual(['복승식']);
+  });
+});
+
+describe('boxResults (예측 상위 4두 박스)', () => {
+  // 착순 3→7→1, 위 combos 재사용 (복승 {3,7}=20.5, 삼복승 {1,3,7}=138.8)
+  it('1·2착이 박스 안이면 복승 적중, 1·2·3착 모두 안이면 삼복승 적중 — 배당·수익 계산', () => {
+    const r = boxResults([1, 3, 7, 9], [3, 7, 1], combos)!;
+    expect(r.quinella).toEqual({ combos: 6, cost: 600, hit: true, odds: 20.5, payout: 2050, profit: 1450 });
+    expect(r.trio).toEqual({ combos: 4, cost: 400, hit: true, odds: 138.8, payout: 13880, profit: 13480 });
+  });
+  it('3착만 박스 밖이면 복승만 적중, 삼복승은 구입액만큼 손해', () => {
+    const r = boxResults([3, 7, 2, 9], [3, 7, 1], combos)!;
+    expect(r.quinella.hit).toBe(true);
+    expect(r.trio).toEqual({ combos: 4, cost: 400, hit: false, odds: null, payout: 0, profit: -400 });
+  });
+  it('2착이 박스 밖이면 둘 다 미적중', () => {
+    const r = boxResults([3, 1, 2, 9], [3, 7, 1], combos)!;
+    expect(r.quinella.hit).toBe(false);
+    expect(r.quinella.profit).toBe(-600);
+    expect(r.trio.hit).toBe(false);
+  });
+  it('적중했는데 배당이 아직 없으면 배당·수익은 null', () => {
+    const r = boxResults([1, 3, 7, 9], [3, 7, 1], [])!;
+    expect(r.quinella).toEqual({ combos: 6, cost: 600, hit: true, odds: null, payout: null, profit: null });
+  });
+  it('박스가 4두 미만이거나 착순이 2두 미만이면 null', () => {
+    expect(boxResults([1, 3, 7], [3, 7, 1], combos)).toBeNull();
+    expect(boxResults([1, 3, 7, 9], [3], combos)).toBeNull();
+  });
+  it('착순이 2두뿐이면 복승만 판정, 삼복승은 null', () => {
+    const r = boxResults([1, 3, 7, 9], [3, 7], combos)!;
+    expect(r.quinella.hit).toBe(true);
+    expect(r.trio).toBeNull();
+  });
+  it('5두 이상이 들어와도 앞 4두만 박스', () => {
+    const r = boxResults([2, 4, 5, 6, 3], [3, 7, 1], combos)!;
+    expect(r.quinella.hit).toBe(false);
   });
 });
