@@ -104,3 +104,29 @@ export function boxResults(
     trio: podiumGates.length >= 3 ? pool('삼복승식', 3, 4) : null,
   };
 }
+
+/** 박스 결과 여러 경주 합산. 금액은 배당 확정분만(적중인데 배당 대기면 pending으로 따로 셈). */
+export interface BoxSum {
+  n: number;        // 판정 경주 수 (null 제외)
+  hits: number;     // 적중 경주 수 (배당 대기 포함)
+  pending: number;  // 적중했지만 배당 미수집
+  cost: number;
+  payout: number;
+  profit: number;
+  roi: number | null; // 환급 ÷ 구입, 구입 0이면 null
+}
+
+export function sumBoxPools(pools: Array<BoxPool | null>): BoxSum {
+  const s: BoxSum = { n: 0, hits: 0, pending: 0, cost: 0, payout: 0, profit: 0, roi: null };
+  for (const p of pools) {
+    if (!p) continue;
+    s.n++;
+    if (p.hit) s.hits++;
+    if (p.payout == null) { s.pending++; continue; }
+    s.cost += p.cost;
+    s.payout += p.payout;
+  }
+  s.profit = s.payout - s.cost;
+  s.roi = s.cost > 0 ? s.payout / s.cost : null;
+  return s;
+}

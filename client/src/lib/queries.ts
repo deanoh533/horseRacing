@@ -1378,7 +1378,15 @@ export function useSyncStatus() {
  * 적중 조합 추출은 WinningCombos에서 winningComboPayouts로 수행.
  */
 export function useComboDividends(rcDate: number, meet: number, rcNo: number, gates: number[]) {
-  return useQuery({
+  return useQuery(comboDividendsQuery(rcDate, meet, rcNo, gates));
+}
+
+/**
+ * useComboDividends의 쿼리 설정. 대시보드 경마장 결산이 useQueries로 같은 키를 써서
+ * 카드가 이미 받은 캐시를 재사용한다(추가 조회 0).
+ */
+export function comboDividendsQuery(rcDate: number, meet: number, rcNo: number, gates: number[]) {
+  return {
     queryKey: ['combo-dividends', rcDate, meet, rcNo, gates.slice().sort((a, b) => a - b).join(',')],
     queryFn: async (): Promise<ComboDividend[]> => {
       const { data, error } = await supabase
@@ -1395,7 +1403,7 @@ export function useComboDividends(rcDate: number, meet: number, rcNo: number, ga
     },
     enabled: !!rcDate && !!meet && !!rcNo && gates.length >= 2,
     staleTime: 10 * 60 * 1000,
-  });
+  };
 }
 
 async function fetchAllPaged<T>(
