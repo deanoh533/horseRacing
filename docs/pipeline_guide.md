@@ -210,6 +210,19 @@ holdout에서:
 
 다분기 버전: `npm run backtest:box:quarters` (5분기 연속 → 3/5 이상 양수 = 채택 기준)
 
+### probe_box_segments.ts (`npm run probe:box-seg`)
+
+**라이브 예측 그대로** 4두 박스(복승 6·삼복승 4조합)를 샀을 때, 경주를 **인기 1위 배당 강약**(≤1.8 / 보통 / 3.0+)과
+**모델 1순위 우승확률**(<0.246 / 중간 / ≥0.338)으로 나눈 구간별 회수율. 미러만(DB·KRA 0회), 조합배당은 2026-07-31~ 수집분만.
+
+```bash
+npm run probe:box-seg -- --from 20260731 --to 20261031   # 탐색 구간 재현 (판정 아님)
+npm run probe:box-seg                                     # 사전등록 판정 2026-11~12 (2027-01-01 전 실행 거부)
+```
+
+- 예측은 **경주일 전날(KST)까지 생성된 것만** — 사후 재생성 예측(일부 있음)은 결과를 봤을 수 있어 제외.
+- 구간 경계·판정(H1·H2)은 `src/engine/eval/boxSegments.ts`에 고정. 스펙 `docs/superpowers/specs/2026-10-29-box-segment-prereg.md`.
+
 ### backtest_box_size.ts (`npm run backtest:box:size`)
 
 **질문이 다르다.** box/box:quarters는 "이 신호를 넣으면 나아지나"(피처 판정)를 묻고,
