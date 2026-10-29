@@ -38,9 +38,14 @@ const beatsAll = (a: number | null, others: Array<number | null>): boolean =>
  * H2(모델): 중간 확신 구간 회수율 > 전체 · 높음.
  */
 export function judgeBoxSegments(q: { fav: Record<FavSeg, SegTally>; conf: Record<ConfSeg, SegTally> }) {
-  const overallFav = pooled(Object.values(q.fav));
+  const { h1, overall: overallFav } = judgeFavH1(q.fav);
   const overallConf = pooled(Object.values(q.conf));
-  const h1 = beatsAll(roi(q.fav.normal), [overallFav, roi(q.fav.strong), roi(q.fav.open)]);
   const h2 = beatsAll(roi(q.conf.mid), [overallConf, roi(q.conf.high)]);
   return { h1, h2, overallFav, overallConf };
+}
+
+/** H1만 — 스펙 §7 과거 데이터 확인(모델 확신 구간 없이 인기마 강약만 있을 때). */
+export function judgeFavH1(fav: Record<FavSeg, SegTally>) {
+  const overall = pooled(Object.values(fav));
+  return { h1: beatsAll(roi(fav.normal), [overall, roi(fav.strong), roi(fav.open)]), overall };
 }

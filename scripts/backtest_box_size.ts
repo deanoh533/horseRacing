@@ -18,6 +18,9 @@
  *     --matrix data/training_matrix_2022.jsonl \
  *     --div data/quinella_dividends.jsonl \
  *     --from 20250101 --to 20260510
+ *
+ *   --by-fav : 상위 4두 박스를 인기 1위 확정 단승 배당 구간(≤1.8 / 보통 / ≥3.0)별로 나눠 회수율·H1 판정.
+ *              스펙 docs/superpowers/specs/2026-10-29-box-segment-prereg.md §7.
  */
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
@@ -27,6 +30,7 @@ import { buildSchema, toVector } from '../src/engine/features/alignFeatures.js';
 import { pairKey } from '../src/engine/analysis/comboBacktest.js';
 import { settleBoxN, type BoxHorse } from '../src/engine/analysis/boxBacktest.js';
 import type { Feature } from '../src/engine/features/types.js';
+import { favSegment, judgeFavH1, BOX_SEG_RULE, type FavSeg, type SegTally } from '../src/engine/eval/boxSegments.js';
 
 interface Row {
   race_date: number; meet: number; rc_no: number; hr_name: string;
@@ -84,6 +88,12 @@ async function main() {
   const divPath = arg('--div', 'data/quinella_dividends.jsonl');
   const from = Number(arg('--from', '20250101'));
   const to = Number(arg('--to', '20260510'));
+  const byFav = args.includes('--by-fav');
+  const FAV_N = 4; // §7: 상위 4두 박스만
+  const FAVS: FavSeg[] = ['strong', 'normal', 'open'];
+  const emptySeg = (): SegTally => ({ races: 0, hits: 0, cost: 0, payout: 0 });
+  const favTotal = Object.fromEntries(FAVS.map((s) => [s, emptySeg()])) as Record<FavSeg, SegTally>;
+  const favPerQuarter: { label: string; segs: Record<FavSeg, SegTally> }[] = [];
 
   console.log('\n=== 복승 박스 두수 스윕 (walk-forward) ===');
   const all = loadJsonl<Row>(matrixPath);
@@ -141,6 +151,7 @@ async function main() {
     }
 
     const accs: Record<number, Acc> = Object.fromEntries(BOX_SIZES.map((n) => [n, newAcc()]));
+    const favQ = Object.fromEntries(FAVS.map((s) => [s, emptySeg()])) as Record<FavSeg, SegTally>;
     for (const [k, rows] of byRace) {
       const odds = comboByRace.get(k);
       if (!odds || odds.size === 0) continue; // 배당 없는 경주는 ROI 판정 불가 → 제외
@@ -158,7 +169,23 @@ async function main() {
         a.races++;
         if (res.hit) a.hits++;
         if (res.profit != null) { a.profit += res.profit; a.cost += (Math.min(n, horses.length) * (Math.min(n, horses.length) - 1)) / 2; a.priced++; }
+        // §7: 상위 4두 박스를 인기 1위(최저 확정 단승) 구간별로 (배당 확정분만, 조합 1건 = 1단위)
+        if (byFav && n === FAV_N && res.profit != null) {
+          const favOdds = Math.min(...rows.map((r) => r.win_odds ?? Infinity).filter((o) => o > 0));
+          if (Number.isFinite(favOdds)) {
+            const s = favQ[favSegment(favOdds)];
+            const cost = (Math.min(n, horses.length) * (Math.min(n, horses.length) - 1)) / 2;
+            s.races++; if (res.hit) s.hits++; s.cost += cost; s.payout += res.profit + cost;
+          }
+        }
       }
+    }
+    if (byFav) {
+      for (const s of FAVS) {
+        const q = favQ[s], t = favTotal[s];
+        t.races += q.races; t.hits += q.hits; t.cost += q.cost; t.payout += q.payout;
+      }
+      favPerQuarter.push({ label: qLabel(qs), segs: favQ });
     }
 
     for (const n of BOX_SIZES) {
@@ -184,6 +211,27 @@ async function main() {
       return (Number.isNaN(roi) ? '-' : (roi >= 0 ? '+' : '') + roi.toFixed(0) + '%').padStart(8);
     }).join(' |');
     console.log(`상위${n} |${cells}`);
+  }
+
+  if (byFav) {
+    const [lo, hi] = BOX_SEG_RULE.favCuts;
+    const LABEL: Record<FavSeg, string> = { strong: `강한 인기마 ≤${lo}`, normal: '보통', open: `혼전 ≥${hi}` };
+    const rr = (t: SegTally) => (t.cost ? `${((t.payout / t.cost) * 100).toFixed(1)}%` : '-');
+    console.log(`\n[§7 인기 1위 배당 구간별 — 상위 ${FAV_N}두 복승 박스]  구간 | 경주 | 적중률 | 회수율`);
+    for (const s of FAVS) {
+      const t = favTotal[s];
+      console.log(`  ${LABEL[s].padEnd(14)} ${String(t.races).padStart(5)} | ${(t.races ? (t.hits / t.races) * 100 : 0).toFixed(1).padStart(5)}% | ${rr(t).padStart(7)}`);
+    }
+    console.log(`분기별 회수율  ${FAVS.map((s) => LABEL[s]).join(' / ')}`);
+    let normalBest = 0;
+    for (const q of favPerQuarter) {
+      const v = FAVS.map((s) => (q.segs[s].cost ? q.segs[s].payout / q.segs[s].cost : -1));
+      if (v[1]! > v[0]! && v[1]! > v[2]!) normalBest++;
+      console.log(`  ${q.label}: ${FAVS.map((s) => `${rr(q.segs[s])}(${q.segs[s].races})`).join(' / ')}`);
+    }
+    const j = judgeFavH1(favTotal);
+    console.log(`전체 회수율 ${j.overall == null ? '-' : (j.overall * 100).toFixed(1) + '%'} · 보통이 1위인 분기 ${normalBest}/${favPerQuarter.length} (참고)`);
+    console.log(`[§7 판정] H1 보통 구간 > 전체·강함·혼전: ${j.h1 ? '✅ 통과' : '❌ 기각'}`);
   }
 
   console.log(`\n환급률 기준선: 복승 약 -20%. 이보다 나쁘면 "아무 조합이나 사는 것보다 못함".`);

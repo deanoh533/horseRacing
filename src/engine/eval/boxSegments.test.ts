@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { favSegment, confSegment, judgeBoxSegments, BOX_SEG_RULE, type SegTally } from './boxSegments.js';
+import { favSegment, confSegment, judgeBoxSegments, judgeFavH1, BOX_SEG_RULE, type SegTally } from './boxSegments.js';
 
 const t = (cost: number, payout: number): SegTally => ({ races: cost / 600, hits: 0, cost, payout });
 
@@ -48,5 +48,13 @@ describe('judgeBoxSegments (복승 기준 판정)', () => {
       conf: { low: t(600, 500), mid: t(600, 550), high: t(600, 380) },
     });
     expect(j.h1).toBe(false);
+  });
+});
+
+describe('judgeFavH1 (§7 과거 데이터 — H1만)', () => {
+  it('judgeBoxSegments의 h1과 같은 판정', () => {
+    const fav = { strong: t(600, 400), normal: t(600, 540), open: t(600, 420) };
+    expect(judgeFavH1(fav)).toEqual({ h1: true, overall: (400 + 540 + 420) / 1800 });
+    expect(judgeFavH1({ ...fav, normal: t(600, 410) }).h1).toBe(false);
   });
 });
